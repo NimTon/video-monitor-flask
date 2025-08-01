@@ -328,7 +328,7 @@ def dispatch_alert_multi_frames(stream_id, fence_result, frames):
         return  # 不触发报警，结束函数
 
     # 保存或显示报警图片
-    image_url = save_key_frames(frames, base_url)
+    image_url = save_key_frames(frames, base_url=base_url)
     image_url_text = ', '.join(image_url)
 
     # 存入message.json
