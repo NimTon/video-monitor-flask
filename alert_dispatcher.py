@@ -84,10 +84,10 @@ def save_key_frames(frames, image_root='./images', base_url='x.x.x.x:5000'):
     return urls
 
 
-# 在报警分发时，给frame加上绿色围栏标记
+# 在报警分发时，给frame加上红色围栏标记
 def draw_fence_on_frame(frame, fence_points):
     """
-    在frame上绘制绿色围栏（点和连线）
+    在frame上绘制红色围栏（点和连线）
     fence_points: [(x1, y1), (x2, y2), ...] 电子围栏顶点像素坐标列表
     """
     if not fence_points or len(fence_points) < 3:
@@ -96,12 +96,12 @@ def draw_fence_on_frame(frame, fence_points):
     # 转成numpy数组方便绘制
     pts = np.array(fence_points, np.int32).reshape((-1, 1, 2))
 
-    # 绘制多边形轮廓，绿色，线宽2
-    cv2.polylines(frame, [pts], isClosed=True, color=(0, 255, 0), thickness=2)
+    # 绘制多边形轮廓，红色，线宽2
+    cv2.polylines(frame, [pts], isClosed=True, color=(0, 0, 255), thickness=2)
 
-    # 绘制顶点为绿色小圆点
+    # 绘制顶点为红色色小圆点
     for (x, y) in fence_points:
-        cv2.circle(frame, (x, y), radius=4, color=(0, 255, 0), thickness=-1)
+        cv2.circle(frame, (x, y), radius=4, color=(0, 0, 255), thickness=-1)
 
     return frame
 
@@ -307,14 +307,14 @@ def dispatch_alert_multi_frames(stream_id, fence_result, frames):
     ratio = fence_result["change_ratio"]  # 变化比例
     fence_id = fence_result["fence_id"]  # 围栏ID
 
-    # 在帧上画出该围栏的绿色边界和点
+    # 在帧上画出该围栏的红色边界和点
     for frame in frames:
         points = fence_result.get("fence_points", [])
         if points:
             pts = np.array(points, np.int32).reshape((-1, 1, 2))
-            cv2.polylines(frame, [pts], isClosed=True, color=(0, 255, 0), thickness=2)
+            cv2.polylines(frame, [pts], isClosed=True, color=(0, 0, 255), thickness=2)
             for pt in points:
-                cv2.circle(frame, pt, 5, (0, 255, 0), -1)
+                cv2.circle(frame, pt, 5, (0, 0, 255), -1)
 
     # 调用AI识别
     base64_images = [cv2_frame_to_base64(f) for f in frames]  # frames_to_return 是 BGR numpy数组列表
