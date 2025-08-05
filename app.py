@@ -12,6 +12,7 @@ from storage import StorageManager, RecipientsManager, AlertStorageManager, Sour
 from alert_dispatcher import dispatch_alert_multi_frames
 import requests
 import os
+from datetime import datetime
 
 # 设置前端静态文件目录
 FRONTEND_DIST = os.path.join(os.path.dirname(__file__), "frontend", "dist")
@@ -701,7 +702,8 @@ def get_messages_by_stream(stream_uid):
     """获取绑定到指定视频流的所有告警信息"""
     try:
         messages = message_manager.get_messages_by_stream(stream_uid)
-        return jsonify(messages), 200
+        messages_sorted = sorted(messages, key=lambda x: x.get("timestamp", ""), reverse=True)
+        return jsonify(messages_sorted), 200
     except Exception as e:
         return jsonify({"message": str(e)}), 500
 
