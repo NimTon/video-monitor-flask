@@ -482,7 +482,7 @@ class MessageManager:
         """添加新告警信息"""
         data = self.load_all()  # 加载现有数据
         message_uid = str(uuid.uuid4())  # 生成唯一ID
-        timestamp = datetime.datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
+        timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
         # 创建新告警信息对象
         new_message = {
