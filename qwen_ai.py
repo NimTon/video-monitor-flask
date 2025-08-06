@@ -34,7 +34,7 @@ def extract_json_dict_from_ai_reply(text):
 # 使用OpenAI客户端调用通义千问API
 def call_qwen_via_client(img_list):
     client = OpenAI(
-        api_key="sk-7854161b0a9543718084fffe07be6a29",  # 建议使用环境变量管理
+        api_key="sk-f3ec150157ec41baaa516b15d1feaeae",  # 建议使用环境变量管理
         base_url="https://dashscope.aliyuncs.com/compatible-mode/v1"
     )
 
