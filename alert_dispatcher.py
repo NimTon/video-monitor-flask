@@ -28,7 +28,7 @@ from storage import MessageManager
 
 message_manager = MessageManager()
 
-base_url = '10.30.3.178:5000'
+base_url = 'http://10.30.3.178:5000'
 
 def save_key_frames(frames, image_root='./images', base_url='x.x.x.x:5000'):
     """
