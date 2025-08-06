@@ -333,8 +333,8 @@ def dispatch_alert_multi_frames(stream_id, fence_result, frames):
 
     # 存入message.json
     message_manager.add_message(stream_uid=stream_id, fence_uid=fence_id, stream_name=stream_name,
-                                change_ratio=f"{ratio:.2f}", ai_report=str(ai_report), image_before_url=image_url[0].replace(base_url, ""),
-                                image_after_url=image_url[1].replace(base_url, ""))
+                                change_ratio=f"{ratio:.2f}", ai_report=str(ai_report), image_before_url=image_url[0],
+                                image_after_url=image_url[1])
 
     # 模板变量
     template_vars = {
