@@ -3,6 +3,7 @@ import json  # 用于JSON数据的读写操作
 import threading  # 提供线程锁功能，确保线程安全
 import os  # 提供操作系统相关功能，如文件路径检查
 import uuid  # 用于生成唯一标识符
+import datetime
 
 
 class StorageManager:
@@ -481,7 +482,7 @@ class MessageManager:
         """添加新告警信息"""
         data = self.load_all()  # 加载现有数据
         message_uid = str(uuid.uuid4())  # 生成唯一ID
-        timestamp = "2025-07-30T12:00:00"  # 当前时间戳可以用 `datetime` 模块动态生成
+        timestamp = datetime.datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
 
         # 创建新告警信息对象
         new_message = {
