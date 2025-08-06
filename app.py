@@ -707,8 +707,12 @@ def get_messages_by_stream(stream_uid):
     """获取绑定到指定视频流的所有告警信息"""
     try:
         messages = message_manager.get_messages_by_stream(stream_uid)
-        messages_sorted = sorted(messages, key=lambda x: x.get("timestamp", ""), reverse=True)
-        return jsonify(messages_sorted), 200
+        # 按 timestamp 倒序排序
+        messages.sort(
+            key=lambda x: datetime.strptime(x["timestamp"], "%Y-%m-%dT%H:%M:%S"),
+            reverse=True
+        )
+        return jsonify(messages), 200
     except Exception as e:
         return jsonify({"message": str(e)}), 500
 
