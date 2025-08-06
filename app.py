@@ -695,7 +695,7 @@ def list_messages():
         messages = message_manager.list_messages()
         # 按 timestamp 倒序排序
         messages.sort(
-            key=lambda x: datetime.strptime(x["timestamp"], "%Y-%m-%dT%H:%M:%S"),
+            key=lambda x: datetime.strptime(x["timestamp"], "%Y-%m-%d %H:%M:%S"),
             reverse=True
         )
         return jsonify(messages), 200
@@ -709,7 +709,7 @@ def get_messages_by_stream(stream_uid):
         messages = message_manager.get_messages_by_stream(stream_uid)
         # 按 timestamp 倒序排序
         messages.sort(
-            key=lambda x: datetime.strptime(x["timestamp"], "%Y-%m-%dT%H:%M:%S"),
+            key=lambda x: datetime.strptime(x["timestamp"], "%Y-%m-%d %H:%M:%S"),
             reverse=True
         )
         return jsonify(messages), 200
