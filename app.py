@@ -690,9 +690,14 @@ def delete_message(message_uid):
 
 @app.route('/api/messages', methods=['GET'])
 def list_messages():
-    """列出所有告警信息"""
+    """列出所有告警信息（按时间倒序）"""
     try:
         messages = message_manager.list_messages()
+        # 按 timestamp 倒序排序
+        messages.sort(
+            key=lambda x: datetime.strptime(x["timestamp"], "%Y-%m-%dT%H:%M:%S"),
+            reverse=True
+        )
         return jsonify(messages), 200
     except Exception as e:
         return jsonify({"message": str(e)}), 500
