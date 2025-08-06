@@ -567,8 +567,8 @@ if __name__ == '__main__':
     fence_id = '456'
     stream_name = '123'
     ratio = 0.552458968
-    ai_report = '123'
+    ai_report = {'123'}
     image_url = ['123', '456']
     message_manager.add_message(stream_uid=stream_id, fence_uid=fence_id, stream_name=stream_name,
-                                change_ratio=f"{ratio:.2f}", ai_report=ai_report, image_before_url=image_url[0],
+                                change_ratio=f"{ratio:.2f}", ai_report=str(ai_report), image_before_url=image_url[0],
                                 image_after_url=image_url[1])
