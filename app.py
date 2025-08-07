@@ -555,9 +555,10 @@ def add_source_stream():
         url = request.json.get('url')  # 获取视频流URL
         stream_id = request.json.get('stream_id')  # 获取视频流ID
         uid = request.json.get('uid')  # 获取视频流UID
+        if stream_id in [stream_data['stream_id'] for stream_data in source_manager.list_source_streams()]:
+            return jsonify({"message": "stream_id 已存在"}), 400
         if not url:
             return jsonify({"message": "stream_url is required"}), 400
-
         if not stream_id:
             return jsonify({"message": "stream_id is required"}), 400
         if uid == '':
