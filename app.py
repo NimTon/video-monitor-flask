@@ -73,11 +73,11 @@ def create_stream():
     stream_url = data['stream_url']
     # 可选获取视频流名称
     name = data.get('name')
-    # 检查是否已存在相同URL的视频流
-    for stream in storage.list_streams():
-        if stream['stream_url'] == stream_url:
-            # 返回错误响应
-            return jsonify({"message": "视频流已存在"}), 400
+    # 检查是否已存在相同的视频流
+    if name in [stream_data['name'] for stream_data in storage.list_streams()]:
+        return jsonify({"message": "流名称 已存在"}), 400
+    if stream_url in [stream_data['stream_url'] for stream_data in storage.list_streams()]:
+        return jsonify({"message": "流url 已存在"}), 400
 
     # 添加视频流到存储
     stream_uid = storage.add_stream(stream_url, name)
@@ -556,7 +556,9 @@ def add_source_stream():
         stream_id = request.json.get('stream_id')  # 获取视频流ID
         uid = request.json.get('uid')  # 获取视频流UID
         if stream_id in [stream_data['stream_id'] for stream_data in source_manager.list_source_streams()]:
-            return jsonify({"message": "stream_id 已存在"}), 400
+            return jsonify({"message": "流id 已存在"}), 400
+        if url in [stream_data['stream_url'] for stream_data in source_manager.list_source_streams()]:
+            return jsonify({"message": "流url 已存在"}), 400
         if not url:
             return jsonify({"message": "stream_url is required"}), 400
         if not stream_id:
