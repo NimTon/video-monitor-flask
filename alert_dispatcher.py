@@ -1,5 +1,6 @@
 # 导入第三方库和模块
-from qwen_ai import call_qwen_via_client  # 导入Qwen AI的私有API调用模块
+from ai.qwen_ai import call_qwen_via_client  # 导入Qwen AI的私有API调用模块
+from ai.local_ai import call_local_ai_model
 import requests  # HTTP请求库
 import json  # JSON处理库
 import hmac  # HMAC加密库
@@ -66,6 +67,7 @@ def save_key_frames(frames, image_root='./images', base_url='x.x.x.x:5000'):
 
     # 保存第一帧和最后一帧
     urls = []
+    paths = []
     for i, frame in enumerate([frames[0], frames[-1]]):
         filename = f'{i + 1}.jpg'
         filepath = os.path.join(save_dir, filename)
@@ -81,8 +83,9 @@ def save_key_frames(frames, image_root='./images', base_url='x.x.x.x:5000'):
         # 构造 URL（前提是 Flask 提供了 /images/<folder>/<filename> 路由）
         file_url = f'{base_url}/images/{now_time_str}/{filename}'
         urls.append(file_url)
+        paths.append(filepath)
 
-    return urls
+    return urls, paths
 
 
 # 在报警分发时，给frame加上红色围栏标记
@@ -317,9 +320,14 @@ def dispatch_alert_multi_frames(stream_id, fence_result, frames):
             for pt in points:
                 cv2.circle(frame, pt, 5, (0, 0, 255), -1)
 
+    # 保存或显示报警图片
+    image_urls, image_paths = save_key_frames(frames, base_url=base_url)
+    image_urls_text = ', '.join(image_urls)
+
     # 调用AI识别
-    base64_images = [cv2_frame_to_base64(f) for f in frames]  # frames_to_return 是 BGR numpy数组列表
-    ai_report = call_qwen_via_client(base64_images)
+    # base64_images = [cv2_frame_to_base64(f) for f in frames]  # frames_to_return 是 BGR numpy数组列表
+    # ai_report = call_qwen_via_client(base64_images)  # 通义千问大模型
+    ai_report = call_local_ai_model(image_paths)  # 本地大模型
 
     if not ai_report:
         print('AI识别失效')
@@ -329,14 +337,11 @@ def dispatch_alert_multi_frames(stream_id, fence_result, frames):
         del frames
         return  # 不触发报警，结束函数
 
-    # 保存或显示报警图片
-    image_url = save_key_frames(frames, base_url=base_url)
-    image_url_text = ', '.join(image_url)
 
     # 存入message.json
     message_manager.add_message(stream_uid=stream_id, fence_uid=fence_id, stream_name=stream_name,
-                                change_ratio=f"{ratio:.2f}", ai_report=str(ai_report), image_before_url=image_url[0],
-                                image_after_url=image_url[1])
+                                change_ratio=f"{ratio:.2f}", ai_report=str(ai_report), image_before_url=image_urls[0],
+                                image_after_url=image_urls[1])
 
     # 模板变量
     template_vars = {
@@ -345,7 +350,7 @@ def dispatch_alert_multi_frames(stream_id, fence_result, frames):
         "timestamp": timestamp,
         "change_ratio": f"{ratio:.2f}",
         "ai_report": ai_report,
-        "image_url": image_url_text
+        "image_url": image_urls_text
     }
 
     template = templates[0]  # 获取第一个模板
