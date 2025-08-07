@@ -322,14 +322,11 @@ def dispatch_alert_multi_frames(stream_id, fence_result, frames):
     ai_report = call_qwen_via_client(base64_images)
 
     # 判断是否需要报警
-    try:
-        if ai_report['status'] == "正常":
-            # 如果正常，不触发报警，释放帧内存
-            print('一切正常')
-            del frames
-            return  # 不触发报警，结束函数
-    except:
-        print("AI返回结果格式错误：", ai_report)
+    if ai_report and ai_report['status'] == "正常":
+        # 如果正常，不触发报警，释放帧内存
+        print('一切正常')
+        del frames
+        return  # 不触发报警，结束函数
 
     # 保存或显示报警图片
     image_url = save_key_frames(frames, base_url=base_url)
