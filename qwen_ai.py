@@ -86,7 +86,7 @@ def call_qwen_via_client(img_list):
             "image_url": {"url": f"data:image/jpeg;base64,{img_b64}"}
         })
 
-
+    try:
         # 调用通义千问接口
         completion = client.chat.completions.create(
             model="qwen-vl-max-latest",
@@ -100,14 +100,13 @@ def call_qwen_via_client(img_list):
         )
         # 去除代码块标记
         # print()
-        try:
-            json_str = extract_json_dict_from_ai_reply(completion.choices[0].message.content)
-            # print(json_str, type(json_str))
-            return json_str
 
-        except Exception as e:
-            print("[调用失败] 千问接口返回：", e)
-            return None
+        json_str = extract_json_dict_from_ai_reply(completion.choices[0].message.content)
+        # print(json_str, type(json_str))
+        return json_str
+    except Exception as e:
+        print("[调用失败] 千问接口返回：", e)
+        return None
 
 
 def encode_image_to_base64(img):
