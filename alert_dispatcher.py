@@ -321,8 +321,13 @@ def dispatch_alert_multi_frames(stream_id, fence_result, frames):
     base64_images = [cv2_frame_to_base64(f) for f in frames]  # frames_to_return 是 BGR numpy数组列表
     ai_report = call_qwen_via_client(base64_images)
 
+    if not ai_report:
+        print('AI识别失效')
+        del frames
+        return  # 不触发报警，结束函数
+
     # 判断是否需要报警
-    if ai_report and ai_report['status'] == "正常":
+    if ai_report['status'] == "正常":
         # 如果正常，不触发报警，释放帧内存
         print('一切正常')
         del frames
