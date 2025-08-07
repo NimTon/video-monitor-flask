@@ -30,6 +30,7 @@ message_manager = MessageManager()
 
 base_url = 'http://10.30.3.178:5000'
 
+
 def save_key_frames(frames, image_root='./images', base_url='x.x.x.x:5000'):
     """
     保存第一帧和最后一帧图像，并删除 ./images 下的旧文件夹（只保留当前时间戳文件夹）
@@ -321,11 +322,14 @@ def dispatch_alert_multi_frames(stream_id, fence_result, frames):
     ai_report = call_qwen_via_client(base64_images)
 
     # 判断是否需要报警
-    if ai_report['status'] == "正常":
-        # 如果正常，不触发报警，释放帧内存
-        print('一切正常')
-        del frames
-        return  # 不触发报警，结束函数
+    try:
+        if ai_report['status'] == "正常":
+            # 如果正常，不触发报警，释放帧内存
+            print('一切正常')
+            del frames
+            return  # 不触发报警，结束函数
+    except:
+        print("AI返回结果格式错误：", ai_report)
 
     # 保存或显示报警图片
     image_url = save_key_frames(frames, base_url=base_url)
