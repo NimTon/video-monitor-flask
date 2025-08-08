@@ -1,6 +1,7 @@
 import requests
 import os
 import json
+from qwen_ai import extract_json_dict_from_ai_reply
 
 
 def call_local_ai_model(image_paths):
@@ -78,7 +79,7 @@ def call_local_ai_model(image_paths):
 
         if response.status_code == 200:
             try:
-                return response.json()
+                return extract_json_dict_from_ai_reply(response.json().get('result'))
             except json.JSONDecodeError:
                 print("返回内容不是有效的 JSON：", response.text)
                 return None
