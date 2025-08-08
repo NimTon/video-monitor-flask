@@ -79,7 +79,11 @@ def call_local_ai_model(image_paths):
 
         if response.status_code == 200:
             try:
-                return extract_json_dict_from_ai_reply(response.json().get('result'))
+                text = response.json().get('result')
+                if text:
+                    return extract_json_dict_from_ai_reply(text)
+                else:
+                    print("返回内容不是有效的 JSON：", response.text)
             except json.JSONDecodeError:
                 print("返回内容不是有效的 JSON：", response.text)
                 return None
