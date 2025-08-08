@@ -1,7 +1,7 @@
 import requests
 import os
 import json
-from qwen_ai import extract_json_dict_from_ai_reply
+from ai.qwen_ai import extract_json_dict_from_ai_reply
 
 
 def call_local_ai_model(image_paths):

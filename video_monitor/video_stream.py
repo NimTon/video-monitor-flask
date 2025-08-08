@@ -61,6 +61,7 @@ class VideoStreamThread(threading.Thread):
 
             # 定期检测变化
             if current_time - self.last_compare_time >= self.compare_interval and self.previous_frame is not None:
+                print(f"[{self.stream_id}] 检测开始: 时间 {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(current_time))}")
                 fence_results = []
                 significant_change_detected = False
 
@@ -92,6 +93,7 @@ class VideoStreamThread(threading.Thread):
                     ]
 
                 self.result_callback(self.stream_id, fence_results, frames_to_return)
+                print(f"[{self.stream_id}] 检测结束: 时间 {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time()))}")
 
                 self.last_compare_time = current_time
 
@@ -110,4 +112,5 @@ class VideoStreamThread(threading.Thread):
             cv2.destroyAllWindows()
 
     def stop(self):
+        print(f"[{self.stream_id}] 收到停止信号: 时间 {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time()))}")
         self.running.clear()

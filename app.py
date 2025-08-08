@@ -34,6 +34,7 @@ app.video_threads = {}
 # ZLMediaKit服务器配置
 ZLMediaKit_secret = 'RMys9486msj1NraRsncf0k0lpAMmLaHP'  # 虚拟机
 #ZLMediaKit_secret = 'k9mlFsMF38CGAUVSdIzpiPKonvgxBT9v'  # 公司服务器
+# ZLMediaKit_url = 'http://172.26.18.19/index/api'  # 测试虚拟机
 ZLMediaKit_url = 'http://172.27.109.14/index/api'  # 虚拟机
 #ZLMediaKit_url = 'http://10.30.4.50:180/index/api'  # 公司服务器
 # 图片存放路径
@@ -201,7 +202,14 @@ def start_stream(stream_id):
     if not stream:
         # 返回未找到错误
         return jsonify({"message": "未找到对应的视频流"}), 404
-
+    fences = storage.list_fences(stream_id)
+    if not fences:
+        # 返回未找到错误
+        return jsonify({"message": "未绑定电子围栏"}), 404
+    recipients = recipient_mgr.get_recipients_by_stream_id(stream_id)
+    if not recipients:
+        # 返回未找到错误
+        return jsonify({"message": "未绑定联系人"}), 404
     # 检查是否已经在运行（幂等性检查）
     if stream_id in app.video_threads and app.video_threads[stream_id].is_alive():
         return jsonify({"message": "已在运行"}), 400
@@ -248,7 +256,7 @@ def start_stream(stream_id):
     # 定义结果回调函数
     def result_callback(sid, results, frames):
         for r in results:
-            print(stream_id, r, len(frames))
+            print(name, r, len(frames))
             if r.get("changed"):
                 threading.Thread(
                     target=dispatch_alert_multi_frames,
@@ -555,10 +563,11 @@ def add_source_stream():
         url = request.json.get('url')  # 获取视频流URL
         stream_id = request.json.get('stream_id')  # 获取视频流ID
         uid = request.json.get('uid')  # 获取视频流UID
-        if stream_id in [stream_data['stream_id'] for stream_data in source_manager.list_source_streams()]:
-            return jsonify({"message": "流id 已存在"}), 400
-        if url in [stream_data['stream_url'] for stream_data in source_manager.list_source_streams()]:
-            return jsonify({"message": "流url 已存在"}), 400
+        if not uid:
+            if stream_id in [stream_data['stream_id'] for stream_data in source_manager.list_source_streams()]:
+                return jsonify({"message": "流id 已存在"}), 400
+            if url in [stream_data['stream_url'] for stream_data in source_manager.list_source_streams()]:
+                return jsonify({"message": "流url 已存在"}), 400
         if not url:
             return jsonify({"message": "stream_url is required"}), 400
         if not stream_id:
