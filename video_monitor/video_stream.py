@@ -31,9 +31,15 @@ class VideoStreamThread(threading.Thread):
             detector.set_fence(fence)
 
     def run(self):
-        cap = cv2.VideoCapture(self.stream_url)
-        if not cap.isOpened():
-            print(f"[{self.stream_id}] 打开视频流失败")
+        def open_stream():
+            cap = cv2.VideoCapture(self.stream_url)
+            if not cap.isOpened():
+                print(f"[{self.stream_id}] 打开视频流失败")
+                return None
+            return cap
+
+        cap = open_stream()
+        if cap is None:
             return
 
         fps = cap.get(cv2.CAP_PROP_FPS)
@@ -41,66 +47,75 @@ class VideoStreamThread(threading.Thread):
             fps = 30
         frame_interval = 1 / fps
 
-        self.max_buffer_size = int(fps * self.buffer_duration)  # 最大缓存帧数
+        self.max_buffer_size = int(fps * self.buffer_duration)
         self.last_compare_time = time.time()
+        last_frame_time = time.time()  # 记录最后收到帧的时间
 
         while self.running.is_set():
             ret, frame = cap.read()
-            if not ret:
-                break
 
-            current_time = time.time()
-            current_frame = frame.copy()
+            if ret:
+                last_frame_time = time.time()  # 收到新帧就更新时间
+                current_time = time.time()
+                current_frame = frame.copy()
 
-            # 每一帧都加入缓存（不再限制采样频率）
-            self.frame_buffer.append((current_time, current_frame))
-            # print(len(self.frame_buffer))
-            # 保留最新的 max_buffer_size 帧
-            if len(self.frame_buffer) > self.max_buffer_size:
-                self.frame_buffer = self.frame_buffer[-self.max_buffer_size:]
+                # 缓存帧
+                self.frame_buffer.append((current_time, current_frame))
+                if len(self.frame_buffer) > self.max_buffer_size:
+                    self.frame_buffer = self.frame_buffer[-self.max_buffer_size:]
 
-            # 定期检测变化
-            if current_time - self.last_compare_time >= self.compare_interval and self.previous_frame is not None:
-                print(f"[{self.stream_id}] 检测开始: 时间 {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(current_time))}")
-                fence_results = []
-                significant_change_detected = False
+                # 定期检测
+                if current_time - self.last_compare_time >= self.compare_interval and self.previous_frame is not None:
+                    print(f"[{self.stream_id}] 检测开始: {time.strftime('%Y-%m-%d %H:%M:%S')}")
+                    fence_results = []
+                    significant_change_detected = False
 
-                for idx, detector in enumerate(self.detectors):
-                    changed, area = detector.detect_change(frame, self.change_threshold, self.debug)
-                    fence_area = detector.fence_area
-                    change_ratio = area / (fence_area + 1e-5)
+                    for idx, detector in enumerate(self.detectors):
+                        changed, area = detector.detect_change(frame, self.change_threshold, self.debug)
+                        fence_area = detector.fence_area
+                        change_ratio = area / (fence_area + 1e-5)
 
-                    if changed:
-                        significant_change_detected = True
+                        if changed:
+                            significant_change_detected = True
 
-                    fence_results.append({
-                        'fence_id': idx,
-                        'changed': changed,
-                        'area': area,
-                        'change_ratio': change_ratio,
-                        'fence_points': detector.points
-                    })
+                        fence_results.append({
+                            'fence_id': idx,
+                            'changed': changed,
+                            'area': area,
+                            'change_ratio': change_ratio,
+                            'fence_points': detector.points
+                        })
 
-                # 帧抽取逻辑
-                frames_to_return = []
-                if significant_change_detected and len(self.frame_buffer) > 0:
-                    frame_count = min(int(self.buffer_duration * self.buffer_fps), len(self.frame_buffer))
-                    step = len(self.frame_buffer) / frame_count if frame_count > 0 else 1
-                    print(step, len(self.frame_buffer))
-                    frames_to_return = [
-                        self.frame_buffer[int(i * step)][1]
-                        for i in range(frame_count)
-                    ]
+                    frames_to_return = []
+                    if significant_change_detected and len(self.frame_buffer) > 0:
+                        frame_count = min(int(self.buffer_duration * self.buffer_fps), len(self.frame_buffer))
+                        step = len(self.frame_buffer) / frame_count if frame_count > 0 else 1
+                        frames_to_return = [self.frame_buffer[int(i * step)][1] for i in range(frame_count)]
 
-                self.result_callback(self.stream_id, fence_results, frames_to_return)
-                print(f"[{self.stream_id}] 检测结束: 时间 {time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(time.time()))}")
+                    self.result_callback(self.stream_id, fence_results, frames_to_return)
+                    print(f"[{self.stream_id}] 检测结束: {time.strftime('%Y-%m-%d %H:%M:%S')}")
+                    self.last_compare_time = current_time
 
-                self.last_compare_time = current_time
+                self.previous_frame = current_frame
 
-            self.previous_frame = current_frame
+            else:
+                # 如果超时没有帧，重新连接
+                if time.time() - last_frame_time > 30:
+                    print(f"[{self.stream_id}] 超过30秒未收到帧，正在重启连接...")
+                    cap.release()
+                    time.sleep(2)
+                    cap = open_stream()
+                    if cap is None:
+                        break
+                    fps = cap.get(cv2.CAP_PROP_FPS)
+                    if fps <= 0:
+                        fps = 30
+                    frame_interval = 1 / fps
+                    last_frame_time = time.time()
+                    continue
 
             if self.debug:
-                cv2.imshow(f"Stream {self.stream_id}", frame)
+                cv2.imshow(f"Stream {self.stream_id}", frame if ret else self.previous_frame)
                 if cv2.waitKey(1) & 0xFF == 27:
                     self.stop()
                     break
