@@ -206,10 +206,6 @@ def start_stream(stream_id):
     if not fences:
         # 返回未找到错误
         return jsonify({"message": "未绑定电子围栏"}), 404
-    recipients = recipient_mgr.get_recipients_by_stream_id(stream_id)
-    if not recipients:
-        # 返回未找到错误
-        return jsonify({"message": "未绑定联系人"}), 404
     # 检查是否已经在运行（幂等性检查）
     if stream_id in app.video_threads and app.video_threads[stream_id].is_alive():
         return jsonify({"message": "已在运行"}), 400
