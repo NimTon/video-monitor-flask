@@ -1,9 +1,6 @@
 # 导入Flask框架及相关模块
-import time
 import threading
 from flask import Flask, request, jsonify, send_from_directory
-# 从video_monitor模块导入create_app函数
-from video_monitor import create_app
 # 从video_monitor.video_stream模块导入VideoStreamThread类
 from video_monitor.video_stream import VideoStreamThread
 # 从storage模块导入三个管理类
@@ -33,12 +30,15 @@ message_manager = MessageManager()
 app.video_threads = {}
 # ZLMediaKit服务器配置
 ZLMediaKit_secret = 'RMys9486msj1NraRsncf0k0lpAMmLaHP'  # 虚拟机
-#ZLMediaKit_secret = 'k9mlFsMF38CGAUVSdIzpiPKonvgxBT9v'  # 公司服务器
+# ZLMediaKit_secret = 'k9mlFsMF38CGAUVSdIzpiPKonvgxBT9v'  # 公司服务器
 # ZLMediaKit_url = 'http://172.26.18.19/index/api'  # 测试虚拟机
 ZLMediaKit_url = 'http://172.27.109.14/index/api'  # 虚拟机
-#ZLMediaKit_url = 'http://10.30.4.50:180/index/api'  # 公司服务器
+# ZLMediaKit_url = 'http://10.30.4.50:180/index/api'  # 公司服务器
 # 图片存放路径
 IMAGE_DIR = os.path.join(os.getcwd(), 'images')  # 绝对路径更安全
+# 视频存放路径
+VIDEO_DIR = os.path.join(os.getcwd(), 'videos')  # 绝对路径更安全
+
 
 # -------- 前端路由 --------
 @app.route('/', defaults={'path': ''})
@@ -57,6 +57,12 @@ def serve_vue(path):
 @app.route('/images/<path:filename>')
 def serve_image(filename):
     return send_from_directory(IMAGE_DIR, filename)
+
+
+# -------- 视频接口 --------
+@app.route('/videos/<path:filename>')
+def serve_video(filename):
+    return send_from_directory(VIDEO_DIR, filename)
 
 
 # -------- 健康接口 --------
@@ -631,6 +637,7 @@ def update_source_stream(stream_id):
     except Exception as e:
         return jsonify({"message": str(e)}), 500
 
+
 # ------- 消息管理接口 -------
 @app.route('/api/messages', methods=['POST'])
 def add_message():
@@ -656,6 +663,7 @@ def add_message():
     except Exception as e:
         return jsonify({"message": str(e)}), 500
 
+
 @app.route('/api/messages/<message_uid>', methods=['GET'])
 def get_message(message_uid):
     """获取单个告警信息详情"""
@@ -666,6 +674,7 @@ def get_message(message_uid):
         return jsonify(message), 200
     except Exception as e:
         return jsonify({"message": str(e)}), 500
+
 
 @app.route('/api/messages/<message_uid>', methods=['PUT'])
 def update_message(message_uid):
@@ -683,6 +692,7 @@ def update_message(message_uid):
     except Exception as e:
         return jsonify({"message": str(e)}), 500
 
+
 @app.route('/api/messages/<message_uid>', methods=['DELETE'])
 def delete_message(message_uid):
     """删除告警信息"""
@@ -695,6 +705,7 @@ def delete_message(message_uid):
 
     except Exception as e:
         return jsonify({"message": str(e)}), 500
+
 
 @app.route('/api/messages', methods=['GET'])
 def list_messages():
@@ -710,6 +721,7 @@ def list_messages():
     except Exception as e:
         return jsonify({"message": str(e)}), 500
 
+
 @app.route('/api/messages/stream/<stream_uid>', methods=['GET'])
 def get_messages_by_stream(stream_uid):
     """获取绑定到指定视频流的所有告警信息"""
@@ -723,6 +735,7 @@ def get_messages_by_stream(stream_uid):
         return jsonify(messages), 200
     except Exception as e:
         return jsonify({"message": str(e)}), 500
+
 
 @app.route('/api/messages/fence/<fence_uid>', methods=['GET'])
 def get_messages_by_fence(fence_uid):

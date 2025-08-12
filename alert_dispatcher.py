@@ -21,113 +21,13 @@ import os  # 操作系统接口
 import urllib  # URL处理
 import urllib.request  # URL请求
 import numpy as np
-from PIL import Image
-import io
-import matplotlib.pyplot as plt
-import shutil
 from storage import MessageManager
+from utils import save_frames_as_video, save_key_frames, md5
 
 message_manager = MessageManager()
 
 base_url = 'http://127.0.0.1:5000'  # 测试ip
 # base_url = 'http://10.30.3.178:5000'
-
-
-
-def save_key_frames(frames, image_root='./images', base_url='x.x.x.x:5000'):
-    """
-    保存第一帧和最后一帧图像，并删除 ./images 下的旧文件夹（只保留当前时间戳文件夹）
-
-    :param frames: 图像帧列表（OpenCV 格式 BGR）
-    :param image_root: 图片保存的根目录
-    :param base_url: 图片的 URL 路径前缀（用于生成浏览器可访问的路径）
-    :return: 返回图片 URL 列表 [url1, url2]
-    """
-    now_time_str = datetime.now().strftime('%Y%m%d_%H%M%S')
-    save_dir = os.path.join(image_root, now_time_str)
-
-    # 当前时间
-    now = datetime.now()
-
-    # 删除超过 7 天的旧文件夹
-    if os.path.exists(image_root):
-        for folder in os.listdir(image_root):
-            folder_path = os.path.join(image_root, folder)
-
-            # 检查是否是目录 + 是否符合时间戳格式
-            if os.path.isdir(folder_path):
-                try:
-                    folder_time = datetime.strptime(folder, '%Y%m%d_%H%M%S')
-                    if now - folder_time > timedelta(days=7):
-                        shutil.rmtree(folder_path)
-                except ValueError:
-                    # 文件夹名不符合时间戳格式，忽略或可选择删除
-                    continue
-
-    # 创建保存目录
-    os.makedirs(save_dir, exist_ok=True)
-
-    # 保存第一帧和最后一帧
-    urls = []
-    paths = []
-    for i, frame in enumerate([frames[0], frames[-1]]):
-        filename = f'{i + 1}.jpg'
-        filepath = os.path.join(save_dir, filename)
-
-        # 转换为 RGB 并保存
-        frame_rgb = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-        plt.imshow(frame_rgb)
-        plt.title(f'Frame {i + 1}')
-        plt.axis('off')
-        plt.savefig(filepath)
-        plt.close()
-
-        # 构造 URL（前提是 Flask 提供了 /images/<folder>/<filename> 路由）
-        file_url = f'{base_url}/images/{now_time_str}/{filename}'
-        urls.append(file_url)
-        paths.append(filepath)
-
-    return urls, paths
-
-
-# 在报警分发时，给frame加上红色围栏标记
-def draw_fence_on_frame(frame, fence_points):
-    """
-    在frame上绘制红色围栏（点和连线）
-    fence_points: [(x1, y1), (x2, y2), ...] 电子围栏顶点像素坐标列表
-    """
-    if not fence_points or len(fence_points) < 3:
-        return frame
-
-    # 转成numpy数组方便绘制
-    pts = np.array(fence_points, np.int32).reshape((-1, 1, 2))
-
-    # 绘制多边形轮廓，红色，线宽2
-    cv2.polylines(frame, [pts], isClosed=True, color=(0, 0, 255), thickness=2)
-
-    # 绘制顶点为红色色小圆点
-    for (x, y) in fence_points:
-        cv2.circle(frame, (x, y), radius=4, color=(0, 0, 255), thickness=-1)
-
-    return frame
-
-
-def cv2_frame_to_base64(frame):
-    # 转成 RGB
-    rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-    pil_img = Image.fromarray(rgb_frame)
-    buffered = io.BytesIO()
-    pil_img.save(buffered, format="JPEG")
-    img_str = base64.b64encode(buffered.getvalue()).decode()
-    return img_str
-
-
-# MD5哈希函数
-def md5(str):
-    import hashlib
-    m = hashlib.md5()  # 创建MD5哈希对象
-    m.update(str.encode("utf8"))  # 更新哈希内容
-    return m.hexdigest()  # 返回16进制哈希值
 
 
 # 初始化存储管理器
@@ -177,19 +77,6 @@ def send_email_alert(message, contact_value, prev_image_path=None, curr_image_pa
         server.quit()  # 退出
     except Exception as e:
         print("❌ 邮件发送失败:", e)  # 打印错误
-
-
-# 保存报警图片函数
-def save_alert_images(stream_id, fence_id, prev_frame, curr_frame, change_ratio):
-    timestamp = int(time.time())  # 获取当前时间戳
-    dir_path = f"alerts/{stream_id}/{timestamp}_{change_ratio:.2f}"  # 创建存储路径
-    os.makedirs(dir_path, exist_ok=True)  # 创建目录
-    prev_path = os.path.join(dir_path, "prev.jpg")  # 前帧图片路径
-    curr_path = os.path.join(dir_path, "curr.jpg")  # 当前帧图片路径
-    cv2.imwrite(prev_path, prev_frame)  # 保存前帧图片
-    cv2.imwrite(curr_path, curr_frame)  # 保存当前帧图片
-    return prev_path, curr_path  # 返回图片路径
-
 
 # 钉钉报警函数
 def send_dingding_alert(message, contact_value, prev_image_path=None, curr_image_path=None):
@@ -326,6 +213,9 @@ def dispatch_alert_multi_frames(stream_id, fence_result, frames):
     image_urls, image_paths = save_key_frames(frames, base_url=base_url)
     image_urls_text = ', '.join(image_urls)
 
+    # 从frame中保存视频
+    video_url, video_path = save_frames_as_video(frames, base_url=base_url)
+
     # 调用AI识别
     ai_report = None
     # base64_images = [cv2_frame_to_base64(f) for f in frames]  # frames_to_return 是 BGR numpy数组列表
@@ -345,7 +235,7 @@ def dispatch_alert_multi_frames(stream_id, fence_result, frames):
     # 存入message.json
     message_manager.add_message(stream_uid=stream_id, fence_uid=fence_id, stream_name=stream_name,
                                 change_ratio=f"{ratio:.2f}", ai_report=str(ai_report), image_before_url=image_urls[0],
-                                image_after_url=image_urls[1])
+                                image_after_url=image_urls[1], video_url=video_url)
 
     # 模板变量
     template_vars = {
@@ -354,7 +244,8 @@ def dispatch_alert_multi_frames(stream_id, fence_result, frames):
         "timestamp": timestamp,
         "change_ratio": f"{ratio:.2f}",
         "ai_report": ai_report,
-        "image_url": image_urls_text
+        "image_url": image_urls_text,
+        "video_url": video_url
     }
 
     template = templates[0]  # 获取第一个模板
