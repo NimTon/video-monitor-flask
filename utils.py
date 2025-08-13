@@ -120,12 +120,10 @@ def save_key_frames(stream_id, fence_id, frames, image_root='./images', base_url
     urls, paths = [], []
     for i, frame in enumerate([frames[0], frames[-1]], start=1):
         # 压缩成30KB以内
-        img_bytes = compress_to_30kb(frame, max_size_kb=30)
+        frame = resize_to_360p(frame)
         filename = f"{stream_id}_{fence_id}_{now_time_str}_{i}.jpg"
         filepath = os.path.join(image_root, filename)
-        # cv2.imwrite(filepath, frame)
-        with open(filepath, "wb") as f:
-            f.write(img_bytes)
+        cv2.imwrite(filepath, frame)
 
         file_url = f"{base_url}/images/{filename}"
         urls.append(file_url)
@@ -133,21 +131,11 @@ def save_key_frames(stream_id, fence_id, frames, image_root='./images', base_url
 
     return urls, paths
 
-def compress_to_30kb(frame, max_size_kb=30):
-    """
-    将单帧图像压缩到指定大小以内
-    :param frame: OpenCV BGR 图像
-    :param max_size_kb: 压缩后的目标大小（KB）
-    :return: 压缩后的字节数据
-    """
-    encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), 95]  # 初始高质量
-    success, encoded_img = cv2.imencode('.jpg', frame, encode_param)
-
-    # 如果还超出大小，就逐步降低质量
-    quality = 90
-    while success and len(encoded_img) > max_size_kb * 1024 and quality > 5:
-        encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), quality]
-        success, encoded_img = cv2.imencode('.jpg', frame, encode_param)
-        quality -= 5
-
-    return encoded_img.tobytes()
+def resize_to_360p(frame):
+    """将图像压缩到 360p 高度，保持宽高比"""
+    h, w = frame.shape[:2]
+    target_h = 360
+    scale = target_h / h
+    target_w = int(w * scale)
+    resized = cv2.resize(frame, (target_w, target_h), interpolation=cv2.INTER_AREA)
+    return resized
