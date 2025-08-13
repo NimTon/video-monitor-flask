@@ -1,19 +1,232 @@
-import os
-from openai import OpenAI
+import requests
+from typing import Dict, Any, List, Optional
+from storage import StorageManager, RecipientsManager, AlertStorageManager, SourceStreamManager, MessageManager
+from video_monitor.video_stream import VideoStreamThread
+from alert_dispatcher import dispatch_alert_multi_frames
+import threading
 
-client = OpenAI(
-    # 若没有配置环境变量，请用百炼API Key将下行替换为：api_key="sk-xxx",
-    api_key='sk-7854161b0a9543718084fffe07be6a29', # 如何获取API Key：https://help.aliyun.com/zh/model-studio/developer-reference/get-api-key
-    base_url="https://dashscope.aliyuncs.com/compatible-mode/v1",
-)
+# 创建存储管理器实例
+storage = StorageManager()
+# 创建联系人管理器实例
+recipient_mgr = RecipientsManager()
+# 创建报警存储管理器实例
+alert_storage = AlertStorageManager()
+# 创建源视频流管理器实例
+source_manager = SourceStreamManager()
+# 创建 MessageManager 实例
+message_manager = MessageManager()
+
+video_threads = {}
+
+class ZhongkaiAPI:
+    def __init__(self, token: str):
+        self.headers = {"F-VIDEO-AI-TOKEN": token}
+
+        # 各环境的基础 URL
+        self.url_get_devices = "https://openapiuat.zhongkaixingye.com/openapi/lot/ai/devices"
+        self.url_get_live_url = "https://openapisit.zhongkaixingye.com/openapi/lot/ai/video/url"
+        self.url_upload_file = "https://openapisit.zhongkaixingye.com/openapi/lot/ai/file/upload"
+        self.url_event_up = "https://openapisit.zhongkaixingye.com/openapi/lot/ai/event/up"
+
+    def get_devices(self, machine_code: str) -> Dict[str, Any]:
+        """根据机器编号获取仓库库栋列表"""
+        payload = {"machineCode": machine_code}
+        resp = requests.post(self.url_get_devices, headers=self.headers, json=payload)
+        return resp.json()
+
+    def get_live_url(self, lot_source: str, service_no: str, device_no: str) -> Optional[str]:
+        """获取直播地址"""
+        payload = {
+            "lotSource": lot_source,
+            "serviceNo": service_no,
+            "deviceNo": device_no
+        }
+        resp = requests.post(self.url_get_live_url, headers=self.headers, json=payload).json()
+        if resp.get("rspCode") == "00000000":
+            return resp.get("data")
+        return None
+
+    def upload_file(self, file_path: str) -> Optional[str]:
+        """上传文件并返回文件编号"""
+        with open(file_path, 'rb') as f:
+            files = {"file": (file_path, f)}
+            resp = requests.post(self.url_upload_file, headers=self.headers, files=files).json()
+        if resp.get("rspCode") == "00000000":
+            return resp.get("data")
+        return None
+
+    def event_up(
+            self,
+            owner_code: str,
+            warehouse_code: str,
+            position_code: str,
+            duration: int,
+            event_type: str,
+            event_time: str,
+            devices: List[Dict[str, Any]]
+    ) -> bool:
+        """上报事件"""
+        payload = {
+            "ownerCode": owner_code,
+            "warehouseCode": warehouse_code,
+            "positionCode": position_code,
+            "duration": duration,
+            "eventType": event_type,
+            "eventTime": event_time,
+            "devices": devices
+        }
+        resp = requests.post(self.url_event_up, headers=self.headers, json=payload).json()
+        return resp.get("rspCode") == "00000000"
 
 
-completion = client.chat.completions.create(
-    # 模型列表：https://help.aliyun.com/zh/model-studio/getting-started/models
-    model="qwen-plus",  # qwen-plus 属于 qwen3 模型，如需开启思考模式，请参见：https://help.aliyun.com/zh/model-studio/deep-thinking
-    messages=[
-        {'role': 'system', 'content': 'You are a helpful assistant.'},
-        {'role': 'user', 'content': '你是谁？'}
-    ]
-)
-print(completion.choices[0].message.content)
+def fetch_all_hls():
+    print("=== 开始获取 HLS 地址 ===")
+    for machine_code in MACHINE_CODES:
+        devices_data = api.get_devices(machine_code)
+        if devices_data.get("rspCode") != "00000000":
+            print(f"机器 {machine_code} 获取失败：{devices_data.get('rspDesc')}")
+            continue
+
+        for warehouse in devices_data.get("data", []):
+            warehouse_code = warehouse.get("warehouseCode")
+            position_code = warehouse.get("positionCode")
+            print(f"[{warehouse_code} - {position_code}]")
+
+            for dev in warehouse.get("devices", []):
+                lot_source = dev.get("lotSource")
+                service_no = dev.get("serviceNo")
+                device_no = dev.get("deviceNo")
+                device_name = dev.get("deviceName")
+
+                hls_url = api.get_live_url(lot_source, service_no, device_no)
+                if hls_url:
+                    print(f"  {device_name} HLS: {hls_url}")
+                else:
+                    print(f"  {device_name} HLS 获取失败")
+
+def start_stream(stream_id):
+    # 获取视频流信息
+    stream = storage.get_stream(stream_id)
+    if not stream:
+        # 返回未找到错误
+        return {"message": "未找到对应的视频流"}
+    fences = storage.list_fences(stream_id)
+    if not fences:
+        # 返回未找到错误
+        return {"message": "未绑定电子围栏"}
+    # 检查是否已经在运行（幂等性检查）
+    if stream_id in video_threads and video_threads[stream_id].is_alive():
+        return {"message": "已在运行"}
+
+    # 获取视频流URL
+    stream_url = stream['stream_url']
+    name = stream['name']
+
+    # 提取检测参数
+    try:
+        # 获取阈值参数，默认为0.5
+        threshold = float(stream.get('threshold', 0.5))
+        # 获取检测频率，默认为10秒
+        frequency = float(stream.get('frequency', 10))
+    except Exception as e:
+        # 返回参数错误
+        return {"message": f"参数错误: {e}"}
+
+    # 获取视频帧尺寸用于坐标转换
+    import cv2
+    cap = cv2.VideoCapture(stream_url)
+    success, frame = cap.read()
+    if not success:
+        # 返回视频读取错误
+        return {"message": "无法读取视频帧，请检查视频地址"}
+    # 获取视频高度和宽度
+    height, width = frame.shape[:2]
+    cap.release()
+
+    # 转换围栏点为像素坐标
+    fences = stream.get('fences', [])
+    fence_points = []
+    for fence in fences:
+        points = fence.get('points', [])
+        if len(points) >= 3:
+            # 将相对坐标转换为绝对像素坐标
+            abs_points = [(int(p['x'] * width), int(p['y'] * height)) for p in points]
+            fence_points.append(abs_points)
+
+    # 检查是否有有效围栏
+    if len(fence_points) == 0:
+        return {"message": "请先设置至少一个有效的电子围栏（至少3个点）"}
+
+    # 定义结果回调函数
+    def result_callback(sid, results, frames):
+        for r in results:
+            print(name, r, len(frames))
+            if r.get("changed"):
+                threading.Thread(
+                    target=dispatch_alert_multi_frames,
+                    args=(sid, r, frames),
+                    daemon=True
+                ).start()
+
+    # 创建并启动视频流线程
+    thread = VideoStreamThread(
+        stream_id=stream_id,
+        stream_url=stream_url,
+        result_callback=result_callback,
+        compare_interval=frequency,
+        change_threshold=threshold,
+        debug=False
+    )
+    # 设置围栏点
+    thread.set_fences(fence_points)
+    # 设置为守护线程
+    thread.daemon = True
+    # 启动线程
+    thread.start()
+
+    # 保存线程引用
+    video_threads[stream_id] = thread
+    # 更新视频流状态为运行中
+    storage.update_stream(stream_id, status="running")
+    return {"message": "流检测已启动"}
+
+
+def stop_stream(stream_id):
+    # 获取视频流线程
+    thread = video_threads.get(stream_id)
+    # 如果线程不存在或已停止，也返回成功（幂等）
+    if not thread:
+        storage.update_stream(stream_id, status="stopped")
+        return {"message": "已停止"}
+    # 停止线程
+    thread.stop()
+    # 从字典中移除线程
+    del video_threads[stream_id]
+    # 更新视频流状态为停止
+    storage.update_stream(stream_id, name=None, stream_url=None, status="stopped")
+    return {"message": "流检测已停止"}
+
+
+if __name__ == "__main__":
+    TOKEN = "FZK865AI9184C4A66"
+    MACHINE_CODES = ["1", "2"]
+
+    api = ZhongkaiAPI(token=TOKEN)
+
+    # 12h执行一次循环
+
+    for machine in MACHINE_CODES:
+        devices_data = api.get_devices(machine)
+        print("仓库库栋列表:", devices_data)
+        for warehouse in devices_data.get("data", []):
+            devices = warehouse.get("devices", [])
+            for dev in devices:
+                lot_source, service_no, device_no, device_name = dev.get("lotSource"), dev.get("serviceNo"), dev.get("deviceNo"), dev.get("deviceName")
+                live_url = api.get_live_url(lot_source, service_no, device_no)
+                # 遍历查找name的视频流 如果没有就添加 有则更新
+                stream = storage.get_stream(device_name)
+                if not stream:
+                    storage.add_stream(live_url, name=device_name, stream_uid=device_name)
+                else:
+                    storage.update_stream(device_name, stream_url=live_url)
+                start_stream(device_name)

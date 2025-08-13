@@ -58,10 +58,11 @@ class StorageManager:
                 return i  # 返回索引
         return -1  # 未找到返回-1
 
-    def add_stream(self, stream_url, name=None):
+    def add_stream(self, stream_url, name=None, stream_uid=None):
         """添加新视频流"""
         data = self.load_all()  # 加载现有数据
-        stream_uid = str(uuid.uuid4())  # 生成唯一ID
+        if not stream_uid:
+            stream_uid = str(uuid.uuid4())  # 生成唯一ID
 
         # 创建新视频流对象
         new_stream = {
