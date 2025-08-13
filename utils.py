@@ -48,34 +48,28 @@ def md5(str):
     return m.hexdigest()  # 返回16进制哈希值
 
 
-def save_frames_as_video(frames, video_root='./videos', base_url='x.x.x.x:5000', fps=25):
+def save_frames_as_video(stream_id, fence_id, frames, video_root='./videos', base_url='x.x.x.x:5000', fps=25):
     """
-    按时间戳创建文件夹，清理7天前旧文件夹，
-    将 frames 保存为 MP4 视频，并返回视频的 URL 和本地路径。
-
-    :param frames: 图像帧列表（OpenCV BGR格式）
-    :param video_root: 视频保存根目录
-    :param base_url: 视频 URL 路径前缀（假设提供了路由）
-    :param fps: 视频帧率
-    :return: (url列表, path列表)，通常只返回一个视频文件
+    直接在 video_root 下生成 MP4 文件，不创建子文件夹。
+    文件名格式: {stream_id}_{fence_id}_{时间戳}.mp4
     """
     now_time_str = datetime.now().strftime('%Y%m%d_%H%M%S')
-    save_dir = os.path.join(video_root, now_time_str)
     now = datetime.now()
 
-    # 删除超过7天的旧文件夹
-    if os.path.exists(video_root):
-        for folder in os.listdir(video_root):
-            folder_path = os.path.join(video_root, folder)
-            if os.path.isdir(folder_path):
-                try:
-                    folder_time = datetime.strptime(folder, '%Y%m%d_%H%M%S')
-                    if now - folder_time > timedelta(days=7):
-                        shutil.rmtree(folder_path)
-                except ValueError:
-                    continue
+    os.makedirs(video_root, exist_ok=True)
 
-    os.makedirs(save_dir, exist_ok=True)
+    # 删除超过7天的旧文件
+    for file in os.listdir(video_root):
+        file_path = os.path.join(video_root, file)
+        if os.path.isfile(file_path):
+            try:
+                # 从文件名解析时间戳
+                ts = file.split('_')[-1].split('.')[0]
+                file_time = datetime.strptime(ts, '%Y%m%d_%H%M%S')
+                if now - file_time > timedelta(days=7):
+                    os.remove(file_path)
+            except ValueError:
+                continue
 
     if not frames:
         print("No frames to save!")
@@ -83,66 +77,53 @@ def save_frames_as_video(frames, video_root='./videos', base_url='x.x.x.x:5000',
 
     height, width = frames[0].shape[:2]
     fourcc = cv2.VideoWriter_fourcc(*'avc1')
-    video_filename = 'video.mp4'
-    video_path = os.path.join(save_dir, video_filename)
+    video_filename = f"{stream_id}_{fence_id}_{now_time_str}.mp4"
+    video_path = os.path.join(video_root, video_filename)
 
     video_writer = cv2.VideoWriter(video_path, fourcc, fps, (width, height))
-
     for frame in frames:
         if frame.shape[1] != width or frame.shape[0] != height:
             frame = cv2.resize(frame, (width, height))
         video_writer.write(frame)
     video_writer.release()
 
-    video_url = f'{base_url}/videos/{now_time_str}/{video_filename}'
+    video_url = f"{base_url}/videos/{video_filename}"
     return [video_url], [video_path]
 
 
-def save_key_frames(frames, image_root='./images', base_url='x.x.x.x:5000'):
+def save_key_frames(stream_id, fence_id, frames, image_root='./images', base_url='x.x.x.x:5000'):
     """
-    保存第一帧和最后一帧图像，并删除 ./images 下的旧文件夹（只保留当前时间戳文件夹）
-
-    :param frames: 图像帧列表（OpenCV 格式 BGR）
-    :param image_root: 图片保存的根目录
-    :param base_url: 图片的 URL 路径前缀（用于生成浏览器可访问的路径）
-    :return: 返回图片 URL 列表 [url1, url2]
+    直接在 image_root 下保存第一帧和最后一帧图片，不创建子文件夹。
+    文件名格式: {stream_id}_{fence_id}_{时间戳}_1.jpg / _2.jpg
     """
     now_time_str = datetime.now().strftime('%Y%m%d_%H%M%S')
-    save_dir = os.path.join(image_root, now_time_str)
-
-    # 当前时间
     now = datetime.now()
 
-    # 删除超过 7 天的旧文件夹
-    if os.path.exists(image_root):
-        for folder in os.listdir(image_root):
-            folder_path = os.path.join(image_root, folder)
+    os.makedirs(image_root, exist_ok=True)
 
-            # 检查是否是目录 + 是否符合时间戳格式
-            if os.path.isdir(folder_path):
-                try:
-                    folder_time = datetime.strptime(folder, '%Y%m%d_%H%M%S')
-                    if now - folder_time > timedelta(days=7):
-                        shutil.rmtree(folder_path)
-                except ValueError:
-                    # 文件夹名不符合时间戳格式，忽略或可选择删除
-                    continue
+    # 删除超过7天的旧文件
+    for file in os.listdir(image_root):
+        file_path = os.path.join(image_root, file)
+        if os.path.isfile(file_path):
+            try:
+                ts = file.split('_')[-2]  # 倒数第二个是时间戳
+                file_time = datetime.strptime(ts, '%Y%m%d_%H%M%S')
+                if now - file_time > timedelta(days=7):
+                    os.remove(file_path)
+            except ValueError:
+                continue
 
-    # 创建保存目录
-    os.makedirs(save_dir, exist_ok=True)
+    if not frames:
+        print("No frames to save!")
+        return [], []
 
-    # 保存第一帧和最后一帧（原始像素）
-    urls = []
-    paths = []
-    for i, frame in enumerate([frames[0], frames[-1]]):
-        filename = f'{i + 1}.jpg'
-        filepath = os.path.join(save_dir, filename)
-
-        # 直接保存 BGR 图像
+    urls, paths = []
+    for i, frame in enumerate([frames[0], frames[-1]], start=1):
+        filename = f"{stream_id}_{fence_id}_{now_time_str}_{i}.jpg"
+        filepath = os.path.join(image_root, filename)
         cv2.imwrite(filepath, frame)
 
-        # 构造 URL
-        file_url = f'{base_url}/images/{now_time_str}/{filename}'
+        file_url = f"{base_url}/images/{filename}"
         urls.append(file_url)
         paths.append(filepath)
 

@@ -210,11 +210,11 @@ def dispatch_alert_multi_frames(stream_id, fence_result, frames):
                 cv2.circle(frame, pt, 5, (0, 0, 255), -1)
 
     # 保存或显示报警图片
-    image_urls, image_paths = save_key_frames(frames, base_url=base_url)
+    image_urls, image_paths = save_key_frames(stream_id, fence_id, frames, base_url=base_url)
     image_urls_text = ', '.join(image_urls)
 
     # 从frame中保存视频
-    video_url, video_path = save_frames_as_video(frames, base_url=base_url, fps=1)
+    video_url, video_path = save_frames_as_video(stream_id, fence_id, frames, base_url=base_url, fps=1)
 
     # 调用AI识别
     ai_report = None
