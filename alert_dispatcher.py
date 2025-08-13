@@ -214,7 +214,7 @@ def dispatch_alert_multi_frames(stream_id, fence_result, frames):
     image_urls_text = ', '.join(image_urls)
 
     # 从frame中保存视频
-    video_url, video_path = save_frames_as_video(frames, base_url=base_url)
+    video_url, video_path = save_frames_as_video(frames, base_url=base_url, fps=1)
 
     # 调用AI识别
     ai_report = None
