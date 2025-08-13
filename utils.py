@@ -119,8 +119,7 @@ def save_key_frames(stream_id, fence_id, frames, image_root='./images', base_url
 
     urls, paths = [], []
     for i, frame in enumerate([frames[0], frames[-1]], start=1):
-        # 压缩成30KB以内
-        frame = resize_to_360p(frame)
+        frame = resize_to_180p(frame)
         filename = f"{stream_id}_{fence_id}_{now_time_str}_{i}.jpg"
         filepath = os.path.join(image_root, filename)
         cv2.imwrite(filepath, frame)
@@ -131,10 +130,10 @@ def save_key_frames(stream_id, fence_id, frames, image_root='./images', base_url
 
     return urls, paths
 
-def resize_to_360p(frame):
-    """将图像压缩到 360p 高度，保持宽高比"""
+def resize_to_180p(frame):
+    """将图像压缩到 180p 高度，保持宽高比"""
     h, w = frame.shape[:2]
-    target_h = 360
+    target_h = 180
     scale = target_h / h
     target_w = int(w * scale)
     resized = cv2.resize(frame, (target_w, target_h), interpolation=cv2.INTER_AREA)
