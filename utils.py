@@ -119,6 +119,8 @@ def save_key_frames(stream_id, fence_id, frames, image_root='./images', base_url
 
     urls, paths = [], []
     for i, frame in enumerate([frames[0], frames[-1]], start=1):
+        # 压缩成30KB以内
+        frame = compress_to_30kb(frame, max_size_kb=30)
         filename = f"{stream_id}_{fence_id}_{now_time_str}_{i}.jpg"
         filepath = os.path.join(image_root, filename)
         cv2.imwrite(filepath, frame)
@@ -128,3 +130,22 @@ def save_key_frames(stream_id, fence_id, frames, image_root='./images', base_url
         paths.append(filepath)
 
     return urls, paths
+
+def compress_to_30kb(frame, max_size_kb=30):
+    """
+    将单帧图像压缩到指定大小以内
+    :param frame: OpenCV BGR 图像
+    :param max_size_kb: 压缩后的目标大小（KB）
+    :return: 压缩后的字节数据
+    """
+    encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), 95]  # 初始高质量
+    success, encoded_img = cv2.imencode('.jpg', frame, encode_param)
+
+    # 如果还超出大小，就逐步降低质量
+    quality = 90
+    while success and len(encoded_img) > max_size_kb * 1024 and quality > 5:
+        encode_param = [int(cv2.IMWRITE_JPEG_QUALITY), quality]
+        success, encoded_img = cv2.imencode('.jpg', frame, encode_param)
+        quality -= 5
+
+    return encoded_img.tobytes()
