@@ -73,7 +73,7 @@ def save_frames_as_video(stream_id, fence_id, frames, video_root='./videos', bas
 
     if not frames:
         print("No frames to save!")
-        return [], []
+        return None, None
 
     height, width = frames[0].shape[:2]
     fourcc = cv2.VideoWriter_fourcc(*'avc1')
@@ -88,7 +88,7 @@ def save_frames_as_video(stream_id, fence_id, frames, video_root='./videos', bas
     video_writer.release()
 
     video_url = f"{base_url}/videos/{video_filename}"
-    return [video_url], [video_path]
+    return video_url, video_path
 
 
 def save_key_frames(stream_id, fence_id, frames, image_root='./images', base_url='x.x.x.x:5000'):
@@ -115,9 +115,9 @@ def save_key_frames(stream_id, fence_id, frames, image_root='./images', base_url
 
     if not frames:
         print("No frames to save!")
-        return [], []
+        return None, None
 
-    urls, paths = []
+    urls, paths = [], []
     for i, frame in enumerate([frames[0], frames[-1]], start=1):
         filename = f"{stream_id}_{fence_id}_{now_time_str}_{i}.jpg"
         filepath = os.path.join(image_root, filename)
