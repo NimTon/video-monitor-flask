@@ -1,4 +1,6 @@
 # 导入第三方库和模块
+from sklearn.externals.array_api_compat import device
+
 from ai.qwen_ai import call_qwen_via_client  # 导入Qwen AI的私有API调用模块
 from ai.local_ai import call_local_ai_model
 import requests  # HTTP请求库
@@ -345,11 +347,39 @@ def dispatch_alert(stream_id, fence_result, frames, devices_data, dev):
 
 # 主程序入口
 if __name__ == "__main__":
-    stream_id = '06219170-867a-4ff7-96b5-5df12e641442'  # 测试流ID
-    fence_result = {  # 测试围栏结果
-        "change_ratio": 1,
-        "fence_id": 0,
-    }
-    prev_frame = '1'  # 测试前帧
-    curr_frame = '2'  # 测试当前帧
-    send_sms_alert('这是一个测试', '13070206760', '1', '1')  # 测试短信发送
+    from test import ZhongkaiAPI
+    zhongkai_api = ZhongkaiAPI()
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")  # 当前时间格式化
+    video_path = './XXXX.MP4'
+    devices_data = {'rspCode': '00000000', 'rspDesc': '成功', 'data': [{'ownerCode': '91370000698086271W', 'warehouseCode': 'ZKXYLK', 'positionCode': 'ZKXYLK-B60210', 'devices': [{'lotSource': 'HKS', 'serviceNo': '1', 'deviceNo': '609239518', 'deviceName': 'B库602门', 'indoor': 'Y', 'isAi': 'Y'}, {'lotSource': 'HKS', 'serviceNo': '12', 'deviceNo': '609239518', 'deviceName': 'B库602库内1', 'indoor': 'Y', 'isAi': 'Y'}, {'lotSource': 'HKS', 'serviceNo': '11', 'deviceNo': '609239518', 'deviceName': 'B库602库内2', 'indoor': 'Y', 'isAi': 'Y'}]}]}
+    file_code = zhongkai_api.upload_file(video_path)
+    dev_list = devices_data.get("data")[0].get("devices")
+    devices = [
+        {
+            "isEventLaunch": "Y",
+            "lotSource": dev_list[0].get("lotSource"),
+            "serviceNo": dev_list[0].get("serviceNo"),
+            "deviceNo": dev_list[0].get("deviceNo"),
+            "fileId": file_code
+        },
+        {
+
+            "isEventLaunch": "N",
+            "lotSource": dev_list[1].get("lotSource"),
+            "serviceNo": dev_list[1].get("serviceNo"),
+            "deviceNo": dev_list[1].get("deviceNo"),
+            "fileId": file_code
+        }
+    ]
+    if file_code:
+        print("视频上传成功")
+        owner_code = devices_data.get("ownerCode")
+        warehouse_code = devices_data.get("warehouseCode")
+        position_code = devices_data.get("positionCode")
+        duration = 10
+        event_type = '5'
+        event_time = timestamp
+        devices = devices
+        result = zhongkai_api.event_up(owner_code, warehouse_code, position_code, duration, event_type, event_time, devices)
+        if result:
+            print("事件上报成功")
