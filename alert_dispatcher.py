@@ -349,6 +349,9 @@ def dispatch_alert(stream_id, fence_result, frames, devices_data, dev):
 if __name__ == "__main__":
     from test import ZhongkaiAPI
     zhongkai_api = ZhongkaiAPI()
+    TOKEN = "FZK865AI9184C4A66"
+    MACHINE_CODES = ["1", "2"]
+    api = ZhongkaiAPI(token=TOKEN)
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")  # 当前时间格式化
     video_path = './XXXX.MP4'
     devices_data = {'rspCode': '00000000', 'rspDesc': '成功', 'data': [{'ownerCode': '91370000698086271W', 'warehouseCode': 'ZKXYLK', 'positionCode': 'ZKXYLK-B60210', 'devices': [{'lotSource': 'HKS', 'serviceNo': '1', 'deviceNo': '609239518', 'deviceName': 'B库602门', 'indoor': 'Y', 'isAi': 'Y'}, {'lotSource': 'HKS', 'serviceNo': '12', 'deviceNo': '609239518', 'deviceName': 'B库602库内1', 'indoor': 'Y', 'isAi': 'Y'}, {'lotSource': 'HKS', 'serviceNo': '11', 'deviceNo': '609239518', 'deviceName': 'B库602库内2', 'indoor': 'Y', 'isAi': 'Y'}]}]}
