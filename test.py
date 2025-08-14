@@ -34,6 +34,8 @@ class ZhongkaiAPI:
         """根据机器编号获取仓库库栋列表"""
         payload = {"machineCode": machine_code}
         resp = requests.post(self.url_get_devices, headers=self.headers, json=payload)
+        print(payload)
+        print(resp)
         return resp.json()
 
     def get_live_url(self, lot_source: str, service_no: str, device_no: str) -> Optional[str]:
@@ -55,6 +57,8 @@ class ZhongkaiAPI:
         with open(file_path, 'rb') as f:
             files = {"file": (file_path, f)}
             resp = requests.post(self.url_upload_file, headers=self.headers, files=files).json()
+            print(files)
+            print(resp)
         if resp.get("rspCode") == "00000000":
             return resp.get("data")
         return None
@@ -80,6 +84,8 @@ class ZhongkaiAPI:
             "devices": devices
         }
         resp = requests.post(self.url_event_up, headers=self.headers, json=payload).json()
+        print(payload)
+        print(resp)
         if resp.get("rspCode") == "00000000":
             return True
         else:
