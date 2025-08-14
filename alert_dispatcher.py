@@ -423,3 +423,5 @@ if __name__ == "__main__":
         result = zhongkai_api.event_up(owner_code, warehouse_code, position_code, duration, event_type, event_time, devices)
         if result:
             print("事件上报成功")
+        else:
+            print(result)
