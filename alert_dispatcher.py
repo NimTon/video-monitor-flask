@@ -279,6 +279,7 @@ def dispatch_alert_multi_frames(stream_id, fence_result, frames):
 def dispatch_alert(stream_id, fence_result, frames, devices_data, dev):
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")  # 当前时间格式化
     stream = storage.get_stream(stream_id)  # 获取流信息
+    templates = alert_storage.get_alert_templates()  # 获取报警模板
     if not stream:  # 流不存在则返回
         return
 
@@ -327,6 +328,43 @@ def dispatch_alert(stream_id, fence_result, frames, devices_data, dev):
     message_manager.add_message(stream_uid=stream_id, fence_uid=fence_id, stream_name=stream_name,
                                 change_ratio=f"{ratio:.2f}", ai_report=str(ai_report), image_before_url=image_urls[0],
                                 image_after_url=image_urls[1], video_url=video_url)
+
+    # 模板变量
+    template_vars = {
+        "stream_name": stream_name,
+        "fence_id": fence_id,
+        "timestamp": timestamp,
+        "change_ratio": f"{ratio:.2f}",
+        "ai_report": ai_report,
+        "image_url": image_urls_text,
+        "video_url": video_url
+    }
+
+    template = templates[0]  # 获取第一个模板
+    message = ''
+    try:
+        message = template['text'].format(**template_vars)  # 渲染模板
+        print(message)
+    except Exception as e:
+        print(f"[模板渲染失败] {e}")  # 模板渲染错误
+
+    # 遍历接收人发送报警
+    for recipient in recipients:
+        contact = recipient.get("contact", {})  # 获取联系方式
+        for method_name, contact_value in contact.items():
+            if contact_value:  # 联系方式有效
+                fn = alert_method_map.get(method_name.lower())  # 获取报警方法
+                if fn:
+                    try:
+                        fn(  # 调用报警方法
+                            message,
+                            contact_value,
+                            # prev_image_path=prev_image_path, TODO
+                            # curr_image_path=curr_image_path TODO
+                        )
+                        print(f"✅ 已通过【{method_name}】发送给 {recipient['name']}")  # 成功日志
+                    except Exception as e:
+                        print(f"❌ 通过【{method_name}】发送失败：{e}")  # 失败日志
 
     from test import ZhongkaiAPI
     zhongkai_api = ZhongkaiAPI()
