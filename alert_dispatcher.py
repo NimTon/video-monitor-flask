@@ -277,7 +277,7 @@ def dispatch_alert_multi_frames(stream_id, fence_result, frames):
                     except Exception as e:
                         print(f"❌ 通过【{method_name}】发送失败：{e}")  # 失败日志
 
-def dispatch_alert(stream_id, fence_result, frames, devices_data, dev):
+def dispatch_alert(stream_id, fence_result, frames, warehouse, dev):
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")  # 当前时间格式化
     stream = storage.get_stream(stream_id)  # 获取流信息
     templates = alert_storage.get_alert_templates()  # 获取报警模板
@@ -372,9 +372,9 @@ def dispatch_alert(stream_id, fence_result, frames, devices_data, dev):
     file_code = zhongkai_api.upload_file(video_path)
     if file_code:
         print("视频上传成功")
-        owner_code = devices_data.get("ownerCode")
-        warehouse_code = devices_data.get("warehouseCode")
-        position_code = devices_data.get("positionCode")
+        owner_code = warehouse.get("ownerCode")
+        warehouse_code = warehouse.get("warehouseCode")
+        position_code = warehouse.get("positionCode")
         duration = 10
         event_type = ai_report['detail']['changes']['event_type']
         event_time = timestamp

@@ -117,7 +117,7 @@ def fetch_all_hls():
                 else:
                     print(f"  {device_name} HLS 获取失败")
 
-def start_stream(devices_data, dev):
+def start_stream(warehouse, dev):
     stream_id = dev.get("deviceName")
     # 获取视频流信息
     stream = storage.get_stream(stream_id)
@@ -178,7 +178,7 @@ def start_stream(devices_data, dev):
             if r.get("changed"):
                 threading.Thread(
                     target=dispatch_alert,
-                    args=(sid, r, frames, devices_data, dev),
+                    args=(sid, r, frames, warehouse, dev),
                     daemon=True
                 ).start()
 
@@ -253,7 +253,7 @@ def run_cycle():
                 else:
                     storage.update_stream(device_name, stream_url=live_url)
 
-                print(start_stream(devices_data, dev))
+                print(start_stream(warehouse, dev))
 
 if __name__ == "__main__":
     with open('config.json') as f:
