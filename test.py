@@ -43,6 +43,8 @@ class ZhongkaiAPI:
             "deviceNo": device_no
         }
         resp = requests.post(self.url_get_live_url, headers=self.headers, json=payload).json()
+        print(payload)
+        print(resp)
         if resp.get("rspCode") == "00000000":
             return resp.get("data")
         return None
@@ -160,7 +162,7 @@ def start_stream(devices_data, dev):
         return {"message": "请先设置至少一个有效的电子围栏（至少3个点）"}
 
     # 定义结果回调函数
-    def result_callback(sid, results, frames, data):
+    def result_callback(sid, results, frames):
         for r in results:
             print(name, r, len(frames))
             if r.get("changed"):
