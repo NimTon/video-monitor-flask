@@ -252,7 +252,7 @@ def run_cycle():
 if __name__ == "__main__":
     with open('config.json') as f:
         config = json.load(f)
-    TOKEN = config['FZK865AI9184C4A66']
+    TOKEN = config['zk_token']
     MACHINE_CODES = config['machine_codes']
 
     api = ZhongkaiAPI(token=TOKEN)

@@ -389,7 +389,7 @@ if __name__ == "__main__":
     from test import ZhongkaiAPI
     with open('config.json') as f:
         config = json.load(f)
-    TOKEN = config['FZK865AI9184C4A66']
+    TOKEN = config['zk_token']
     MACHINE_CODES = config['machine_codes']
     zhongkai_api = ZhongkaiAPI(token=TOKEN)
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")  # 当前时间格式化
