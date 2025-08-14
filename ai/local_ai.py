@@ -61,7 +61,6 @@ def call_local_ai_model(image_paths):
   "detail": {
     "changes": {
       "type": "无变化/货物散落/货物位置变化/人员异常/设备异常/环境异常",
-      "event_type": "5-人员聚集，6-活动车辆，7-车货 返回最高等级",
       "description": "对异常的详细描述",
       "risk_level": "低/中/高",
       "alert_suggestion": "否/是"
