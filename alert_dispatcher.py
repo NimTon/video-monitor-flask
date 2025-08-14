@@ -1,6 +1,5 @@
 # 导入第三方库和模块
 from sklearn.externals.array_api_compat import device
-
 from ai.qwen_ai import call_qwen_via_client  # 导入Qwen AI的私有API调用模块
 from ai.local_ai import call_local_ai_model
 import requests  # HTTP请求库
@@ -28,8 +27,10 @@ from utils import save_frames_as_video, save_key_frames, md5
 
 message_manager = MessageManager()
 
-# base_url = 'http://127.0.0.1:5000'  # 测试ip
-base_url = 'http://10.30.3.178:5000'
+with open('config.json') as f:
+    config = json.load(f)
+
+base_url = f'http://{config['host']}:{config['port']}'
 
 
 # 初始化存储管理器
@@ -386,8 +387,10 @@ def dispatch_alert(stream_id, fence_result, frames, devices_data, dev):
 # 主程序入口
 if __name__ == "__main__":
     from test import ZhongkaiAPI
-    TOKEN = "FZK865AI9184C4A66"
-    MACHINE_CODES = ["1", "2"]
+    with open('config.json') as f:
+        config = json.load(f)
+    TOKEN = config['FZK865AI9184C4A66']
+    MACHINE_CODES = config['machine_codes']
     zhongkai_api = ZhongkaiAPI(token=TOKEN)
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")  # 当前时间格式化
     video_path = './XXXX.MP4'

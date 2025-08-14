@@ -3,6 +3,9 @@ import os
 import json
 from ai.qwen_ai import extract_json_dict_from_ai_reply
 
+with open('config.json') as f:
+    config = json.load(f)
+url = config['local_ai_url']
 
 def call_local_ai_model(image_paths):
     """
@@ -14,7 +17,6 @@ def call_local_ai_model(image_paths):
     返回:
         dict 或 None: 成功返回 dict，失败返回 None。
     """
-    url = "http://10.30.4.32:5800/api/sayImages"
 
     files = []
     opened_files = []

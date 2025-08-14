@@ -6,6 +6,10 @@ import cv2
 import json
 from openai import OpenAI
 
+with open('config.json') as f:
+    config = json.load(f)
+api_key = config['qwen_api_key']
+base_url = config['qwen_url']
 
 def extract_json_dict_from_ai_reply(text):
     """

@@ -4,6 +4,7 @@ from storage import StorageManager, RecipientsManager, AlertStorageManager, Sour
 from video_monitor.video_stream import VideoStreamThread
 from alert_dispatcher import dispatch_alert
 import threading
+import json
 import time
 
 # 创建存储管理器实例
@@ -249,8 +250,10 @@ def run_cycle():
                 print(start_stream(devices_data, dev))
 
 if __name__ == "__main__":
-    TOKEN = "FZK865AI9184C4A66"
-    MACHINE_CODES = ["1", "2"]
+    with open('config.json') as f:
+        config = json.load(f)
+    TOKEN = config['FZK865AI9184C4A66']
+    MACHINE_CODES = config['machine_codes']
 
     api = ZhongkaiAPI(token=TOKEN)
 
