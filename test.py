@@ -35,7 +35,7 @@ class ZhongkaiAPI:
         payload = {"machineCode": machine_code}
         resp = requests.post(self.url_get_devices, headers=self.headers, json=payload)
         print(payload)
-        print(resp)
+        print(resp.json())
         return resp.json()
 
     def get_live_url(self, lot_source: str, service_no: str, device_no: str) -> Optional[str]:

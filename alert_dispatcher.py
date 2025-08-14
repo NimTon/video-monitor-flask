@@ -393,10 +393,12 @@ if __name__ == "__main__":
     MACHINE_CODES = config['machine_codes']
     zhongkai_api = ZhongkaiAPI(token=TOKEN)
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")  # 当前时间格式化
-    video_path = './XXXX.MP4'
-    devices_data = {'rspCode': '00000000', 'rspDesc': '成功', 'data': [{'ownerCode': '91370000698086271W', 'warehouseCode': 'ZKXYLK', 'positionCode': 'ZKXYLK-B60210', 'devices': [{'lotSource': 'HKS', 'serviceNo': '1', 'deviceNo': '609239518', 'deviceName': 'B库602门', 'indoor': 'Y', 'isAi': 'Y'}, {'lotSource': 'HKS', 'serviceNo': '12', 'deviceNo': '609239518', 'deviceName': 'B库602库内1', 'indoor': 'Y', 'isAi': 'Y'}, {'lotSource': 'HKS', 'serviceNo': '11', 'deviceNo': '609239518', 'deviceName': 'B库602库内2', 'indoor': 'Y', 'isAi': 'Y'}]}]}
+    video_path = './1.mp4'
+    # devices_data = {'rspCode': '00000000', 'rspDesc': '成功', 'data': [{'ownerCode': '91370000698086271W', 'warehouseCode': 'ZKXYLK', 'positionCode': 'ZKXYLK-B60210', 'devices': [{'lotSource': 'HKS', 'serviceNo': '1', 'deviceNo': '609239518', 'deviceName': 'B库602门', 'indoor': 'Y', 'isAi': 'Y'}, {'lotSource': 'HKS', 'serviceNo': '12', 'deviceNo': '609239518', 'deviceName': 'B库602库内1', 'indoor': 'Y', 'isAi': 'Y'}, {'lotSource': 'HKS', 'serviceNo': '11', 'deviceNo': '609239518', 'deviceName': 'B库602库内2', 'indoor': 'Y', 'isAi': 'Y'}]}]}
+    devices_data = zhongkai_api.get_devices('1')
+    warehouse = devices_data.get("data")[0]
     file_code = zhongkai_api.upload_file(video_path)
-    dev_list = devices_data.get("data")[0].get("devices")
+    dev_list = warehouse.get("devices")
     devices = [
         {
             "isEventLaunch": "Y",
@@ -404,27 +406,19 @@ if __name__ == "__main__":
             "serviceNo": dev_list[0].get("serviceNo"),
             "deviceNo": dev_list[0].get("deviceNo"),
             "fileId": file_code
-        },
-        {
-
-            "isEventLaunch": "N",
-            "lotSource": dev_list[1].get("lotSource"),
-            "serviceNo": dev_list[1].get("serviceNo"),
-            "deviceNo": dev_list[1].get("deviceNo"),
-            "fileId": file_code
         }
     ]
     if file_code:
         print("视频上传成功")
-        owner_code = devices_data.get("ownerCode")
-        warehouse_code = devices_data.get("warehouseCode")
-        position_code = devices_data.get("positionCode")
+        owner_code = warehouse.get("ownerCode")
+        warehouse_code = warehouse.get("warehouseCode")
+        position_code = warehouse.get("positionCode")
         duration = 10
         event_type = '5'
         event_time = timestamp
         devices = devices
         result = zhongkai_api.event_up(owner_code, warehouse_code, position_code, duration, event_type, event_time, devices)
-        if result:
+        if result == True:
             print("事件上报成功")
         else:
-            print(result)
+            print("事件上报失败")
