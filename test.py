@@ -79,7 +79,10 @@ class ZhongkaiAPI:
             "devices": devices
         }
         resp = requests.post(self.url_event_up, headers=self.headers, json=payload).json()
-        return resp.get("rspCode") == "00000000"
+        if resp.get("rspCode") == "00000000":
+            return True
+        else:
+            return resp
 
 
 def fetch_all_hls():
