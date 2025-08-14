@@ -2,8 +2,9 @@ import requests
 from typing import Dict, Any, List, Optional
 from storage import StorageManager, RecipientsManager, AlertStorageManager, SourceStreamManager, MessageManager
 from video_monitor.video_stream import VideoStreamThread
-from alert_dispatcher import dispatch_alert_multi_frames
+from alert_dispatcher import dispatch_alert
 import threading
+import time
 
 # 创建存储管理器实例
 storage = StorageManager()
@@ -104,7 +105,8 @@ def fetch_all_hls():
                 else:
                     print(f"  {device_name} HLS 获取失败")
 
-def start_stream(stream_id):
+def start_stream(devices_data, dev):
+    stream_id = dev.get("deviceName")
     # 获取视频流信息
     stream = storage.get_stream(stream_id)
     if not stream:
@@ -158,13 +160,13 @@ def start_stream(stream_id):
         return {"message": "请先设置至少一个有效的电子围栏（至少3个点）"}
 
     # 定义结果回调函数
-    def result_callback(sid, results, frames):
+    def result_callback(sid, results, frames, data):
         for r in results:
             print(name, r, len(frames))
             if r.get("changed"):
                 threading.Thread(
-                    target=dispatch_alert_multi_frames,
-                    args=(sid, r, frames),
+                    target=dispatch_alert,
+                    args=(sid, r, frames, devices_data, dev),
                     daemon=True
                 ).start()
 
@@ -206,6 +208,40 @@ def stop_stream(stream_id):
     storage.update_stream(stream_id, name=None, stream_url=None, status="stopped")
     return {"message": "流检测已停止"}
 
+def stop_all_streams():
+    """停止所有正在运行的视频流检测"""
+    for sid in list(video_threads.keys()):
+        print(stop_stream(sid))
+
+def run_cycle():
+    """运行一轮获取设备、启动检测"""
+    for machine in MACHINE_CODES:
+        devices_data = api.get_devices(machine)
+        print("仓库库栋列表:", devices_data)
+        if devices_data.get("rspCode") != "00000000":
+            continue
+
+        for warehouse in devices_data.get("data", []):
+            devices = warehouse.get("devices", [])
+            for dev in devices:
+                lot_source = dev.get("lotSource")
+                service_no = dev.get("serviceNo")
+                device_no = dev.get("deviceNo")
+                device_name = dev.get("deviceName")
+
+                live_url = api.get_live_url(lot_source, service_no, device_no)
+                if not live_url:
+                    print(f"设备 {device_name} 获取 HLS 失败")
+                    continue
+
+                # 如果视频流不存在就添加，有则更新
+                stream = storage.get_stream(device_name)
+                if not stream:
+                    storage.add_stream(live_url, name=device_name, stream_uid=device_name)
+                else:
+                    storage.update_stream(device_name, stream_url=live_url)
+
+                print(start_stream(devices_data, dev))
 
 if __name__ == "__main__":
     TOKEN = "FZK865AI9184C4A66"
@@ -213,20 +249,10 @@ if __name__ == "__main__":
 
     api = ZhongkaiAPI(token=TOKEN)
 
-    # 12h执行一次循环
+    while True:
+        print("=== 新一轮检测开始 ===")
+        stop_all_streams()
+        run_cycle()
 
-    for machine in MACHINE_CODES:
-        devices_data = api.get_devices(machine)
-        print("仓库库栋列表:", devices_data)
-        for warehouse in devices_data.get("data", []):
-            devices = warehouse.get("devices", [])
-            for dev in devices:
-                lot_source, service_no, device_no, device_name = dev.get("lotSource"), dev.get("serviceNo"), dev.get("deviceNo"), dev.get("deviceName")
-                live_url = api.get_live_url(lot_source, service_no, device_no)
-                # 遍历查找name的视频流 如果没有就添加 有则更新
-                stream = storage.get_stream(device_name)
-                if not stream:
-                    storage.add_stream(live_url, name=device_name, stream_uid=device_name)
-                else:
-                    storage.update_stream(device_name, stream_url=live_url)
-                start_stream(device_name)
+        print("=== 检测运行中（12 小时后重启） ===")
+        time.sleep(12 * 3600)  # 等待 12 小时
