@@ -31,8 +31,7 @@ with open('config.json') as f:
     config = json.load(f)
 
 base_url = f'http://{config['host']}:{config['port']}'
-token =  config['zk_token']
-
+token = config['zk_token']
 
 # 初始化存储管理器
 storage = StorageManager()  # 流数据存储
@@ -81,6 +80,7 @@ def send_email_alert(message, contact_value, prev_image_path=None, curr_image_pa
         server.quit()  # 退出
     except Exception as e:
         print("❌ 邮件发送失败:", e)  # 打印错误
+
 
 # 钉钉报警函数
 def send_dingding_alert(message, contact_value, prev_image_path=None, curr_image_path=None):
@@ -226,7 +226,6 @@ def dispatch_alert_multi_frames(stream_id, fence_result, frames):
     # ai_report = call_qwen_via_client(base64_images)  # 通义千问大模型
     ai_report = call_local_ai_model(image_paths)  # 本地大模型
 
-
     if not ai_report:
         print('AI识别失效')
     elif ai_report['status'] == "正常":
@@ -234,7 +233,6 @@ def dispatch_alert_multi_frames(stream_id, fence_result, frames):
         print('一切正常')
         del frames
         return  # 不触发报警，结束函数
-
 
     # 存入message.json
     message_manager.add_message(stream_uid=stream_id, fence_uid=fence_id, stream_name=stream_name,
@@ -278,6 +276,7 @@ def dispatch_alert_multi_frames(stream_id, fence_result, frames):
                     except Exception as e:
                         print(f"❌ 通过【{method_name}】发送失败：{e}")  # 失败日志
 
+
 def dispatch_alert(stream_id, fence_result, frames, warehouse, dev):
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")  # 当前时间格式化
     stream = storage.get_stream(stream_id)  # 获取流信息
@@ -314,7 +313,6 @@ def dispatch_alert(stream_id, fence_result, frames, warehouse, dev):
     # ai_report = call_qwen_via_client(base64_images)  # 通义千问大模型
     ai_report = call_local_ai_model(image_paths)  # 本地大模型
 
-
     if not ai_report:
         print('AI识别失效')
         del frames
@@ -324,7 +322,6 @@ def dispatch_alert(stream_id, fence_result, frames, warehouse, dev):
         print('一切正常')
         del frames
         return  # 不触发报警，结束函数
-
 
     # 存入message.json
     message_manager.add_message(stream_uid=stream_id, fence_uid=fence_id, stream_name=stream_name,
@@ -379,7 +376,15 @@ def dispatch_alert(stream_id, fence_result, frames, warehouse, dev):
         duration = 10
         event_type = ai_report['detail']['changes']['event_type']
         event_time = timestamp
-        devices = dev
+        devices = {
+            {
+                "isEventLaunch": "Y",
+                "lotSource": dev.get("lotSource"),
+                "serviceNo": dev.get("serviceNo"),
+                "deviceNo": dev.get("deviceNo"),
+                "fileId": file_code
+            }
+        }
         result = zhongkai_api.event_up(owner_code, warehouse_code, position_code, duration, event_type, event_time, devices)
         if result == True:
             print("事件上报成功")
@@ -388,9 +393,11 @@ def dispatch_alert(stream_id, fence_result, frames, warehouse, dev):
     else:
         print("视频上传失败")
 
+
 # 主程序入口
 if __name__ == "__main__":
     from test import ZhongkaiAPI
+
     with open('config.json') as f:
         config = json.load(f)
     TOKEN = config['zk_token']
