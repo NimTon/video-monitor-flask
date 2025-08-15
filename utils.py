@@ -48,7 +48,7 @@ def md5(str):
     return m.hexdigest()  # 返回16进制哈希值
 
 
-def save_frames_as_video(stream_id, fence_id, frames, video_root='./videos', base_url='x.x.x.x:5000', fps=25):
+def save_frames_as_video(stream_id, fence_id, frames, video_root='./videos', base_url='127.0.0.1:5000', fps=25):
     """
     直接在 video_root 下生成 MP4 文件，不创建子文件夹。
     文件名格式: {stream_id}_{fence_id}_{时间戳}.mp4
@@ -91,7 +91,7 @@ def save_frames_as_video(stream_id, fence_id, frames, video_root='./videos', bas
     return video_url, video_path
 
 
-def save_key_frames(stream_id, fence_id, frames, image_root='./images', base_url='x.x.x.x:5000'):
+def save_key_frames(stream_id, fence_id, frames, image_root='./images', base_url='127.0.0.1:5000'):
     """
     直接在 image_root 下保存第一帧和最后一帧图片，不创建子文件夹。
     文件名格式: {stream_id}_{fence_id}_{时间戳}_1.jpg / _2.jpg

@@ -54,7 +54,7 @@ def call_local_ai_model(image_paths):
    - 摄像头图像噪点或轻微抖动
    - 小动物经过（如老鼠、鸟类等）
    - 反光、阴影变化或风吹树叶等环境干扰
-5. 输出以下**严格 JSON 格式**的响应，结构不可更改，用于下游系统处理：
+5. 输出以下**严格 JSON 格式**的响应，结构不可更改，用于下游系统处理，其中event_type为int，分别表示5（人员聚集）/6（活动车辆）/7（车货），返回int最大值：
 
 {
   "object": "一切正常/货物散落异常/货物位置异常/人员闯入/设备异常/环境异常",
@@ -63,7 +63,7 @@ def call_local_ai_model(image_paths):
   "detail": {
     "changes": {
       "type": "无变化/货物散落/货物位置变化/人员异常/设备异常/环境异常",
-      "event_type": "5-人员聚集，6-活动车辆，7-车货 返回最高等级",
+      "event_type": "5/6/7",
       "description": "对异常的详细描述",
       "risk_level": "低/中/高",
       "alert_suggestion": "否/是"
