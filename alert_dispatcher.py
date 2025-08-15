@@ -369,7 +369,7 @@ def dispatch_alert(stream_id, fence_result, frames, warehouse, dev):
                         print(f"❌ 通过【{method_name}】发送失败：{e}")  # 失败日志
 
     from test import ZhongkaiAPI
-    zhongkai_api = ZhongkaiAPI(token)
+    zhongkai_api = ZhongkaiAPI(token=token)
     file_code = zhongkai_api.upload_file(video_path)
     if file_code:
         print("视频上传成功")
