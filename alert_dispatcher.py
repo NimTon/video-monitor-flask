@@ -376,15 +376,13 @@ def dispatch_alert(stream_id, fence_result, frames, warehouse, dev):
         duration = 10
         event_type = ai_report['detail']['changes']['event_type']
         event_time = timestamp
-        devices = {
-            {
-                "isEventLaunch": "Y",
-                "lotSource": dev.get("lotSource"),
-                "serviceNo": dev.get("serviceNo"),
-                "deviceNo": dev.get("deviceNo"),
-                "fileId": file_code
-            }
-        }
+        devices = [{
+            "isEventLaunch": "Y",
+            "lotSource": dev.get("lotSource"),
+            "serviceNo": dev.get("serviceNo"),
+            "deviceNo": dev.get("deviceNo"),
+            "fileId": file_code
+        }]
         result = zhongkai_api.event_up(owner_code, warehouse_code, position_code, duration, event_type, event_time, devices)
         if result == True:
             print("事件上报成功")
