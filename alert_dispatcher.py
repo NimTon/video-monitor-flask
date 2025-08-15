@@ -31,6 +31,7 @@ with open('config.json') as f:
     config = json.load(f)
 
 base_url = f'http://{config['host']}:{config['port']}'
+token =  config['zk_token']
 
 
 # 初始化存储管理器
@@ -368,7 +369,7 @@ def dispatch_alert(stream_id, fence_result, frames, warehouse, dev):
                         print(f"❌ 通过【{method_name}】发送失败：{e}")  # 失败日志
 
     from test import ZhongkaiAPI
-    zhongkai_api = ZhongkaiAPI()
+    zhongkai_api = ZhongkaiAPI(token)
     file_code = zhongkai_api.upload_file(video_path)
     if file_code:
         print("视频上传成功")
