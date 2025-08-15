@@ -380,9 +380,12 @@ def dispatch_alert(stream_id, fence_result, frames, warehouse, dev):
         event_time = timestamp
         devices = dev
         result = zhongkai_api.event_up(owner_code, warehouse_code, position_code, duration, event_type, event_time, devices)
-        if result:
+        if result == True:
             print("事件上报成功")
-
+        else:
+            print("事件上报失败")
+    else:
+        print("视频上传失败")
 
 # 主程序入口
 if __name__ == "__main__":

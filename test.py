@@ -25,7 +25,7 @@ class ZhongkaiAPI:
         self.headers = {"F-VIDEO-AI-TOKEN": token}
 
         # 各环境的基础 URL
-        self.url_get_devices = "https://openapiuat.zhongkaixingye.com/openapi/lot/ai/devices"
+        self.url_get_devices = "https://openapisit.zhongkaixingye.com/openapi/lot/ai/devices"
         self.url_get_live_url = "https://openapisit.zhongkaixingye.com/openapi/lot/ai/video/url"
         self.url_upload_file = "https://openapisit.zhongkaixingye.com/openapi/lot/ai/file/upload"
         self.url_event_up = "https://openapisit.zhongkaixingye.com/openapi/lot/ai/event/up"
