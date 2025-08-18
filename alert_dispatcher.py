@@ -230,7 +230,7 @@ def dispatch_alert_multi_frames(stream_id, fence_result, frames):
         print('AI识别失效')
     elif ai_report['status'] == "正常":
         # 如果正常，不触发报警，释放帧内存
-        print('一切正常')
+        print(f"stream_name:{stream_name} fence_id:{fence_id} 一切正常")
         del frames
         return  # 不触发报警，结束函数
 
@@ -402,7 +402,7 @@ if __name__ == "__main__":
     MACHINE_CODES = config['machine_codes']
     zhongkai_api = ZhongkaiAPI(token=TOKEN)
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")  # 当前时间格式化
-    video_path = './1.mp4'
+    video_path = './20250815.mp4'
     # devices_data = {'rspCode': '00000000', 'rspDesc': '成功', 'data': [{'ownerCode': '91370000698086271W', 'warehouseCode': 'ZKXYLK', 'positionCode': 'ZKXYLK-B60210', 'devices': [{'lotSource': 'HKS', 'serviceNo': '1', 'deviceNo': '609239518', 'deviceName': 'B库602门', 'indoor': 'Y', 'isAi': 'Y'}, {'lotSource': 'HKS', 'serviceNo': '12', 'deviceNo': '609239518', 'deviceName': 'B库602库内1', 'indoor': 'Y', 'isAi': 'Y'}, {'lotSource': 'HKS', 'serviceNo': '11', 'deviceNo': '609239518', 'deviceName': 'B库602库内2', 'indoor': 'Y', 'isAi': 'Y'}]}]}
     devices_data = zhongkai_api.get_devices('1')
     warehouse = devices_data.get("data")[0]
