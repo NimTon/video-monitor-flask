@@ -687,14 +687,14 @@ class ImageReportManager:
         storage_mgr.unbind_recipient_from_stream(stream_uid, recipient_uid)  # 流解绑接收人
         recipients_mgr.unbind_stream_from_recipient(recipient_uid, stream_uid)  # 接收人解绑流
 
-    if __name__ == '__main__':
-        message_manager = MessageManager()
-        stream_id = '123'
-        fence_id = '456'
-        stream_name = '123'
-        ratio = 0.552458968
-        ai_report = {'123'}
-        image_url = ['123', '456']
-        message_manager.add_message(stream_uid=stream_id, fence_uid=fence_id, stream_name=stream_name,
-                                    change_ratio=f"{ratio:.2f}", ai_report=str(ai_report), image_before_url=image_url[0],
-                                    image_after_url=image_url[1])
+if __name__ == '__main__':
+    message_manager = MessageManager()
+    stream_id = '123'
+    fence_id = '456'
+    stream_name = '123'
+    ratio = 0.552458968
+    ai_report = {'123'}
+    image_url = ['123', '456']
+    message_manager.add_message(stream_uid=stream_id, fence_uid=fence_id, stream_name=stream_name,
+                                change_ratio=f"{ratio:.2f}", ai_report=str(ai_report), image_before_url=image_url[0],
+                                image_after_url=image_url[1])
