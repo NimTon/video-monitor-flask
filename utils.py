@@ -118,13 +118,28 @@ def save_key_frames(stream_id, fence_id, frames, image_root='./images', base_url
         return None, None
 
     urls, paths = [], []
+
+    # 按大小压缩
+    # for i, frame in enumerate([frames[0], frames[-1]], start=1):
+    #     # 压缩成30KB以内
+    #     img_bytes = compress_to_30kb(frame, max_size_kb=30)
+    #     filename = f"{stream_id}_{fence_id}_{now_time_str}_{i}.jpg"
+    #     filepath = os.path.join(image_root, filename)
+    #     with open(filepath, "wb") as f:
+    #         f.write(img_bytes)
+    #
+    #     file_url = f"{base_url}/images/{filename}"
+    #     urls.append(file_url)
+    #     paths.append(filepath)
+    #
+    # return urls, paths
+
+    # 按分辨率压缩
     for i, frame in enumerate([frames[0], frames[-1]], start=1):
-        # 压缩成30KB以内
-        img_bytes = compress_to_30kb(frame, max_size_kb=30)
+        frame = resize_to_720p(frame)
         filename = f"{stream_id}_{fence_id}_{now_time_str}_{i}.jpg"
         filepath = os.path.join(image_root, filename)
-        with open(filepath, "wb") as f:
-            f.write(img_bytes)
+        cv2.imwrite(filepath, frame)
 
         file_url = f"{base_url}/images/{filename}"
         urls.append(file_url)
@@ -151,3 +166,13 @@ def compress_to_30kb(frame, max_size_kb=30):
         quality -= 5
 
     return encoded_img.tobytes()
+
+
+def resize_to_720p(frame):
+    """将图像压缩到 720p 高度，保持宽高比"""
+    h, w = frame.shape[:2]
+    target_h = 720
+    scale = target_h / h
+    target_w = int(w * scale)
+    resized = cv2.resize(frame, (target_w, target_h), interpolation=cv2.INTER_AREA)
+    return resized
