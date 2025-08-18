@@ -600,7 +600,6 @@ class ImageReportManager:
             new_report = {
                 "stream_uid": stream_uid,
                 "stream_name": stream_name,
-                "fence_uid": fence_uid,
                 "row": row,
                 "report_day": ""
             }
@@ -670,11 +669,6 @@ class ImageReportManager:
         """列出所有报告信息"""
         data = self.load_all()  # 加载数据
         return data  # 返回完整列表
-
-    def get_reports_by_fence(self, fence_uid):
-        """获取绑定到指定围栏的所有报告信息"""
-        data = self.load_all()  # 加载数据
-        return [msg for msg in data if msg["fence_uid"] == fence_uid]  # 筛选并返回匹配的报告信息
 
     # ==== 辅助函数 ====
     def bind_stream_and_recipient(storage_mgr: StorageManager, recipients_mgr: RecipientsManager, stream_uid, recipient_uid):
