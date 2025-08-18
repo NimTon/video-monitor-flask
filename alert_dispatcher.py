@@ -1,5 +1,4 @@
 # 导入第三方库和模块
-from sklearn.externals.array_api_compat import device
 from ai.qwen_ai import call_qwen_via_client  # 导入Qwen AI的私有API调用模块
 from ai.local_ai import call_local_ai_model
 import requests  # HTTP请求库
