@@ -1,5 +1,5 @@
 import os
-import time
+import ast
 import re
 import base64
 import cv2
@@ -31,8 +31,17 @@ def extract_json_dict_from_ai_reply(text):
             print("JSON 解析失败:", e)
             return None
     else:
-        print("未找到 JSON 代码块")
-        return None
+        text = text.strip()
+        try:
+            # 尝试作为标准 JSON 解析
+            return json.loads(text)
+        except json.JSONDecodeError:
+            try:
+                # 尝试作为 Python dict 字符串解析
+                return ast.literal_eval(text)
+            except Exception as e:
+                print("解析失败:", e)
+                return None
 
 
 # 使用OpenAI客户端调用通义千问API
