@@ -475,7 +475,7 @@ class MessageManager:
     def _find_message_index(self, data, message_uid):
         """内部方法：根据message_uid查找告警信息的索引"""
         for i, msg in enumerate(data):  # 遍历所有告警信息
-            if msg["messgae_uid"] == message_uid:  # 匹配message_uid
+            if msg["message_uid"] == message_uid:  # 匹配message_uid
                 return i  # 返回索引位置
         return -1  # 未找到返回-1
 
@@ -487,7 +487,7 @@ class MessageManager:
 
         # 创建新告警信息对象
         new_message = {
-            "messgae_uid": message_uid,  # 唯一标识
+            "message_uid": message_uid,  # 唯一标识
             "stream_uid": stream_uid,  # 视频流UID
             "fence_uid": fence_uid,  # 围栏UID
             "stream_name": stream_name,  # 视频流名称
@@ -532,7 +532,7 @@ class MessageManager:
         """获取单个告警信息详情"""
         data = self.load_all()  # 加载数据
         for msg in data:  # 遍历查找
-            if msg["messgae_uid"] == message_uid:
+            if msg["message_uid"] == message_uid:
                 return msg  # 返回匹配项
         return None  # 未找到返回None
 
@@ -551,26 +551,150 @@ class MessageManager:
         data = self.load_all()  # 加载数据
         return [msg for msg in data if msg["fence_uid"] == fence_uid]  # 筛选并返回匹配的告警信息
 
-# ==== 辅助函数 ====
-def bind_stream_and_recipient(storage_mgr: StorageManager, recipients_mgr: RecipientsManager, stream_uid, recipient_uid):
-    """双向绑定：视频流和接收人互相绑定"""
-    storage_mgr.bind_recipient_to_stream(stream_uid, recipient_uid)  # 流绑定接收人
-    recipients_mgr.bind_stream_to_recipient(recipient_uid, stream_uid)  # 接收人绑定流
 
+class ImageReportManager:
+    """报告信息管理类，负责报告信息的CRUD操作"""
 
-def unbind_stream_and_recipient(storage_mgr: StorageManager, recipients_mgr: RecipientsManager, stream_uid, recipient_uid):
-    """双向解绑：视频流和接收人互相解绑"""
-    storage_mgr.unbind_recipient_from_stream(stream_uid, recipient_uid)  # 流解绑接收人
-    recipients_mgr.unbind_stream_from_recipient(recipient_uid, stream_uid)  # 接收人解绑流
+    def __init__(self, filepath='image_report.json'):
+        """初始化报告信息管理器"""
+        self.filepath = filepath  # 存储文件路径
+        self.lock = threading.Lock()  # 创建线程锁
 
-if __name__ == '__main__':
-    message_manager = MessageManager()
-    stream_id = '123'
-    fence_id = '456'
-    stream_name = '123'
-    ratio = 0.552458968
-    ai_report = {'123'}
-    image_url = ['123', '456']
-    message_manager.add_message(stream_uid=stream_id, fence_uid=fence_id, stream_name=stream_name,
-                                change_ratio=f"{ratio:.2f}", ai_report=str(ai_report), image_before_url=image_url[0],
-                                image_after_url=image_url[1])
+        # 初始化数据文件
+        if not os.path.exists(filepath):  # 文件不存在
+            with open(filepath, 'w') as f:  # 创建新文件
+                json.dump([], f)  # 写入空列表
+
+    def load_all(self):
+        """加载所有报告信息"""
+        with self.lock:  # 加锁
+            with open(self.filepath, 'r') as f:
+                return json.load(f)  # 返回解析后的数据
+
+    def save_all(self, data):
+        """保存所有报告信息"""
+        with self.lock:  # 加锁
+            with open(self.filepath, 'w') as f:
+                json.dump(data, f, indent=2)  # 格式化写入
+
+    def _find_report_index(self, data, stream_uid):
+        """内部方法：根据report_uid查找报告信息的索引"""
+        for i, msg in enumerate(data):  # 遍历所有报告信息
+            if msg["stream_uid"] == stream_uid:  # 匹配report_uid
+                return i  # 返回索引位置
+        return -1  # 未找到返回-1
+
+    def add_report(self, stream_uid, fence_uid, stream_name):
+        """添加新报告信息"""
+        data = self.load_all()  # 加载现有数据
+        now = datetime.datetime.now()
+        row = []
+        for i in range(24):
+            hour_time = (now - datetime.timedelta(hours=23 - i)).strftime("%Y-%m-%d %H:00:00")
+            row.append({
+                "timestamp": hour_time,
+                "image_path": "",
+                "image_url": "",
+            })
+            # 创建新报告信息对象
+            new_report = {
+                "stream_uid": stream_uid,
+                "stream_name": stream_name,
+                "fence_uid": fence_uid,
+                "row": row,
+                "report_day": ""
+            }
+            data.append(new_report)  # 添加到数据列表
+            self.save_all(data)  # 保存数据
+            return stream_uid  # 返回新报告信息的UID
+
+    def update_report(self, stream_uid, **kwargs):
+        """更新报告信息"""
+        data = self.load_all()  # 加载数据
+        idx = self._find_report_index(data, stream_uid)  # 查找索引
+        if idx == -1:
+            return False  # 未找到返回False
+        # 更新提供的字段
+        for key, value in kwargs.items():
+            if value is not None:  # 忽略None值
+                data[idx]['row'][key] = value
+        self.save_all(data)  # 保存更新
+        return True  # 成功返回True
+
+    def delete_report(self, stream_uid):
+        """删除报告信息"""
+        data = self.load_all()  # 加载数据
+        idx = self._find_report_index(data, stream_uid)  # 查找索引
+        if idx != -1:
+            data.pop(idx)  # 移除元素
+            self.save_all(data)  # 保存
+            return True  # 成功
+        return False  # 未找到
+
+    def reset_report(self, stream_uid):
+        """
+        重置指定报告：
+        - 将 row 中每小时图片路径和 URL 清空
+        - 将每日总结 report_day 清空
+        """
+        data = self.load_all()
+        idx = self._find_report_index(data, stream_uid)
+        if idx == -1:
+            return False  # 未找到报告
+        # 获取当前时间，重置24小时 row
+        now = datetime.datetime.now()
+        new_row = []
+        for i in range(24):
+            hour_time = (now - datetime.timedelta(hours=23 - i)).strftime("%Y-%m-%d %H:00:00")
+            new_row.append({
+                "timestamp": hour_time,
+                "image_path": "",
+                "image_url": "",
+            })
+        # 重置数据
+        data[idx]["row"] = new_row
+        data[idx]["report_day"] = ""  # 清空每日总结
+
+        self.save_all(data)
+        return True  # 重置成功
+
+    def get_report(self, stream_uid):
+        """获取单个报告信息详情"""
+        data = self.load_all()  # 加载数据
+        for msg in data:  # 遍历查找
+            if msg["stream_uid"] == stream_uid:
+                return msg  # 返回匹配项
+        return None  # 未找到返回None
+
+    def list_reports(self):
+        """列出所有报告信息"""
+        data = self.load_all()  # 加载数据
+        return data  # 返回完整列表
+
+    def get_reports_by_fence(self, fence_uid):
+        """获取绑定到指定围栏的所有报告信息"""
+        data = self.load_all()  # 加载数据
+        return [msg for msg in data if msg["fence_uid"] == fence_uid]  # 筛选并返回匹配的报告信息
+
+    # ==== 辅助函数 ====
+    def bind_stream_and_recipient(storage_mgr: StorageManager, recipients_mgr: RecipientsManager, stream_uid, recipient_uid):
+        """双向绑定：视频流和接收人互相绑定"""
+        storage_mgr.bind_recipient_to_stream(stream_uid, recipient_uid)  # 流绑定接收人
+        recipients_mgr.bind_stream_to_recipient(recipient_uid, stream_uid)  # 接收人绑定流
+
+    def unbind_stream_and_recipient(storage_mgr: StorageManager, recipients_mgr: RecipientsManager, stream_uid, recipient_uid):
+        """双向解绑：视频流和接收人互相解绑"""
+        storage_mgr.unbind_recipient_from_stream(stream_uid, recipient_uid)  # 流解绑接收人
+        recipients_mgr.unbind_stream_from_recipient(recipient_uid, stream_uid)  # 接收人解绑流
+
+    if __name__ == '__main__':
+        message_manager = MessageManager()
+        stream_id = '123'
+        fence_id = '456'
+        stream_name = '123'
+        ratio = 0.552458968
+        ai_report = {'123'}
+        image_url = ['123', '456']
+        message_manager.add_message(stream_uid=stream_id, fence_uid=fence_id, stream_name=stream_name,
+                                    change_ratio=f"{ratio:.2f}", ai_report=str(ai_report), image_before_url=image_url[0],
+                                    image_after_url=image_url[1])
