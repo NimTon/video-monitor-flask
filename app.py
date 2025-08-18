@@ -29,10 +29,10 @@ message_manager = MessageManager()
 # 初始化视频流线程字典，用于存储stream_id到线程的映射
 app.video_threads = {}
 # ZLMediaKit服务器配置
-ZLMediaKit_secret = 'RMys9486msj1NraRsncf0k0lpAMmLaHP'  # 虚拟机
+ZLMediaKit_secret = config['zlmk_secret']  # 虚拟机
 # ZLMediaKit_secret = 'k9mlFsMF38CGAUVSdIzpiPKonvgxBT9v'  # 公司服务器
 # ZLMediaKit_url = 'http://172.26.18.19/index/api'  # 测试虚拟机
-ZLMediaKit_url = 'http://172.27.109.14/index/api'  # 虚拟机
+ZLMediaKit_url = config['zlmk_url']  # 虚拟机
 # ZLMediaKit_url = 'http://10.30.4.50:180/index/api'  # 公司服务器
 # 图片存放路径
 IMAGE_DIR = os.path.join(os.getcwd(), 'images')  # 绝对路径更安全

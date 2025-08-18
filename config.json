@@ -1,0 +1,11 @@
+{
+  "host": "127.0.0.1",
+  "port": "5008",
+  "zlmk_secret": "RMys9486msj1NraRsncf0k0lpAMmLaHP",
+  "zlmk_url": "http://172.27.109.14/index/api",
+  "local_ai_url": "http://10.30.4.32:5800/api/sayImages",
+  "qwen_api_key": "sk-f3ec150157ec41baaa516b15d1feaeae",
+  "qwen_url": "https://dashscope.aliyuncs.com/compatible-mode/v1",
+  "zk_token": "FZK865AI9184C4A66",
+  "machine_codes": ["1", "2"]
+}

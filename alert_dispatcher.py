@@ -26,8 +26,10 @@ from utils import save_frames_as_video, save_key_frames, md5
 
 message_manager = MessageManager()
 
-# base_url = 'http://127.0.0.1:5000'  # 测试ip
-base_url = 'http://10.30.3.178:5000'
+with open('config.json') as f:
+    config = json.load(f)
+
+base_url = f'http://{config['host']}:{config['port']}'
 
 
 # 初始化存储管理器
