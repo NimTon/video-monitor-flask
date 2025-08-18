@@ -227,7 +227,7 @@ def dispatch_alert_multi_frames(stream_id, fence_result, frames):
         print('AI识别失效')
     elif ai_report['status'] == "正常":
         # 如果正常，不触发报警，释放帧内存
-        print('一切正常')
+        print(f"stream_name:{stream_name} fence_id:{fence_id} 一切正常")
         del frames
         return  # 不触发报警，结束函数
 
