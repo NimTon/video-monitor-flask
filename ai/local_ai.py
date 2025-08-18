@@ -17,7 +17,6 @@ def call_local_ai_model(image_paths):
     返回:
         dict 或 None: 成功返回 dict，失败返回 None。
     """
-    url = url
 
     files = []
     opened_files = []
