@@ -26,7 +26,7 @@ from utils import save_frames_as_video, save_key_frames, md5
 
 message_manager = MessageManager()
 
-with open('config.json') as f:
+with open('config.json', encoding='utf-8') as f:
     config = json.load(f)
 
 base_url = f'http://{config['host']}:{config['port']}'

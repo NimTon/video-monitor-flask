@@ -3,11 +3,11 @@ import os
 import json
 from ai.qwen_ai import extract_json_dict_from_ai_reply
 
-with open('config.json') as f:
+with open('config.json', encoding='utf-8') as f:
     config = json.load(f)
 SAY_IMAGES_URL = config['local_ai_images_url']
 SAY_VIDEO_URL = config['local_ai_video_url']
-with open('prompts.json') as f:
+with open('prompts.json', encoding='utf-8') as f:
     prompts = json.load(f)
 prompt = prompts['normal']
 

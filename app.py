@@ -12,7 +12,7 @@ import json
 import os
 from datetime import datetime
 
-with open('config.json') as f:
+with open('config.json', encoding='utf-8') as f:
     config = json.load(f)
 
 # 设置前端静态文件目录
