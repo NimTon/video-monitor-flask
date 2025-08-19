@@ -16,12 +16,12 @@ class StorageManager:
 
         # 初始化数据文件
         if not os.path.exists(filepath):  # 如果文件不存在
-            with open(filepath, 'w') as f:  # 创建新文件
+            with open(filepath, 'w', encoding='utf-8') as f:  # 创建新文件
                 json.dump([], f, indent=2, ensure_ascii=False)  # 写入空列表作为初始数据
         else:  # 文件已存在
             with self.lock:  # 加锁确保线程安全
                 # 读取现有数据
-                with open(filepath, 'r') as f:
+                with open(filepath, 'r', encoding='utf-8') as f:
                     data = json.load(f)
 
                     # 重置所有视频流状态为stopped
@@ -29,19 +29,19 @@ class StorageManager:
                     stream["status"] = "stopped"
 
                     # 写回更新后的数据
-                with open(filepath, 'w') as f:
+                with open(filepath, 'w', encoding='utf-8') as f:
                     json.dump(data, f, indent=2, ensure_ascii=False)  # 格式化输出，便于阅读
 
     def load_all(self):
         """加载所有视频流数据"""
         with self.lock:  # 加锁
-            with open(self.filepath, 'r') as f:
+            with open(self.filepath, 'r', encoding='utf-8') as f:
                 return json.load(f)  # 返回解析后的JSON数据
 
     def save_all(self, data):
         """保存所有视频流数据"""
         with self.lock:  # 加锁
-            with open(self.filepath, 'w') as f:
+            with open(self.filepath, 'w', encoding='utf-8') as f:
                 json.dump(data, f, indent=2, ensure_ascii=False)  # 格式化写入JSON数据
 
     def _find_stream_index(self, data, stream_uid):
@@ -215,19 +215,19 @@ class RecipientsManager:
 
         # 初始化数据文件
         if not os.path.exists(filepath):  # 文件不存在
-            with open(filepath, 'w') as f:  # 创建新文件
+            with open(filepath, 'w', encoding='utf-8') as f:  # 创建新文件
                 json.dump([], f, indent=2, ensure_ascii=False)  # 写入空列表
 
     def load_all(self):
         """加载所有接收人数据"""
         with self.lock:  # 加锁
-            with open(self.filepath, 'r') as f:
+            with open(self.filepath, 'r', encoding='utf-8') as f:
                 return json.load(f)  # 返回解析后的数据
 
     def save_all(self, data):
         """保存所有接收人数据"""
         with self.lock:  # 加锁
-            with open(self.filepath, 'w') as f:
+            with open(self.filepath, 'w', encoding='utf-8') as f:
                 json.dump(data, f, indent=2, ensure_ascii=False)  # 格式化写入
 
     def _find_recipient_index(self, data, recipient_uid):
@@ -336,19 +336,19 @@ class AlertStorageManager:
 
         # 初始化数据文件
         if not os.path.exists(filepath):  # 文件不存在
-            with open(filepath, 'w') as f:  # 创建新文件
+            with open(filepath, 'w', encoding='utf-8') as f:  # 创建新文件
                 json.dump([], f, indent=2, ensure_ascii=False) # 写入空列表
 
     def load_all(self):
         """加载所有告警模板"""
         with self.lock:  # 加锁
-            with open(self.filepath, 'r') as f:
+            with open(self.filepath, 'r', encoding='utf-8') as f:
                 return json.load(f)  # 返回解析后的数据
 
     def save_all(self, data):
         """保存所有告警模板"""
         with self.lock:  # 加锁
-            with open(self.filepath, 'w') as f:
+            with open(self.filepath, 'w', encoding='utf-8') as f:
                 json.dump(data, f, indent=2, ensure_ascii=False)  # 格式化写入
 
     def get_alert_templates(self):
@@ -373,19 +373,19 @@ class SourceStreamManager:
 
         # 初始化数据文件
         if not os.path.exists(filepath):  # 文件不存在
-            with open(filepath, 'w') as f:  # 创建新文件
+            with open(filepath, 'w', encoding='utf-8') as f:  # 创建新文件
                 json.dump([], f, indent=2, ensure_ascii=False)  # 写入空列表
 
     def load_all(self):
         """加载所有源视频流数据"""
         with self.lock:  # 加锁
-            with open(self.filepath, 'r') as f:
+            with open(self.filepath, 'r', encoding='utf-8') as f:
                 return json.load(f)  # 返回解析后的数据
 
     def save_all(self, data):
         """保存所有源视频流数据"""
         with self.lock:  # 加锁
-            with open(self.filepath, 'w') as f:
+            with open(self.filepath, 'w', encoding='utf-8') as f:
                 json.dump(data, f, indent=2, ensure_ascii=False)  # 格式化写入
 
     def _find_source_stream_index(self, data, uid):
@@ -457,19 +457,19 @@ class MessageManager:
 
         # 初始化数据文件
         if not os.path.exists(filepath):  # 文件不存在
-            with open(filepath, 'w') as f:  # 创建新文件
+            with open(filepath, 'w', encoding='utf-8') as f:  # 创建新文件
                 json.dump([], f, indent=2, ensure_ascii=False)  # 写入空列表
 
     def load_all(self):
         """加载所有告警信息"""
         with self.lock:  # 加锁
-            with open(self.filepath, 'r') as f:
+            with open(self.filepath, 'r', encoding='utf-8') as f:
                 return json.load(f)  # 返回解析后的数据
 
     def save_all(self, data):
         """保存所有告警信息"""
         with self.lock:  # 加锁
-            with open(self.filepath, 'w') as f:
+            with open(self.filepath, 'w', encoding='utf-8') as f:
                 json.dump(data, f, indent=2, ensure_ascii=False)  # 格式化写入
 
     def _find_message_index(self, data, message_uid):
@@ -561,17 +561,17 @@ class ImageReportManager:
         self.lock = threading.Lock()
 
         if not os.path.exists(filepath):
-            with open(filepath, 'w') as f:
+            with open(filepath, 'w', encoding='utf-8') as f:
                 json.dump([], f, indent=2, ensure_ascii=False)
 
     def load_all(self):
         with self.lock:
-            with open(self.filepath, 'r') as f:
+            with open(self.filepath, 'r', encoding='utf-8') as f:
                 return json.load(f)
 
     def save_all(self, data):
         with self.lock:
-            with open(self.filepath, 'w') as f:
+            with open(self.filepath, 'w', encoding='utf-8') as f:
                 json.dump(data, f, indent=2, ensure_ascii=False)
 
     def _find_report_index(self, data, stream_uid):
