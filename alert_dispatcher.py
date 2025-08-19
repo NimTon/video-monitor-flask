@@ -222,7 +222,8 @@ def dispatch_alert_multi_frames(stream_id, fence_result, frames):
     ai_report = None
     # base64_images = [cv2_frame_to_base64(f) for f in frames]  # frames_to_return 是 BGR numpy数组列表
     # ai_report = call_qwen_via_client(base64_images)  # 通义千问大模型
-    ai_report = call_local_ai_model(image_paths)  # 本地大模型
+    # ai_report = call_local_ai_model(image_paths=image_paths)  # 本地大模型（图片）
+    ai_report = call_local_ai_model(video_path=video_path)  # 本地大模型（视频）
 
 
     if not ai_report:
