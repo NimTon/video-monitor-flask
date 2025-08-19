@@ -22,7 +22,7 @@ import urllib  # URL处理
 import urllib.request  # URL请求
 import numpy as np
 from storage import MessageManager
-from utils import save_frames_as_video, save_key_frames, md5
+from utils import save_frames_as_video, save_key_frames, md5, log
 
 message_manager = MessageManager()
 
@@ -39,46 +39,53 @@ recipient_mgr = RecipientsManager()  # 接收人管理
 
 
 # 邮件报警函数
-def send_email_alert(message, contact_value, prev_image_path=None, curr_image_path=None):
+import os
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+from email.header import Header
+from email.utils import formataddr
+import base64
+
+def send_email_alert(message, contact_value, image_list=None, subject="视频报警通知"):
     """
-    发送邮件报警
+    发送邮件报警（HTML正文，可附加多张图片）
 
     参数：
         message - 邮件正文（HTML格式字符串）
         contact_value - 收件人邮箱（字符串）
-        prev_image_path - 报警前图像路径（可选）
-        curr_image_path - 报警后图像路径（可选）
+        image_list - 图片路径列表（可选）
+    返回：
+        True: 发送成功
+        False: 发送失败
     """
-    # 邮件配置
-    subject = "🚨 视频报警通知"  # 邮件主题
-    from_email = "576467179@qq.com"  # 发件邮箱
-    auth_code = "mirozaqvewotbdci"  # 授权码
+    from_email = "576467179@qq.com"
+    auth_code = "mirozaqvewotbdci"
 
-    # 创建邮件对象
-    msg = MIMEMultipart()  # 多部分邮件
-    msg['From'] = formataddr(("报警系统", from_email))  # 格式化发件人
-    msg['To'] = contact_value  # 收件人
-    msg['Subject'] = Header(subject, 'utf-8')  # 邮件主题
-
-    # 添加HTML正文
+    msg = MIMEMultipart()
+    msg['From'] = formataddr(("报警系统", from_email))
+    msg['To'] = contact_value
+    msg['Subject'] = Header(subject, 'utf-8')
     msg.attach(MIMEText(message.replace("\n", "<br>"), 'html', 'utf-8'))
 
-    # 添加图片附件
-    for img_path in [prev_image_path, curr_image_path]:
-        if img_path and os.path.exists(img_path):  # 检查图片是否存在
-            with open(img_path, 'rb') as f:  # 二进制读取图片
-                part = MIMEApplication(f.read(), Name=os.path.basename(img_path))  # 创建附件
-                part['Content-Disposition'] = f'attachment; filename="{os.path.basename(img_path)}"'  # 设置附件头
-                msg.attach(part)  # 添加附件
+    if image_list:
+        for img_path in image_list:
+            if img_path and os.path.exists(img_path):
+                with open(img_path, 'rb') as f:
+                    part = MIMEApplication(f.read(), Name=os.path.basename(img_path))
+                    part['Content-Disposition'] = f'attachment; filename="{os.path.basename(img_path)}"'
+                    msg.attach(part)
 
-    # 发送邮件
     try:
-        server = smtplib.SMTP_SSL("smtp.qq.com", 465)  # QQ邮箱SMTP服务器
-        server.login(from_email, auth_code)  # 登录
-        server.sendmail(from_email, [contact_value], msg.as_string())  # 发送邮件
-        server.quit()  # 退出
+        server = smtplib.SMTP_SSL("smtp.qq.com", 465)
+        server.login(from_email, auth_code)
+        server.sendmail(from_email, [contact_value], msg.as_string())
+        server.quit()
+        log("SUCCESS", f"邮件发送成功: {contact_value}")
+        return True
     except Exception as e:
-        print("❌ 邮件发送失败:", e)  # 打印错误
+        log("FAIL", f"邮件发送失败: {contact_value}, 错误: {e}")
+        return False
 
 # 钉钉报警函数
 def send_dingding_alert(message, contact_value, prev_image_path=None, curr_image_path=None):

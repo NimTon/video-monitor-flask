@@ -339,7 +339,7 @@ class AlertStorageManager:
         # 初始化数据文件
         if not os.path.exists(filepath):  # 文件不存在
             with open(filepath, 'w', encoding='utf-8') as f:  # 创建新文件
-                json.dump([], f, indent=2, ensure_ascii=False) # 写入空列表
+                json.dump([], f, indent=2, ensure_ascii=False)  # 写入空列表
 
     def load_all(self):
         """加载所有告警模板"""
@@ -587,12 +587,11 @@ class ImageReportManager:
         data = self.load_all()
         now = datetime.datetime.now()
         today = now.strftime("%Y-%m-%d")
-
         images = []
         for i in range(24):
-            hour_time = (now - datetime.timedelta(hours=23 - i)).strftime("%Y-%m-%d %H:00:00")
+            hour_time = datetime.datetime.combine(datetime.date.today(), datetime.time(i, 0, 0))
             images.append({
-                "timestamp": hour_time,
+                "timestamp": hour_time.strftime("%H:00:00"),
                 "image_path": "",
                 "image_url": "",
             })
@@ -610,19 +609,29 @@ class ImageReportManager:
         self.save_all(data)
         return stream_uid
 
-    def update_report(self, stream_uid, date: str, images=None, report=None):
-        """更新指定日期的报告"""
+    def update_report(self, stream_uid, date: str, report=None, hour: str = None, image_path=None, image_url=None, images=None):
+        """
+        更新指定日期的报告
+        - report: 更新当天的总结文本
+        - images: 替换整天的 images（不常用）
+        - hour + image_path/image_url: 更新某个小时的图片
+        """
         data = self.load_all()
         idx = self._find_report_index(data, stream_uid)
         if idx == -1:
             return False
-        if date not in data[idx]:
-            data[idx][date] = {"images": [], "report": ""}
-        if images is not None:
-            data[idx][date]["images"] = images
         if report is not None:
             data[idx][date]["report"] = report
-
+        if images is not None:
+            data[idx][date]["images"] = images
+        if hour is not None and (image_path or image_url):
+            for img in data[idx][date]["images"]:
+                if img["timestamp"].startswith(hour.zfill(2)):  # 例如 hour="05" 匹配 "05:00:00"
+                    if image_path:
+                        img["image_path"] = image_path
+                    if image_url:
+                        img["image_url"] = image_url
+                    break
         self.save_all(data)
         return True
 
@@ -642,12 +651,12 @@ class ImageReportManager:
         if idx == -1:
             return False
 
-        now = datetime.datetime.now()
+        today = datetime.date.today()
         images = []
         for i in range(24):
-            hour_time = (now - datetime.timedelta(hours=23 - i)).strftime("%H:00:00")
+            hour_time = datetime.datetime.combine(today, datetime.time(i, 0, 0))
             images.append({
-                "timestamp": hour_time,
+                "timestamp": hour_time.strftime("%H:00:00"),
                 "image_path": "",
                 "image_url": "",
             })
@@ -686,25 +695,43 @@ class ImageReportManager:
             return reports
         return data
 
+    def get_overall_summary(self, date: str):
+        """获取所有视频流的总摘要"""
+        return self.get_report("ALL_STREAMS", date)
+
+    def update_overall_summary(self, date: str, report_text: str):
+        """更新所有视频流的总摘要"""
+        # 如果总摘要不存在，则初始化
+        overall_report = self.get_report("ALL_STREAMS")
+        if not overall_report:
+            self.add_report("ALL_STREAMS", "ALL_STREAMS")
+        # 更新指定日期的 report 字段
+        return self.update_report("ALL_STREAMS", date=date, report=report_text)
+
+    def reset_overall_summary(self, date: str):
+        """重置总摘要（清空 report）"""
+        overall_report = self.get_report("ALL_STREAMS")
+        if not overall_report:
+            self.add_report("ALL_STREAMS", "ALL_STREAMS")
+        images = []
+        for i in range(24):
+            hour_time = datetime.datetime.combine(datetime.date.today(), datetime.time(i, 0, 0))
+            images.append({
+                "timestamp": hour_time.strftime("%H:00:00"),
+                "image_path": "",
+                "image_url": "",
+            })
+        return self.update_report("ALL_STREAMS", date=date, report="", images=images)
+
+
 # ==== 辅助函数 ====
 def bind_stream_and_recipient(storage_mgr: StorageManager, recipients_mgr: RecipientsManager, stream_uid, recipient_uid):
     """双向绑定：视频流和接收人互相绑定"""
     storage_mgr.bind_recipient_to_stream(stream_uid, recipient_uid)  # 流绑定接收人
     recipients_mgr.bind_stream_to_recipient(recipient_uid, stream_uid)  # 接收人绑定流
 
+
 def unbind_stream_and_recipient(storage_mgr: StorageManager, recipients_mgr: RecipientsManager, stream_uid, recipient_uid):
     """双向解绑：视频流和接收人互相解绑"""
     storage_mgr.unbind_recipient_from_stream(stream_uid, recipient_uid)  # 流解绑接收人
     recipients_mgr.unbind_stream_from_recipient(recipient_uid, stream_uid)  # 接收人解绑流
-
-if __name__ == '__main__':
-    message_manager = MessageManager()
-    stream_id = '123'
-    fence_id = '456'
-    stream_name = '123'
-    ratio = 0.552458968
-    ai_report = {'123'}
-    image_url = ['123', '456']
-    message_manager.add_message(stream_uid=stream_id, fence_uid=fence_id, stream_name=stream_name,
-                                change_ratio=f"{ratio:.2f}", ai_report=str(ai_report), image_before_url=image_url[0],
-                                image_after_url=image_url[1])
