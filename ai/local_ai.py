@@ -7,41 +7,9 @@ with open('config.json') as f:
     config = json.load(f)
 SAY_IMAGES_URL = config['local_ai_images_url']
 SAY_VIDEO_URL = config['local_ai_video_url']
-
-prompt = """你是一个专业的安防监控AI分析系统，专门负责仓库监控画面中**红色电子围栏区域**的变化检测。你的任务如下：
-        1. 严格分析由时间间隔1秒的连续帧中**红色电子围栏圈出区域**的图像变化；
-        2. 仅对电子围栏内的内容进行判断，忽略区域外的变化；
-        3. 根据以下安全策略判断是否需要触发报警：
-           - 人员异常出现或移动（未经授权进入电子围栏区域）
-           - 货物位置或数量发生异常变化（掉落、被移动、消失）
-           - 设备状态异常（如叉车出现/移动、门禁异常开启）
-           - 环境突发异常（如烟雾、火焰、水渍等）
-           - 有异物移动，突然闯入或者离开（如车辆、货物、人等）
-           - 有车辆移动，突然闯入或者离开
-        4. 忽略以下正常变化：
-           - 灯光明暗变化或自然闪烁
-           - 摄像头图像噪点或轻微抖动
-           - 小动物经过（如老鼠、鸟类等）
-           - 反光、阴影变化或风吹树叶等环境干扰
-        5. 输出以下**严格 JSON 格式**的响应，结构不可更改，用于下游系统处理，其中event_type为int，分别表示5（人员聚集）/6（活动车辆）/7（车货），返回int最大值：
-        
-        {
-          "object": "一切正常/货物散落异常/货物位置异常/人员闯入/设备异常/环境异常",
-          "status": "正常/报警",
-          "report": "对电子围栏区域的自然语言总结说明",
-          "detail": {
-            "changes": {
-              "type": "无变化/货物散落/货物位置变化/人员异常/设备异常/环境异常",
-              "event_type": "5/6/7",
-              "description": "对异常的详细描述",
-              "risk_level": "低/中/高",
-              "alert_suggestion": "否/是"
-            },
-            "recommendations": "提出建议"
-          }
-        }
-        """
-
+with open('prompts.json') as f:
+    prompts = json.load(f)
+prompt = prompts['normal']
 
 def call_local_ai_model(image_paths=None, video_path=None, prompt=prompt):
     files = []
