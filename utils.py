@@ -7,6 +7,7 @@ from matplotlib import pyplot as plt
 from PIL import Image
 import io
 import base64  # Base64编码库
+from pypinyin import lazy_pinyin
 
 # 在报警分发时，给frame加上红色围栏标记
 def draw_fence_on_frame(frame, fence_points):
@@ -176,3 +177,7 @@ def resize_to_720p(frame):
     target_w = int(w * scale)
     resized = cv2.resize(frame, (target_w, target_h), interpolation=cv2.INTER_AREA)
     return resized
+
+def chinese_to_pinyin(text):
+    """把中文字符转为拼音，其它字符保持不变"""
+    return ''.join(lazy_pinyin(text))
