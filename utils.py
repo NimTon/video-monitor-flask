@@ -139,10 +139,11 @@ def save_key_frames(stream_id, fence_id, frames, image_root='./images', base_url
     for i, frame in enumerate([frames[0], frames[-1]], start=1):
         frame = resize_to_720p(frame)
         filename = f"{stream_id}_{fence_id}_{now_time_str}_{i}.jpg"
-        filepath = os.path.join(image_root, filename)
-        cv2.imwrite(filepath, frame)
-
-        file_url = f"{base_url}/images/{filename}"
+        filepath = f"{image_root}/{filename}"
+        success = cv2.imwrite(filepath, frame)
+        if not success:
+            print(f"{filepath}保存失败")
+        file_url = f"{base_url}/{filepath}"
         urls.append(file_url)
         paths.append(filepath)
 
