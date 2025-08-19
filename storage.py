@@ -684,16 +684,16 @@ class ImageReportManager:
             return reports
         return data
 
-    # ==== 辅助函数 ====
-    def bind_stream_and_recipient(storage_mgr: StorageManager, recipients_mgr: RecipientsManager, stream_uid, recipient_uid):
-        """双向绑定：视频流和接收人互相绑定"""
-        storage_mgr.bind_recipient_to_stream(stream_uid, recipient_uid)  # 流绑定接收人
-        recipients_mgr.bind_stream_to_recipient(recipient_uid, stream_uid)  # 接收人绑定流
+# ==== 辅助函数 ====
+def bind_stream_and_recipient(storage_mgr: StorageManager, recipients_mgr: RecipientsManager, stream_uid, recipient_uid):
+    """双向绑定：视频流和接收人互相绑定"""
+    storage_mgr.bind_recipient_to_stream(stream_uid, recipient_uid)  # 流绑定接收人
+    recipients_mgr.bind_stream_to_recipient(recipient_uid, stream_uid)  # 接收人绑定流
 
-    def unbind_stream_and_recipient(storage_mgr: StorageManager, recipients_mgr: RecipientsManager, stream_uid, recipient_uid):
-        """双向解绑：视频流和接收人互相解绑"""
-        storage_mgr.unbind_recipient_from_stream(stream_uid, recipient_uid)  # 流解绑接收人
-        recipients_mgr.unbind_stream_from_recipient(recipient_uid, stream_uid)  # 接收人解绑流
+def unbind_stream_and_recipient(storage_mgr: StorageManager, recipients_mgr: RecipientsManager, stream_uid, recipient_uid):
+    """双向解绑：视频流和接收人互相解绑"""
+    storage_mgr.unbind_recipient_from_stream(stream_uid, recipient_uid)  # 流解绑接收人
+    recipients_mgr.unbind_stream_from_recipient(recipient_uid, stream_uid)  # 接收人解绑流
 
 if __name__ == '__main__':
     message_manager = MessageManager()
