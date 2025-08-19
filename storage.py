@@ -17,7 +17,7 @@ class StorageManager:
         # 初始化数据文件
         if not os.path.exists(filepath):  # 如果文件不存在
             with open(filepath, 'w') as f:  # 创建新文件
-                json.dump([], f)  # 写入空列表作为初始数据
+                json.dump([], f, indent=2, ensure_ascii=False)  # 写入空列表作为初始数据
         else:  # 文件已存在
             with self.lock:  # 加锁确保线程安全
                 # 读取现有数据
@@ -30,7 +30,7 @@ class StorageManager:
 
                     # 写回更新后的数据
                 with open(filepath, 'w') as f:
-                    json.dump(data, f, indent=2)  # 格式化输出，便于阅读
+                    json.dump(data, f, indent=2, ensure_ascii=False)  # 格式化输出，便于阅读
 
     def load_all(self):
         """加载所有视频流数据"""
@@ -42,7 +42,7 @@ class StorageManager:
         """保存所有视频流数据"""
         with self.lock:  # 加锁
             with open(self.filepath, 'w') as f:
-                json.dump(data, f, indent=2)  # 格式化写入JSON数据
+                json.dump(data, f, indent=2, ensure_ascii=False)  # 格式化写入JSON数据
 
     def _find_stream_index(self, data, stream_uid):
         """内部方法：根据UID查找视频流索引"""
@@ -216,7 +216,7 @@ class RecipientsManager:
         # 初始化数据文件
         if not os.path.exists(filepath):  # 文件不存在
             with open(filepath, 'w') as f:  # 创建新文件
-                json.dump([], f)  # 写入空列表
+                json.dump([], f, indent=2, ensure_ascii=False)  # 写入空列表
 
     def load_all(self):
         """加载所有接收人数据"""
@@ -228,7 +228,7 @@ class RecipientsManager:
         """保存所有接收人数据"""
         with self.lock:  # 加锁
             with open(self.filepath, 'w') as f:
-                json.dump(data, f, indent=2)  # 格式化写入
+                json.dump(data, f, indent=2, ensure_ascii=False)  # 格式化写入
 
     def _find_recipient_index(self, data, recipient_uid):
         """内部方法：查找接收人索引"""
@@ -337,7 +337,7 @@ class AlertStorageManager:
         # 初始化数据文件
         if not os.path.exists(filepath):  # 文件不存在
             with open(filepath, 'w') as f:  # 创建新文件
-                json.dump([], f)  # 写入空列表
+                json.dump([], f, indent=2, ensure_ascii=False) # 写入空列表
 
     def load_all(self):
         """加载所有告警模板"""
@@ -349,7 +349,7 @@ class AlertStorageManager:
         """保存所有告警模板"""
         with self.lock:  # 加锁
             with open(self.filepath, 'w') as f:
-                json.dump(data, f, indent=2)  # 格式化写入
+                json.dump(data, f, indent=2, ensure_ascii=False)  # 格式化写入
 
     def get_alert_templates(self):
         """获取所有告警模板"""
@@ -374,7 +374,7 @@ class SourceStreamManager:
         # 初始化数据文件
         if not os.path.exists(filepath):  # 文件不存在
             with open(filepath, 'w') as f:  # 创建新文件
-                json.dump([], f)  # 写入空列表
+                json.dump([], f, indent=2, ensure_ascii=False)  # 写入空列表
 
     def load_all(self):
         """加载所有源视频流数据"""
@@ -386,7 +386,7 @@ class SourceStreamManager:
         """保存所有源视频流数据"""
         with self.lock:  # 加锁
             with open(self.filepath, 'w') as f:
-                json.dump(data, f, indent=2)  # 格式化写入
+                json.dump(data, f, indent=2, ensure_ascii=False)  # 格式化写入
 
     def _find_source_stream_index(self, data, uid):
         """内部方法：根据stream_id查找源视频流的索引"""
@@ -458,7 +458,7 @@ class MessageManager:
         # 初始化数据文件
         if not os.path.exists(filepath):  # 文件不存在
             with open(filepath, 'w') as f:  # 创建新文件
-                json.dump([], f)  # 写入空列表
+                json.dump([], f, indent=2, ensure_ascii=False)  # 写入空列表
 
     def load_all(self):
         """加载所有告警信息"""
@@ -470,12 +470,12 @@ class MessageManager:
         """保存所有告警信息"""
         with self.lock:  # 加锁
             with open(self.filepath, 'w') as f:
-                json.dump(data, f, indent=2)  # 格式化写入
+                json.dump(data, f, indent=2, ensure_ascii=False)  # 格式化写入
 
     def _find_message_index(self, data, message_uid):
         """内部方法：根据message_uid查找告警信息的索引"""
         for i, msg in enumerate(data):  # 遍历所有告警信息
-            if msg["messgae_uid"] == message_uid:  # 匹配message_uid
+            if msg["message_uid"] == message_uid:  # 匹配message_uid
                 return i  # 返回索引位置
         return -1  # 未找到返回-1
 
@@ -487,7 +487,7 @@ class MessageManager:
 
         # 创建新告警信息对象
         new_message = {
-            "messgae_uid": message_uid,  # 唯一标识
+            "message_uid": message_uid,  # 唯一标识
             "stream_uid": stream_uid,  # 视频流UID
             "fence_uid": fence_uid,  # 围栏UID
             "stream_name": stream_name,  # 视频流名称
@@ -532,7 +532,7 @@ class MessageManager:
         """获取单个告警信息详情"""
         data = self.load_all()  # 加载数据
         for msg in data:  # 遍历查找
-            if msg["messgae_uid"] == message_uid:
+            if msg["message_uid"] == message_uid:
                 return msg  # 返回匹配项
         return None  # 未找到返回None
 
@@ -551,17 +551,149 @@ class MessageManager:
         data = self.load_all()  # 加载数据
         return [msg for msg in data if msg["fence_uid"] == fence_uid]  # 筛选并返回匹配的告警信息
 
-# ==== 辅助函数 ====
-def bind_stream_and_recipient(storage_mgr: StorageManager, recipients_mgr: RecipientsManager, stream_uid, recipient_uid):
-    """双向绑定：视频流和接收人互相绑定"""
-    storage_mgr.bind_recipient_to_stream(stream_uid, recipient_uid)  # 流绑定接收人
-    recipients_mgr.bind_stream_to_recipient(recipient_uid, stream_uid)  # 接收人绑定流
 
+class ImageReportManager:
+    """报告信息管理类，负责报告信息的CRUD操作"""
 
-def unbind_stream_and_recipient(storage_mgr: StorageManager, recipients_mgr: RecipientsManager, stream_uid, recipient_uid):
-    """双向解绑：视频流和接收人互相解绑"""
-    storage_mgr.unbind_recipient_from_stream(stream_uid, recipient_uid)  # 流解绑接收人
-    recipients_mgr.unbind_stream_from_recipient(recipient_uid, stream_uid)  # 接收人解绑流
+    def __init__(self, filepath='image_report.json'):
+        """初始化报告信息管理器"""
+        self.filepath = filepath
+        self.lock = threading.Lock()
+
+        if not os.path.exists(filepath):
+            with open(filepath, 'w') as f:
+                json.dump([], f, indent=2, ensure_ascii=False)
+
+    def load_all(self):
+        with self.lock:
+            with open(self.filepath, 'r') as f:
+                return json.load(f)
+
+    def save_all(self, data):
+        with self.lock:
+            with open(self.filepath, 'w') as f:
+                json.dump(data, f, indent=2, ensure_ascii=False)
+
+    def _find_report_index(self, data, stream_uid):
+        for i, msg in enumerate(data):
+            if msg["stream_uid"] == stream_uid:
+                return i
+        return -1
+
+    def add_report(self, stream_uid, stream_name):
+        """添加新报告（当天24小时初始化）"""
+        data = self.load_all()
+        now = datetime.datetime.now()
+        today = now.strftime("%Y-%m-%d")
+
+        images = []
+        for i in range(24):
+            hour_time = (now - datetime.timedelta(hours=23 - i)).strftime("%Y-%m-%d %H:00:00")
+            images.append({
+                "timestamp": hour_time,
+                "image_path": "",
+                "image_url": "",
+            })
+
+        new_report = {
+            "stream_uid": stream_uid,
+            "stream_name": stream_name,
+            today: {
+                "images": images,
+                "report": ""
+            }
+        }
+
+        data.append(new_report)
+        self.save_all(data)
+        return stream_uid
+
+    def update_report(self, stream_uid, date: str, images=None, report=None):
+        """更新指定日期的报告"""
+        data = self.load_all()
+        idx = self._find_report_index(data, stream_uid)
+        if idx == -1:
+            return False
+        if date not in data[idx]:
+            data[idx][date] = {"images": [], "report": ""}
+        if images is not None:
+            data[idx][date]["images"] = images
+        if report is not None:
+            data[idx][date]["report"] = report
+
+        self.save_all(data)
+        return True
+
+    def delete_report(self, stream_uid):
+        data = self.load_all()
+        idx = self._find_report_index(data, stream_uid)
+        if idx != -1:
+            data.pop(idx)
+            self.save_all(data)
+            return True
+        return False
+
+    def reset_report(self, stream_uid, date: str):
+        """重置指定日期的报告"""
+        data = self.load_all()
+        idx = self._find_report_index(data, stream_uid)
+        if idx == -1:
+            return False
+
+        now = datetime.datetime.now()
+        images = []
+        for i in range(24):
+            hour_time = (now - datetime.timedelta(hours=23 - i)).strftime("%H:00:00")
+            images.append({
+                "timestamp": hour_time,
+                "image_path": "",
+                "image_url": "",
+            })
+
+        data[idx][date] = {
+            "images": images,
+            "report": ""
+        }
+
+        self.save_all(data)
+        return True
+
+    def get_report(self, stream_uid, date: str = None):
+        """获取单个报告（可指定日期）"""
+        data = self.load_all()
+        for msg in data:
+            if msg["stream_uid"] == stream_uid:
+                if date:
+                    return msg.get(date, None)
+                else:
+                    return msg
+        return None
+
+    def list_reports(self, date: str = None):
+        """列出所有报告（可指定日期）"""
+        data = self.load_all()
+        if date:
+            reports = []
+            for msg in data:
+                if date in msg:
+                    reports.append({
+                        "stream_uid": msg["stream_uid"],
+                        "stream_name": msg["stream_name"],
+                        date: msg[date]
+                    })
+            return reports
+        return data
+
+    # ==== 辅助函数 ====
+    def bind_stream_and_recipient(storage_mgr: StorageManager, recipients_mgr: RecipientsManager, stream_uid, recipient_uid):
+        """双向绑定：视频流和接收人互相绑定"""
+        storage_mgr.bind_recipient_to_stream(stream_uid, recipient_uid)  # 流绑定接收人
+        recipients_mgr.bind_stream_to_recipient(recipient_uid, stream_uid)  # 接收人绑定流
+
+    def unbind_stream_and_recipient(storage_mgr: StorageManager, recipients_mgr: RecipientsManager, stream_uid, recipient_uid):
+        """双向解绑：视频流和接收人互相解绑"""
+        storage_mgr.unbind_recipient_from_stream(stream_uid, recipient_uid)  # 流解绑接收人
+        recipients_mgr.unbind_stream_from_recipient(recipient_uid, stream_uid)  # 接收人解绑流
 
 if __name__ == '__main__':
     message_manager = MessageManager()
