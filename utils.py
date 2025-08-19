@@ -7,29 +7,7 @@ from matplotlib import pyplot as plt
 from PIL import Image
 import io
 import base64  # Base64编码库
-
-# 颜色定义
-class LogColors:
-    INFO = "\033[94m"     # 蓝色
-    WARNING = "\033[93m"  # 黄色
-    FAIL = "\033[91m"     # 红色
-    SUCCESS = "\033[92m"  # 绿色
-    RESET = "\033[0m"     # 重置颜色
-
-def log(level: str, message: str):
-    """统一彩色日志打印，带白色时间戳"""
-    color_map = {
-        "INFO": LogColors.INFO,
-        "WARNING": LogColors.WARNING,
-        "FAIL": LogColors.FAIL,
-        "SUCCESS": LogColors.SUCCESS
-    }
-    color = color_map.get(level, LogColors.INFO)
-    # 获取当前时间戳，白色显示
-    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    WHITE = "\033[97m"
-    RESET = LogColors.RESET
-    print(f"{WHITE}{timestamp}{RESET} {color}[{level}]{RESET} {message}")
+from pypinyin import lazy_pinyin
 
 # 在报警分发时，给frame加上红色围栏标记
 def draw_fence_on_frame(frame, fence_points):
@@ -71,7 +49,7 @@ def md5(str):
     return m.hexdigest()  # 返回16进制哈希值
 
 
-def save_frames_as_video(stream_id, fence_id, frames, video_root='./videos', base_url='x.x.x.x:5000', fps=25):
+def save_frames_as_video(stream_id, fence_id, frames, video_root='./videos', base_url='127.0.0.1:5000', fps=25):
     """
     直接在 video_root 下生成 MP4 文件，不创建子文件夹。
     文件名格式: {stream_id}_{fence_id}_{时间戳}.mp4
@@ -114,7 +92,7 @@ def save_frames_as_video(stream_id, fence_id, frames, video_root='./videos', bas
     return video_url, video_path
 
 
-def save_key_frames(stream_id, fence_id, frames, image_root='./images', base_url='x.x.x.x:5000'):
+def save_key_frames(stream_id, fence_id, frames, image_root='./images', base_url='127.0.0.1:5000'):
     """
     直接在 image_root 下保存第一帧和最后一帧图片，不创建子文件夹。
     文件名格式: {stream_id}_{fence_id}_{时间戳}_1.jpg / _2.jpg
@@ -141,13 +119,28 @@ def save_key_frames(stream_id, fence_id, frames, image_root='./images', base_url
         return None, None
 
     urls, paths = [], []
+
+    # 按大小压缩
+    # for i, frame in enumerate([frames[0], frames[-1]], start=1):
+    #     # 压缩成30KB以内
+    #     img_bytes = compress_to_30kb(frame, max_size_kb=30)
+    #     filename = f"{stream_id}_{fence_id}_{now_time_str}_{i}.jpg"
+    #     filepath = os.path.join(image_root, filename)
+    #     with open(filepath, "wb") as f:
+    #         f.write(img_bytes)
+    #
+    #     file_url = f"{base_url}/images/{filename}"
+    #     urls.append(file_url)
+    #     paths.append(filepath)
+    #
+    # return urls, paths
+
+    # 按分辨率压缩
     for i, frame in enumerate([frames[0], frames[-1]], start=1):
-        # 压缩成30KB以内
-        img_bytes = compress_to_30kb(frame, max_size_kb=30)
+        frame = resize_to_720p(frame)
         filename = f"{stream_id}_{fence_id}_{now_time_str}_{i}.jpg"
         filepath = os.path.join(image_root, filename)
-        with open(filepath, "wb") as f:
-            f.write(img_bytes)
+        cv2.imwrite(filepath, frame)
 
         file_url = f"{base_url}/images/{filename}"
         urls.append(file_url)
@@ -174,3 +167,17 @@ def compress_to_30kb(frame, max_size_kb=30):
         quality -= 5
 
     return encoded_img.tobytes()
+
+
+def resize_to_720p(frame):
+    """将图像压缩到 720p 高度，保持宽高比"""
+    h, w = frame.shape[:2]
+    target_h = 720
+    scale = target_h / h
+    target_w = int(w * scale)
+    resized = cv2.resize(frame, (target_w, target_h), interpolation=cv2.INTER_AREA)
+    return resized
+
+def chinese_to_pinyin(text):
+    """把中文字符转为拼音，其它字符保持不变"""
+    return ''.join(lazy_pinyin(text))

@@ -4,6 +4,7 @@ import threading  # 提供线程锁功能，确保线程安全
 import os  # 提供操作系统相关功能，如文件路径检查
 import uuid  # 用于生成唯一标识符
 import datetime
+from utils import chinese_to_pinyin
 
 
 class StorageManager:
@@ -63,6 +64,7 @@ class StorageManager:
         data = self.load_all()  # 加载现有数据
         if not stream_uid:
             stream_uid = str(uuid.uuid4())  # 生成唯一ID
+        stream_uid = chinese_to_pinyin(stream_uid)
 
         # 创建新视频流对象
         new_stream = {
