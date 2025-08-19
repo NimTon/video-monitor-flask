@@ -256,7 +256,7 @@ def run_cycle():
                 print(start_stream(warehouse, dev))
 
 if __name__ == "__main__":
-    with open('config.json') as f:
+    with open('config.json', encoding='utf-8') as f:
         config = json.load(f)
     TOKEN = config['zk_token']
     MACHINE_CODES = config['machine_codes']

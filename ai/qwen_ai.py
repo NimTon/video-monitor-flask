@@ -6,11 +6,11 @@ import cv2
 import json
 from openai import OpenAI
 
-with open('config.json') as f:
+with open('config.json', encoding='utf-8') as f:
     config = json.load(f)
 api_key = config['qwen_api_key']
 base_url = config['qwen_url']
-with open('prompts.json') as f:
+with open('prompts.json', encoding='utf-8') as f:
     prompts = json.load(f)
 prompt = prompts['normal']
 

@@ -29,7 +29,7 @@ source_manager = SourceStreamManager()
 message_manager = MessageManager()
 # 初始化视频流线程字典，用于存储stream_id到线程的映射
 app.video_threads = {}
-with open('config.json') as f:
+with open('config.json', encoding='utf-8') as f:
     config = json.load(f)
 # ZLMediaKit服务器配置
 ZLMediaKit_secret = config['zlmk_secret']  # 虚拟机
