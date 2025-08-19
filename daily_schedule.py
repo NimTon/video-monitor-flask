@@ -158,11 +158,11 @@ class AutoReportScheduler:
                     log("FAIL", f"总摘要邮件发送失败: {email_addr}")
 
     def start_scheduler(self):
-        """启动定时任务"""  # 每整点抓图
-        schedule.every().hour.at(":00").do(self.capture_all_streams)
-        # schedule.every().minute.do(self.capture_all_streams)
+        """启动定时任务"""
+        # 每整点抓图
+        schedule.every().hour.at(":00").do(lambda: threading.Thread(target=self.capture_all_streams).start())
         # 每天8点做AI总结
-        schedule.every().day.at("08:00").do(self.daily_ai_summary)
+        schedule.every().day.at("08:00").do(lambda: threading.Thread(target=self.daily_ai_summary).start())
 
 
 if __name__ == "__main__":
