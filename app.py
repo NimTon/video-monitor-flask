@@ -42,6 +42,7 @@ ZLMediaKit_url = config['zlmk_url']  # 虚拟机
 IMAGE_DIR = os.path.join(os.getcwd(), 'images')  # 绝对路径更安全
 # 视频存放路径
 VIDEO_DIR = os.path.join(os.getcwd(), 'videos')  # 绝对路径更安全
+PORT = config['port']
 
 
 # -------- 前端路由 --------
@@ -754,4 +755,4 @@ def get_messages_by_fence(fence_uid):
 # 主程序入口
 if __name__ == '__main__':
     # 启动Flask应用
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    app.run(debug=True, host='0.0.0.0', port=PORT)
