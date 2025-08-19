@@ -8,8 +8,12 @@ from storage import StorageManager, RecipientsManager, AlertStorageManager, Sour
 # 从alert_dispatcher模块导入dispatch_alert函数
 from alert_dispatcher import dispatch_alert_multi_frames
 import requests
+import json
 import os
 from datetime import datetime
+
+with open('config.json') as f:
+    config = json.load(f)
 
 # 设置前端静态文件目录
 FRONTEND_DIST = os.path.join(os.path.dirname(__file__), "frontend", "dist")
