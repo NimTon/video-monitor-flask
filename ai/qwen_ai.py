@@ -24,7 +24,7 @@ def extract_json_dict_from_ai_reply(text):
     返回:
         dict 或 None: 成功返回 dict，失败返回 None。
     """
-    text = text.replace("```", "").replace("json", "")
+    text = text.replace("```", "").replace("json", "").replace("，", ",")
     match = re.search(r'```json(.*?)```', text, re.DOTALL)
     if match:
         json_str = match.group(1).strip()
