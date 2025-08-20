@@ -6,6 +6,7 @@ from alert_dispatcher import dispatch_alert
 import threading
 import json
 import time
+from utils import chinese_to_pinyin
 
 # 创建存储管理器实例
 storage = StorageManager()
@@ -118,7 +119,7 @@ def fetch_all_hls():
                     print(f"  {device_name} HLS 获取失败")
 
 def start_stream(warehouse, dev):
-    stream_id = dev.get("deviceName")
+    stream_id = chinese_to_pinyin(dev.get("deviceName"))
     # 获取视频流信息
     stream = storage.get_stream(stream_id)
     if not stream:
@@ -240,6 +241,7 @@ def run_cycle():
                 service_no = dev.get("serviceNo")
                 device_no = dev.get("deviceNo")
                 device_name = dev.get("deviceName")
+                stream_uid = chinese_to_pinyin(device_name)
 
                 live_url = api.get_live_url(lot_source, service_no, device_no)
                 if not live_url:
@@ -247,11 +249,11 @@ def run_cycle():
                     continue
 
                 # 如果视频流不存在就添加，有则更新
-                stream = storage.get_stream(device_name)
+                stream = storage.get_stream(stream_uid)
                 if not stream:
-                    storage.add_stream(live_url, name=device_name, stream_uid=device_name)
+                    storage.add_stream(live_url, name=device_name, stream_uid=stream_uid)
                 else:
-                    storage.update_stream(device_name, stream_url=live_url)
+                    storage.update_stream(stream_uid, stream_url=live_url)
 
                 print(start_stream(warehouse, dev))
 
