@@ -47,7 +47,7 @@ class AutoReportScheduler:
             abs_points = points_to_abs_points(frame, fences)
             for fence in abs_points:
                 frame = draw_fence_on_frame(frame, fence)
-            success = cv2.imwrite(filepath, )
+            success = cv2.imwrite(filepath, frame)
             if success:
                 log("INFO", f"抓取视频流成功: {stream_name} (UID={stream_uid}), 时间={timestamp}, 保存路径={filepath}")
                 return {"timestamp": timestamp, "image_path": filepath, "image_url": fileurl}
