@@ -49,20 +49,20 @@ def extract_json_dict_from_ai_reply(text):
 
 
 # 使用OpenAI客户端调用通义千问API
-def call_qwen_via_client(img_list):
+def call_qwen_via_client(imgs, p):
     client = OpenAI(
         api_key=api_key,  # 建议使用环境变量管理
         base_url=base_url
     )
 
     # 系统提示
-    system_prompt = prompt
+    system_prompt = p
 
     user_prompt = f"""以下是间隔1秒的连续监控画面："""
 
     # 构造图片内容
     images = []
-    for img_b64 in img_list:
+    for img_b64 in imgs:
         images.append({
             "type": "image_url",
             "image_url": {"url": f"data:image/jpeg;base64,{img_b64}"}
