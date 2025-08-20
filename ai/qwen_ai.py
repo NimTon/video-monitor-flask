@@ -15,9 +15,6 @@ with open('prompts.json', encoding='utf-8') as f:
 prompt = prompts['normal']
 
 
-import ast
-import json
-
 def extract_json_dict_from_ai_reply(text: str):
     if not text:
         return None
@@ -29,7 +26,7 @@ def extract_json_dict_from_ai_reply(text: str):
         print("未找到有效的 JSON 结构", text)
         return None
 
-    json_candidate = text[start:end+1].strip()
+    json_candidate = text[start:end + 1].strip()
 
     # 优先尝试 JSON
     try:
@@ -43,7 +40,6 @@ def extract_json_dict_from_ai_reply(text: str):
     except Exception as e:
         print("解析失败:", e, text)
         return None
-
 
 
 # 使用OpenAI客户端调用通义千问API
