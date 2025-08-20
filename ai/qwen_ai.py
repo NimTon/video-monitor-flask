@@ -43,7 +43,7 @@ def extract_json_dict_from_ai_reply(text: str):
 
 
 # 使用OpenAI客户端调用通义千问API
-def call_qwen_via_client(p=prompt, imgs=None, model='qwen-vl-max-latest'):
+def call_qwen_via_client(p=prompt, imgs=None, model='qwen-vl-max-latest', json_str=True):
     client = OpenAI(api_key=api_key, base_url=base_url)
     system_prompt = "你是一个ai助手"
     user_prompt = p
@@ -57,8 +57,11 @@ def call_qwen_via_client(p=prompt, imgs=None, model='qwen-vl-max-latest'):
                     {"role": "user", "content": content}
                 ]
             )
-            json_str = extract_json_dict_from_ai_reply(completion.choices[0].message.content)
-            return json_str
+            result = completion.choices[0].message.content
+            if json_str:
+                return extract_json_dict_from_ai_reply(result)
+            else:
+                return result
         else:
             content = [{"type": "text", "text": user_prompt}]
             completion = client.chat.completions.create(
@@ -68,8 +71,11 @@ def call_qwen_via_client(p=prompt, imgs=None, model='qwen-vl-max-latest'):
                     {"role": "user", "content": content}
                 ]
             )
-            text = completion.choices[0].message.content
-            return text
+            result = completion.choices[0].message.content
+            if json_str:
+                return extract_json_dict_from_ai_reply(result)
+            else:
+                return result
     except Exception as e:
         print("[调用失败] 千问接口返回：", e)
         return None
