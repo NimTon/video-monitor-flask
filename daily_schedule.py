@@ -149,7 +149,7 @@ class AutoReportScheduler:
             self.report_mgr.update_overall_summary(yesterday, overall_summary)
             log("SUCCESS", f"{yesterday} 所有监控的总摘要已生成。")
             # 发送总摘要邮件
-            summary_recipients = ["汇总邮箱1@example.com", "汇总邮箱2@example.com"]
+            summary_recipients = ["576467179@qq.com"]
             for email_addr in summary_recipients:
                 success = send_email_alert(overall_summary, email_addr, subject=f"视频流 {yesterday} 报告总摘要")
                 if success:
