@@ -50,7 +50,7 @@ def extract_json_dict_from_ai_reply(text):
 
 
 # 使用OpenAI客户端调用通义千问API
-def call_qwen_via_client(p, imgs=None, model='qwen-vl-max-latest'):
+def call_qwen_via_client(p=prompt, imgs=None, model='qwen-vl-max-latest'):
     client = OpenAI(api_key=api_key, base_url=base_url)
     system_prompt = "你是一个ai助手"
     user_prompt = p
