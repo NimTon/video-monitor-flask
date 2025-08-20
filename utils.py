@@ -66,6 +66,13 @@ def cv2_frame_to_base64(frame):
     return img_str
 
 
+def image_path_to_base64(image_path: str) -> str:
+    if not os.path.exists(image_path):
+        raise FileNotFoundError(f"文件不存在: {image_path}")
+    with open(image_path, "rb") as f:
+        img_bytes = f.read()
+    return base64.b64encode(img_bytes).decode("utf-8")
+
 # MD5哈希函数
 def md5(str):
     import hashlib
