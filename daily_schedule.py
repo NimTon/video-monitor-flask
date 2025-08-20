@@ -8,7 +8,8 @@ import schedule
 import json
 from alert_dispatcher import send_email_alert, recipient_mgr
 from ai.local_ai import call_local_ai_model
-from utils import log
+from ai.qwen_ai import call_qwen_via_client
+from utils import log, image_path_to_base64
 
 recipents_manager = RecipientsManager()
 
@@ -123,7 +124,9 @@ class AutoReportScheduler:
                 log("WARNING", f"视频流 {stream_name} (UID={stream_uid}) 的 {yesterday} 报告不足 24 张（当前 {img_count} 张）。")
             # 调用 AI 生成单个监控总结
             img_paths = [img.get("image_path") for img in images if img.get("image_path")]
-            ai_summary = call_local_ai_model(image_paths=img_paths, prompt=daily_prompt)
+            # ai_summary = call_local_ai_model(image_paths=img_paths, prompt=daily_prompt)
+            imgs_base64 = [image_path_to_base64(i) for i in img_paths]
+            ai_summary = call_qwen_via_client(imgs_base64, daily_prompt)
             # 更新当天 report 字段
             self.report_mgr.update_report(stream_uid, date=yesterday, report=ai_summary)
             log("SUCCESS", f"视频流 {stream_name} (UID={stream_uid}) 的 {yesterday} AI总结已生成。")
