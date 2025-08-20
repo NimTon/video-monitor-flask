@@ -9,7 +9,7 @@ import json
 from alert_dispatcher import send_email_alert, recipient_mgr
 from ai.local_ai import call_local_ai_model
 from ai.qwen_ai import call_qwen_via_client
-from utils import log, image_path_to_base64
+from utils import log, image_path_to_base64, save_report_to_docx
 
 recipents_manager = RecipientsManager()
 
@@ -95,6 +95,7 @@ class AutoReportScheduler:
                 self.report_mgr.update_report(stream_uid, date=today, images=images)
                 img_count = len([img for img in images if img.get("image_path")])
                 log("INFO", f"报表更新完成: {stream_name} (UID={stream_uid}), 当天帧总数={img_count}")
+
             else:
                 log("FAIL", f"当前帧为空，未更新报表: {stream_name} (UID={stream_uid})")
                 all_success = False
@@ -124,6 +125,7 @@ class AutoReportScheduler:
                 log("WARNING", f"视频流 {stream_name} (UID={stream_uid}) 的 {yesterday} 报告不足 24 张（当前 {img_count} 张）。")
             # 调用 AI 生成单个监控总结
             img_paths = [img.get("image_path") for img in images if img.get("image_path")]
+            image_captions = [img.get("timestamp") for img in images if img.get("image_path")]
             # ai_summary = call_local_ai_model(image_paths=img_paths, prompt=daily_prompt)
             imgs_base64 = [image_path_to_base64(i) for i in img_paths]
             ai_summary = call_qwen_via_client(daily_prompt, imgs_base64, model='qwen-vl-max-latest', json_str=False)
@@ -146,6 +148,15 @@ class AutoReportScheduler:
                     log("SUCCESS", f"已发送邮件给 {email_addr} ({stream_name}, UID={stream_uid})")
                 else:
                     log("FAIL", f"邮件发送失败: {email_addr} ({stream_name}, UID={stream_uid})")
+            word_dir = os.path.join("reports_word", yesterday)  # 按日期建目录
+            save_report_to_docx(
+                content=ai_summary,
+                save_dir=word_dir,
+                filename=f"{stream_name}_{stream_uid}.docx",
+                title=f"{stream_name} {yesterday} 报告",
+                images=img_paths,
+                image_captions=image_captions
+            )
         # 生成所有监控的总摘要
         if individual_summaries:
             combined_prompt = daily_summary_prompt + "请基于以下各监控的AI总结生成一份总摘要:" + "\n".join(individual_summaries)
@@ -162,6 +173,13 @@ class AutoReportScheduler:
                     log("SUCCESS", f"总摘要已发送给 {email_addr}")
                 else:
                     log("FAIL", f"总摘要邮件发送失败: {email_addr}")
+            word_dir = os.path.join("reports_word", yesterday)
+            save_report_to_docx(
+                content=overall_summary,
+                save_dir=word_dir,
+                filename=f"ALL_STREAMS_SUMMARY_{yesterday}.docx",
+                title=f"{yesterday} 所有监控的总摘要"
+            )
 
     def start_scheduler(self):
         """启动定时任务"""
