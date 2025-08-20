@@ -9,7 +9,7 @@ import json
 from alert_dispatcher import send_email_alert, recipient_mgr
 from ai.local_ai import call_local_ai_model
 from ai.qwen_ai import call_qwen_via_client
-from utils import log, image_path_to_base64, save_report_to_docx
+from utils import log, image_path_to_base64, save_report_to_docx, resize_to_720p, points_to_abs_points, draw_fence_on_frame
 
 recipents_manager = RecipientsManager()
 
@@ -42,7 +42,12 @@ class AutoReportScheduler:
             filename = f"{stream_uid}_{now.strftime("%H-%M-%S")}.jpg"
             filepath = f"{self.save_dir}/{filename}"
             fileurl = f"{self.base_url}/{filepath}"
-            success = cv2.imwrite(filepath, frame)
+            frame = resize_to_720p(frame)
+            fences = self.storage_mgr.list_fences(stream_uid)
+            abs_points = points_to_abs_points(frame, fences)
+            for fence in abs_points:
+                frame = draw_fence_on_frame(frame, fence)
+            success = cv2.imwrite(filepath, )
             if success:
                 log("INFO", f"抓取视频流成功: {stream_name} (UID={stream_uid}), 时间={timestamp}, 保存路径={filepath}")
                 return {"timestamp": timestamp, "image_path": filepath, "image_url": fileurl}
