@@ -582,29 +582,31 @@ class ImageReportManager:
                 return i
         return -1
 
-    def add_report(self, stream_uid, stream_name):
-        """添加新报告（当天24小时初始化）"""
+    def add_report(self, stream_uid, stream_name, date=None):
+        """添加新报告（默认当天 24 小时初始化，可指定日期）"""
         data = self.load_all()
-        now = datetime.datetime.now()
-        today = now.strftime("%Y-%m-%d")
+        # 默认用今天，支持传入 date
+        if date is None:
+            date = datetime.datetime.now().strftime("%Y-%m-%d")
         images = []
         for i in range(24):
-            hour_time = datetime.datetime.combine(datetime.date.today(), datetime.time(i, 0, 0))
+            hour_time = datetime.datetime.combine(
+                datetime.datetime.strptime(date, "%Y-%m-%d").date(),
+                datetime.time(i, 0, 0)
+            )
             images.append({
                 "timestamp": hour_time.strftime("%H:00:00"),
                 "image_path": "",
                 "image_url": "",
             })
-
         new_report = {
             "stream_uid": stream_uid,
             "stream_name": stream_name,
-            today: {
+            date: {
                 "images": images,
                 "report": ""
             }
         }
-
         data.append(new_report)
         self.save_all(data)
         return stream_uid
@@ -701,10 +703,10 @@ class ImageReportManager:
 
     def update_overall_summary(self, date: str, report_text: str):
         """更新所有视频流的总摘要"""
-        # 如果总摘要不存在，则初始化
+        # 如果总摘要不存在，则初始化（这里用昨天的 date）
         overall_report = self.get_report("ALL_STREAMS")
         if not overall_report:
-            self.add_report("ALL_STREAMS", "ALL_STREAMS")
+            self.add_report("ALL_STREAMS", "ALL_STREAMS", date=date)
         # 更新指定日期的 report 字段
         return self.update_report("ALL_STREAMS", date=date, report=report_text)
 

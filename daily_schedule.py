@@ -134,7 +134,7 @@ class AutoReportScheduler:
             # 发送邮箱
             recipients = recipient_mgr.get_recipients_by_stream_id(stream_uid)
             if not recipients:
-                log("WARNING", f"视频流 {stream_name} (UID={stream_uid}) 未绑定收件人")
+                log("WARNING", f"视频流 {stream_name} (UID={stream_uid}) 未绑定联系人。")
             for recipient in recipients:
                 contact = recipient.get("contact", {})
                 email_addr = contact.get("email")
