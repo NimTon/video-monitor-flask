@@ -9,6 +9,7 @@ import json
 from ai.local_ai import call_local_ai_model
 from ai.qwen_ai import call_qwen_via_client
 from utils import log, image_path_to_base64, save_report_to_docx, resize_to_720p, points_to_abs_points, draw_fence_on_frame, send_email_alert
+from pathlib import Path
 
 with open('config.json', encoding='utf-8') as f:
     config = json.load(f)
@@ -38,6 +39,7 @@ class AutoReportScheduler:
             timestamp = now.replace(minute=minute, second=0, microsecond=0).strftime("%H:%M:%S")
             filename = f"{stream_uid}_{now.strftime("%Y-%m-%d-%H-%M-%S")}.jpg"
             filepath = f"{self.save_dir}/{stream_uid}/{filename}"
+            Path(f"{self.save_dir}/{stream_uid}").mkdir(exist_ok=True)
             fileurl = f"{self.base_url}/{filepath}"
             frame = resize_to_720p(frame)
             fences = self.storage_mgr.list_fences(stream_uid)
