@@ -8,7 +8,7 @@ import schedule
 import json
 from ai.local_ai import call_local_ai_model
 from ai.qwen_ai import call_qwen_via_client
-from utils import log, image_path_to_base64, save_report_to_docx, resize_to_720p, points_to_abs_points, draw_fence_on_frame, send_email_alert
+from utils import log, image_path_to_base64, save_report_to_docx, resize_to_720p, points_to_abs_points, draw_fence_on_frame, send_email_alert, docx_to_pdf
 from pathlib import Path
 
 with open('config.json', encoding='utf-8') as f:
@@ -72,7 +72,7 @@ class AutoReportScheduler:
                 if img["timestamp"].startswith(frame_hour.zfill(2)):  # 找到对应小时
                     if img["image_path"]:
                         log("WARNING",
-                                f"{stream_name} ({stream_uid}) 在 {img['timestamp']} 已存在 image_path={img['image_path']}，将被替换为 {frame_data['image_path']}")
+                            f"{stream_name} ({stream_uid}) 在 {img['timestamp']} 已存在 image_path={img['image_path']}，将被替换为 {frame_data['image_path']}")
                     images[idx] = frame_data  # 替换
                     updated = True
                     break
@@ -162,7 +162,7 @@ class AutoReportScheduler:
                     log("FAIL", f"邮件发送失败: {email_addr} ({stream_name}, UID={stream_uid})")
             word_dir = os.path.join("reports_word", yesterday)  # 按日期建目录
             Path(word_dir).mkdir(exist_ok=True)
-            save_report_to_docx(
+            docx_file = save_report_to_docx(
                 content=ai_summary,
                 save_dir=word_dir,
                 filename=f"{stream_name}_{stream_uid}.docx",
@@ -170,6 +170,15 @@ class AutoReportScheduler:
                 images=img_paths,
                 image_captions=image_captions
             )
+            if docx_file:
+                log("SUCCESS", f"Word 总摘要报告已保存: {docx_file}")
+                try:
+                    pdf_file = docx_to_pdf(docx_file)
+                    log("SUCCESS", f"PDF 总摘要报告已保存: {pdf_file}")
+                except Exception as e:
+                    log("FAIL", f"PDF 总摘要报告导出失败: {e}")
+            else:
+                log("FAIL", f"Word 总摘要报告保存失败")
         # 生成所有监控的总摘要
         if individual_summaries:
             combined_prompt = daily_summary_prompt + "请基于以下各监控的AI总结生成一份总摘要:" + "\n".join(individual_summaries)
@@ -190,12 +199,21 @@ class AutoReportScheduler:
                     log("FAIL", f"总摘要邮件发送失败: {email_addr}")
             word_dir = os.path.join("reports_word", yesterday)
             Path(word_dir).mkdir(exist_ok=True)
-            save_report_to_docx(
+            docx_file = save_report_to_docx(
                 content=overall_summary,
                 save_dir=word_dir,
                 filename=f"ALL_STREAMS_SUMMARY_{yesterday}.docx",
                 title=f"{yesterday} 所有监控的总摘要"
             )
+            if docx_file:
+                log("SUCCESS", f"Word 总摘要报告已保存: {docx_file}")
+                try:
+                    pdf_file = docx_to_pdf(docx_file)
+                    log("SUCCESS", f"PDF 总摘要报告已保存: {pdf_file}")
+                except Exception as e:
+                    log("FAIL", f"PDF 总摘要报告导出失败: {e}")
+            else:
+                log("FAIL", f"Word 总摘要报告保存失败")
 
     def start_scheduler(self):
         """启动定时任务"""

@@ -19,6 +19,31 @@ from email.utils import formataddr
 from email.mime.application import MIMEApplication
 import base64
 from pathlib import Path
+from comtypes import client
+
+def docx_to_pdf(docx_path: str, pdf_path: str = None) -> str:
+    """
+    将 Word 文档 (.docx) 导出为 PDF。
+    :param docx_path: Word 文件路径
+    :param pdf_path: PDF 保存路径，如果为 None，则与 docx 同名
+    :return: PDF 文件路径
+    """
+    if not os.path.exists(docx_path):
+        raise FileNotFoundError(f"{docx_path} 不存在")
+
+    if pdf_path is None:
+        pdf_path = os.path.splitext(docx_path)[0] + ".pdf"
+
+    try:
+        word = client.CreateObject('Word.Application')
+        word.Visible = False
+        doc = word.Documents.Open(docx_path)
+        doc.SaveAs(pdf_path, FileFormat=17)  # 17 表示 PDF 格式
+        doc.Close()
+        word.Quit()
+        return pdf_path
+    except Exception as e:
+        raise RuntimeError(f"导出 PDF 失败: {e}")
 
 
 def send_email_alert(message, contact_value, image_list=None, subject="视频报警通知"):
