@@ -134,10 +134,10 @@ class AutoReportScheduler:
             img_paths = [img.get("image_path") for img in images if img.get("image_path")]
             image_captions = [img.get("timestamp") for img in images if img.get("image_path")]
             camera_information = f"报告日期：{yesterday}，图片日期：{list(zip(img_paths, image_captions))}，stream_uid：{stream_uid}，stream_name：{stream_name}"
-            daily_prompt = camera_information + daily_prompt
-            ai_summary = call_local_ai_model(ai_prompt=daily_prompt, image_paths=img_paths, json_str=False)
+            combined_prompt = camera_information + daily_prompt
+            ai_summary = call_local_ai_model(ai_prompt=combined_prompt, image_paths=img_paths, json_str=False)
             # imgs_base64 = [image_path_to_base64(i) for i in img_paths]
-            # ai_summary = call_qwen_via_client(daily_prompt, imgs_base64, model='qwen-vl-max-latest', json_str=False)
+            # ai_summary = call_qwen_via_client(combined_prompt, imgs_base64, model='qwen-vl-max-latest', json_str=False)
             # 更新当天 report 字段
             self.report_mgr.update_report(stream_uid, date=yesterday, report=ai_summary)
             log("SUCCESS", f"视频流 {stream_name} (UID={stream_uid}) 的 {yesterday} AI总结已生成。")
