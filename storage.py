@@ -709,7 +709,9 @@ class ImageReportManager:
         # 如果总摘要不存在，则初始化（这里用昨天的 date）
         overall_report = self.get_report("ALL_STREAMS")
         if not overall_report:
-            self.add_report("ALL_STREAMS", "ALL_STREAMS", date=date)
+            day_report = self.add_report("ALL_STREAMS", "ALL_STREAMS", date=date)
+            if not day_report:
+                self.get_report("ALL_STREAMS", date)
         # 更新指定日期的 report 字段
         return self.update_report("ALL_STREAMS", date=date, report=report_text)
 
