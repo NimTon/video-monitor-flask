@@ -156,6 +156,7 @@ class AutoReportScheduler:
                 else:
                     log("FAIL", f"邮件发送失败: {email_addr} ({stream_name}, UID={stream_uid})")
             word_dir = os.path.join("reports_word", yesterday)  # 按日期建目录
+            Path(word_dir).mkdir(exist_ok=True)
             save_report_to_docx(
                 content=ai_summary,
                 save_dir=word_dir,
@@ -181,6 +182,7 @@ class AutoReportScheduler:
                 else:
                     log("FAIL", f"总摘要邮件发送失败: {email_addr}")
             word_dir = os.path.join("reports_word", yesterday)
+            Path(word_dir).mkdir(exist_ok=True)
             save_report_to_docx(
                 content=overall_summary,
                 save_dir=word_dir,
