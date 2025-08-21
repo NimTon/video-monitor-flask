@@ -16,7 +16,9 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from email.header import Header
 from email.utils import formataddr
+from email.mime.application import MIMEApplication
 import base64
+from pathlib import Path
 
 
 def send_email_alert(message, contact_value, image_list=None, subject="视频报警通知"):
@@ -217,21 +219,20 @@ def save_frames_as_video(stream_id, fence_id, frames, video_root='./videos', bas
     """
     now_time_str = datetime.now().strftime('%Y%m%d_%H%M%S')
     now = datetime.now()
-
-    os.makedirs(video_root, exist_ok=True)
+    Path(f"{video_root}/{stream_id}").mkdir(exist_ok=True)
 
     # 删除超过7天的旧文件
-    for file in os.listdir(video_root):
-        file_path = os.path.join(video_root, file)
-        if os.path.isfile(file_path):
-            try:
-                # 从文件名解析时间戳
-                ts = file.split('_')[-1].split('.')[0]
-                file_time = datetime.strptime(ts, '%Y%m%d_%H%M%S')
-                if now - file_time > timedelta(days=7):
-                    os.remove(file_path)
-            except ValueError:
-                continue
+    # for file in os.listdir(video_root):
+    #     file_path = os.path.join(video_root, file)
+    #     if os.path.isfile(file_path):
+    #         try:
+    #             # 从文件名解析时间戳
+    #             ts = file.split('_')[-1].split('.')[0]
+    #             file_time = datetime.strptime(ts, '%Y%m%d_%H%M%S')
+    #             if now - file_time > timedelta(days=7):
+    #                 os.remove(file_path)
+    #         except ValueError:
+    #             continue
 
     if not frames:
         print("No frames to save!")
@@ -260,20 +261,19 @@ def save_key_frames(stream_id, fence_id, frames, image_root='./images', base_url
     """
     now_time_str = datetime.now().strftime('%Y%m%d_%H%M%S')
     now = datetime.now()
-
-    os.makedirs(image_root, exist_ok=True)
+    Path(f"{image_root}/{stream_id}").mkdir(exist_ok=True)
 
     # 删除超过7天的旧文件
-    for file in os.listdir(image_root):
-        file_path = os.path.join(image_root, file)
-        if os.path.isfile(file_path):
-            try:
-                ts = file.split('_')[-2]  # 倒数第二个是时间戳
-                file_time = datetime.strptime(ts, '%Y%m%d_%H%M%S')
-                if now - file_time > timedelta(days=7):
-                    os.remove(file_path)
-            except ValueError:
-                continue
+    # for file in os.listdir(image_root):
+    #     file_path = os.path.join(image_root, file)
+    #     if os.path.isfile(file_path):
+    #         try:
+    #             ts = file.split('_')[-2]  # 倒数第二个是时间戳
+    #             file_time = datetime.strptime(ts, '%Y%m%d_%H%M%S')
+    #             if now - file_time > timedelta(days=7):
+    #                 os.remove(file_path)
+    #         except ValueError:
+    #             continue
 
     if not frames:
         print("No frames to save!")
