@@ -1,17 +1,64 @@
 import cv2
 import numpy as np
 from datetime import datetime, timedelta
-import os
 import shutil
 from matplotlib import pyplot as plt
 from PIL import Image
 import io
-import base64  # Base64编码库
 from pypinyin import lazy_pinyin
 from docx import Document, oxml
 from docx.shared import Pt, Cm
 from docx.enum.text import WD_PARAGRAPH_ALIGNMENT
 from docx.shared import RGBColor
+import os
+import smtplib
+from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
+from email.header import Header
+from email.utils import formataddr
+import base64
+
+
+def send_email_alert(message, contact_value, image_list=None, subject="视频报警通知"):
+    """
+    发送邮件报警（HTML正文，可附加多张图片）
+
+    参数：
+        message - 邮件正文（HTML格式字符串）
+        contact_value - 收件人邮箱（字符串）
+        image_list - 图片路径列表（可选）
+    返回：
+        True: 发送成功
+        False: 发送失败
+    """
+    from_email = "576467179@qq.com"
+    auth_code = "mirozaqvewotbdci"
+
+    msg = MIMEMultipart()
+    msg['From'] = formataddr(("报警系统", from_email))
+    msg['To'] = contact_value
+    msg['Subject'] = Header(subject, 'utf-8')
+    msg.attach(MIMEText(message.replace("\n", "<br>"), 'html', 'utf-8'))
+
+    if image_list:
+        for img_path in image_list:
+            if img_path and os.path.exists(img_path):
+                with open(img_path, 'rb') as f:
+                    part = MIMEApplication(f.read(), Name=os.path.basename(img_path))
+                    part['Content-Disposition'] = f'attachment; filename="{os.path.basename(img_path)}"'
+                    msg.attach(part)
+
+    try:
+        server = smtplib.SMTP_SSL("smtp.qq.com", 465)
+        server.login(from_email, auth_code)
+        server.sendmail(from_email, [contact_value], msg.as_string())
+        server.quit()
+        log("SUCCESS", f"邮件发送成功: {contact_value}")
+        return True
+    except Exception as e:
+        log("FAIL", f"邮件发送失败: {contact_value}, 错误: {e}")
+        return False
+
 
 def save_report_to_docx(content: str, save_dir: str, filename: str, title: str = None, images: list = None, image_captions: list = None):
     """
@@ -79,6 +126,7 @@ def save_report_to_docx(content: str, save_dir: str, filename: str, title: str =
     except Exception as e:
         log("FAIL", f"保存 Word 报告失败: {filename}, 错误: {e}")
         return None
+
 
 def points_to_abs_points(frame, fences):
     height, width = frame.shape[:2]
@@ -152,6 +200,7 @@ def image_path_to_base64(image_path: str) -> str:
     with open(image_path, "rb") as f:
         img_bytes = f.read()
     return base64.b64encode(img_bytes).decode("utf-8")
+
 
 # MD5哈希函数
 def md5(str):
