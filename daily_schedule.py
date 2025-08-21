@@ -9,7 +9,7 @@ import json
 from alert_dispatcher import send_email_alert, recipient_mgr
 from ai.local_ai import call_local_ai_model
 from ai.qwen_ai import call_qwen_via_client
-from utils import log, image_path_to_base64, save_report_to_docx
+from utils import log, image_path_to_base64, save_report_to_docx, resize_to_720p, points_to_abs_points, draw_fence_on_frame
 
 with open('config.json', encoding='utf-8') as f:
     config = json.load(f)
@@ -40,6 +40,11 @@ class AutoReportScheduler:
             filename = f"{stream_uid}_{now.strftime("%H-%M-%S")}.jpg"
             filepath = f"{self.save_dir}/{filename}"
             fileurl = f"{self.base_url}/{filepath}"
+            frame = resize_to_720p(frame)
+            fences = self.storage_mgr.list_fences(stream_uid)
+            abs_points = points_to_abs_points(frame, fences)
+            for fence in abs_points:
+                frame = draw_fence_on_frame(frame, fence)
             success = cv2.imwrite(filepath, frame)
             if success:
                 log("INFO", f"抓取视频流成功: {stream_name} (UID={stream_uid}), 时间={timestamp}, 保存路径={filepath}")
@@ -66,7 +71,8 @@ class AutoReportScheduler:
             for idx, img in enumerate(images):
                 if img["timestamp"].startswith(frame_hour.zfill(2)):  # 找到对应小时
                     if img["image_path"]:
-                        log("WARNING", f"{stream_name} ({stream_uid}) 在 {img['timestamp']} 已存在 image_path={img['image_path']}，将被替换为 {frame_data['image_path']}")
+                        log("WARNING",
+                                f"{stream_name} ({stream_uid}) 在 {img['timestamp']} 已存在 image_path={img['image_path']}，将被替换为 {frame_data['image_path']}")
                     images[idx] = frame_data  # 替换
                     updated = True
                     break
@@ -127,9 +133,9 @@ class AutoReportScheduler:
             # 调用 AI 生成单个监控总结
             img_paths = [img.get("image_path") for img in images if img.get("image_path")]
             image_captions = [img.get("timestamp") for img in images if img.get("image_path")]
-            # ai_summary = call_local_ai_model(image_paths=img_paths, prompt=daily_prompt)
-            imgs_base64 = [image_path_to_base64(i) for i in img_paths]
-            ai_summary = call_qwen_via_client(daily_prompt, imgs_base64, model='qwen-vl-max-latest', json_str=False)
+            ai_summary = call_local_ai_model(ai_prompt=daily_prompt, image_paths=img_paths, json_str=False)
+            # imgs_base64 = [image_path_to_base64(i) for i in img_paths]
+            # ai_summary = call_qwen_via_client(daily_prompt, imgs_base64, model='qwen-vl-max-latest', json_str=False)
             # 更新当天 report 字段
             self.report_mgr.update_report(stream_uid, date=yesterday, report=ai_summary)
             log("SUCCESS", f"视频流 {stream_name} (UID={stream_uid}) 的 {yesterday} AI总结已生成。")
@@ -161,8 +167,8 @@ class AutoReportScheduler:
         # 生成所有监控的总摘要
         if individual_summaries:
             combined_prompt = daily_summary_prompt + "请基于以下各监控的AI总结生成一份总摘要:" + "\n".join(individual_summaries)
-            # overall_summary = call_local_ai_model(prompt=combined_prompt)
-            overall_summary = call_qwen_via_client(combined_prompt, model="qwen-plus", json_str=False)
+            overall_summary = call_local_ai_model(ai_prompt=combined_prompt, json_str=False)
+            # overall_summary = call_qwen_via_client(combined_prompt, model="qwen-plus", json_str=False)
             # 保存到特殊的总报告 UID，例如 "ALL_STREAMS"
             self.report_mgr.update_overall_summary(yesterday, overall_summary)
             log("SUCCESS", f"{yesterday} 所有监控的总摘要已生成。")

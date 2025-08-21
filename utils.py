@@ -80,6 +80,14 @@ def save_report_to_docx(content: str, save_dir: str, filename: str, title: str =
         log("FAIL", f"保存 Word 报告失败: {filename}, 错误: {e}")
         return None
 
+def points_to_abs_points(frame, fences):
+    height, width = frame.shape[:2]
+    fence_points = []
+    for fence in fences:
+        points = fence.get('points', [])
+        abs_points = [(int(p['x'] * width), int(p['y'] * height)) for p in points]
+        fence_points.append(abs_points)
+    return fence_points
 
 
 class LogColors:
