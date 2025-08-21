@@ -669,17 +669,20 @@ class ImageReportManager:
         }
 
         self.save_all(data)
-        return True
+        return data[idx][date]
 
     def get_report(self, stream_uid, date: str = None):
         """获取单个报告（可指定日期）"""
         data = self.load_all()
-        for msg in data:
-            if msg["stream_uid"] == stream_uid:
+        for report in data:
+            if report["stream_uid"] == stream_uid:
                 if date:
-                    return msg.get(date, None)
+                    if report.get(date, None):
+                        return report.get(date)
+                    else:
+                        return self.reset_report(stream_uid, date)
                 else:
-                    return msg
+                    return report
         return None
 
     def list_reports(self, date: str = None):
