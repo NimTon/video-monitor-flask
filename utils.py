@@ -21,13 +21,8 @@ import base64
 from pathlib import Path
 from comtypes import client
 
+
 def docx_to_pdf(docx_path: str, pdf_path: str = None) -> str:
-    """
-    将 Word 文档 (.docx) 导出为 PDF。
-    :param docx_path: Word 文件路径
-    :param pdf_path: PDF 保存路径，如果为 None，则与 docx 同名
-    :return: PDF 文件路径
-    """
     if not os.path.exists(docx_path):
         raise FileNotFoundError(f"{docx_path} 不存在")
 
@@ -46,35 +41,24 @@ def docx_to_pdf(docx_path: str, pdf_path: str = None) -> str:
         raise RuntimeError(f"导出 PDF 失败: {e}")
 
 
-def send_email_alert(message, contact_value, image_list=None, subject="视频报警通知"):
-    """
-    发送邮件报警（HTML正文，可附加多张图片）
+from email.mime.application import MIMEApplication
 
-    参数：
-        message - 邮件正文（HTML格式字符串）
-        contact_value - 收件人邮箱（字符串）
-        image_list - 图片路径列表（可选）
-    返回：
-        True: 发送成功
-        False: 发送失败
-    """
+
+def send_email_alert(message, contact_value, attachments=None, subject="视频报警通知"):
     from_email = "576467179@qq.com"
     auth_code = "mirozaqvewotbdci"
-
     msg = MIMEMultipart()
     msg['From'] = formataddr(("报警系统", from_email))
     msg['To'] = contact_value
     msg['Subject'] = Header(subject, 'utf-8')
     msg.attach(MIMEText(message.replace("\n", "<br>"), 'html', 'utf-8'))
-
-    if image_list:
-        for img_path in image_list:
-            if img_path and os.path.exists(img_path):
-                with open(img_path, 'rb') as f:
-                    part = MIMEApplication(f.read(), Name=os.path.basename(img_path))
-                    part['Content-Disposition'] = f'attachment; filename="{os.path.basename(img_path)}"'
+    if attachments:
+        for file_path in attachments:
+            if file_path and os.path.exists(file_path):
+                with open(file_path, 'rb') as f:
+                    part = MIMEApplication(f.read(), Name=os.path.basename(file_path))
+                    part['Content-Disposition'] = f'attachment; filename="{os.path.basename(file_path)}"'
                     msg.attach(part)
-
     try:
         server = smtplib.SMTP_SSL("smtp.qq.com", 465)
         server.login(from_email, auth_code)

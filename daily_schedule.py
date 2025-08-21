@@ -146,20 +146,6 @@ class AutoReportScheduler:
             log("SUCCESS", f"视频流 {stream_name} (UID={stream_uid}) 的 {yesterday} AI总结已生成。")
             individual_summaries.append(f"{stream_name} (UID={stream_uid}): {ai_summary}")
             # 发送邮箱
-            recipients = RecipientsManager().get_recipients_by_stream_id(stream_uid)
-            if not recipients:
-                log("WARNING", f"视频流 {stream_name} (UID={stream_uid}) 未绑定联系人。")
-            for recipient in recipients:
-                contact = recipient.get("contact", {})
-                email_addr = contact.get("email")
-                if not email_addr:
-                    log("WARNING", f"视频流 {stream_name} (UID={stream_uid}) 收件人 {recipient.get('name', '')} 未配置邮箱")
-                    continue
-                success = send_email_alert(ai_summary, email_addr, image_list=img_paths, subject=f"视频流 {stream_name} (UID={stream_uid}) {yesterday} 报告")
-                if success:
-                    log("SUCCESS", f"已发送邮件给 {email_addr} ({stream_name}, UID={stream_uid})")
-                else:
-                    log("FAIL", f"邮件发送失败: {email_addr} ({stream_name}, UID={stream_uid})")
             word_dir = os.path.join("reports_word", yesterday)  # 按日期建目录
             Path(word_dir).mkdir(exist_ok=True)
             docx_file = save_report_to_docx(
@@ -170,6 +156,7 @@ class AutoReportScheduler:
                 images=img_paths,
                 image_captions=image_captions
             )
+            pdf_file = None
             if docx_file:
                 log("SUCCESS", f"Word 总摘要报告已保存: {docx_file}")
                 try:
@@ -179,6 +166,21 @@ class AutoReportScheduler:
                     log("FAIL", f"PDF 总摘要报告导出失败: {e}")
             else:
                 log("FAIL", f"Word 总摘要报告保存失败")
+            recipients = RecipientsManager().get_recipients_by_stream_id(stream_uid)
+            if not recipients:
+                log("WARNING", f"视频流 {stream_name} (UID={stream_uid}) 未绑定联系人。")
+            for recipient in recipients:
+                contact = recipient.get("contact", {})
+                email_addr = contact.get("email")
+                if not email_addr:
+                    log("WARNING", f"视频流 {stream_name} (UID={stream_uid}) 收件人 {recipient.get('name', '')} 未配置邮箱")
+                    continue
+                success = send_email_alert(ai_summary, email_addr, attachments=img_paths.append(pdf_file), subject=f"视频流 {stream_name} (UID={stream_uid}) {yesterday} 报告")
+                if success:
+                    log("SUCCESS", f"已发送邮件给 {email_addr} ({stream_name}, UID={stream_uid})")
+                else:
+                    log("FAIL", f"邮件发送失败: {email_addr} ({stream_name}, UID={stream_uid})")
+
         # 生成所有监控的总摘要
         if individual_summaries:
             combined_prompt = daily_summary_prompt + "请基于以下各监控的AI总结生成一份总摘要:" + "\n".join(individual_summaries)
@@ -189,15 +191,8 @@ class AutoReportScheduler:
             # 保存到特殊的总报告 UID，例如 "ALL_STREAMS"
             self.report_mgr.update_overall_summary(yesterday, overall_summary)
             log("SUCCESS", f"{yesterday} 所有监控的总摘要已生成。")
-            # 发送总摘要邮件
-            summary_recipients = ["576467179@qq.com"]
-            for email_addr in summary_recipients:
-                success = send_email_alert(overall_summary, email_addr, subject=f"视频流 {yesterday} 报告总摘要")
-                if success:
-                    log("SUCCESS", f"总摘要已发送给 {email_addr}")
-                else:
-                    log("FAIL", f"总摘要邮件发送失败: {email_addr}")
             word_dir = os.path.join("reports_word", yesterday)
+            pdf_file = None
             Path(word_dir).mkdir(exist_ok=True)
             docx_file = save_report_to_docx(
                 content=overall_summary,
@@ -214,6 +209,14 @@ class AutoReportScheduler:
                     log("FAIL", f"PDF 总摘要报告导出失败: {e}")
             else:
                 log("FAIL", f"Word 总摘要报告保存失败")
+            # 发送总摘要邮件
+            summary_recipients = ["576467179@qq.com"]
+            for email_addr in summary_recipients:
+                success = send_email_alert(overall_summary, email_addr, attachments=[pdf_file], subject=f"视频流 {yesterday} 报告总摘要")
+                if success:
+                    log("SUCCESS", f"总摘要已发送给 {email_addr}")
+                else:
+                    log("FAIL", f"总摘要邮件发送失败: {email_addr}")
 
     def start_scheduler(self):
         """启动定时任务"""
