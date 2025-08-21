@@ -36,8 +36,8 @@ class AutoReportScheduler:
             now = datetime.datetime.now()
             minute = (now.minute // 10) * 10
             timestamp = now.replace(minute=minute, second=0, microsecond=0).strftime("%H:%M:%S")
-            filename = f"{stream_uid}_{now.strftime("%H-%M-%S")}.jpg"
-            filepath = f"{self.save_dir}/{filename}"
+            filename = f"{stream_uid}_{now.strftime("%Y-%m-%d-%H-%M-%S")}.jpg"
+            filepath = f"{self.save_dir}/{stream_uid}/{filename}"
             fileurl = f"{self.base_url}/{filepath}"
             frame = resize_to_720p(frame)
             fences = self.storage_mgr.list_fences(stream_uid)
@@ -203,11 +203,11 @@ if __name__ == "__main__":
     report_scheduler = AutoReportScheduler(storage_mgr, report_mgr, save_dir="images/daily", base_url=base_url)
 
     # 启动定时任务
-    # report_scheduler.start_scheduler()
+    report_scheduler.start_scheduler()
     log("INFO", "调度器已启动。")
 
-     # 手动测试抓图
-    report_scheduler.capture_all_streams()
+    # 手动测试抓图
+    # report_scheduler.capture_all_streams()
 
     # 手动测试 AI 总结
     # report_scheduler.daily_ai_summary()
@@ -215,4 +215,4 @@ if __name__ == "__main__":
     # schedule 需要不断循环运行才能触发任务
     while True:
         schedule.run_pending()  # 运行所有到期的任务
-        time.sleep(60)  # 休眠60秒避免CPU占用过高
+        time.sleep(1)  # 休眠1秒避免CPU占用过高
