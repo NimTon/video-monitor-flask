@@ -134,6 +134,7 @@ class AutoReportScheduler:
             img_paths = [img.get("image_path") for img in images if img.get("image_path")]
             if not img_paths:
                 log("WARNING", f"视频流 {stream_name} (UID={stream_uid}) 的 {yesterday} 报告不足 1 张，跳过。")
+                continue
             image_captions = [img.get("timestamp") for img in images if img.get("image_path")]
             camera_information = f"报告日期：{yesterday}，图片日期：{list(zip(img_paths, image_captions))}，stream_uid：{stream_uid}，stream_name：{stream_name}"
             combined_prompt = camera_information + daily_prompt
