@@ -5,7 +5,7 @@
   "zlmk_url": "http://172.27.109.14/index/api",
   "local_ai_images_url": "http://10.30.4.32:5800/api/sayImages",
   "local_ai_video_url": "http://10.30.4.32:5800/api/sayVideo",
-  "local_ai_text_url": "http://10.30.4.50:5810/api/sayMsg",
+  "local_ai_text_url": "http://10.30.4.32:5810/api/sayMsg",
   "qwen_api_key": "sk-f3ec150157ec41baaa516b15d1feaeae",
   "qwen_url": "https://dashscope.aliyuncs.com/compatible-mode/v1",
   "zk_token": "FZK865AI9184C4A66",
