@@ -62,7 +62,6 @@ class AutoReportScheduler:
                 self.report_mgr.add_report(stream_uid, stream_name)
                 log("INFO", f"新建报表: {stream_name} (UID={stream_uid})")
             report = self.report_mgr.get_report(stream_uid, today)
-            print(report, stream_uid, today)
             # 添加/更新本次抓取的帧
             images = report.get("images", [])
             frame_hour = frame_data["timestamp"].split(":")[0]  # 取小时部分 "15"
