@@ -28,33 +28,47 @@ class AutoReportScheduler:
         self.base_url = base_url
         os.makedirs(save_dir, exist_ok=True)
 
-    def capture_stream_frame(self, stream_name, stream_url, stream_uid):
-        """抓取视频流当前帧"""
-        cap = cv2.VideoCapture(stream_url)
-        ret, frame = cap.read()
-        cap.release()
-        if ret:
-            now = datetime.datetime.now()
-            minute = (now.minute // 10) * 10
-            timestamp = now.replace(minute=minute, second=0, microsecond=0).strftime("%H:%M:%S")
-            filename = f"{stream_uid}_{now.strftime("%Y-%m-%d-%H-%M-%S")}.jpg"
-            filepath = f"{self.save_dir}/{stream_uid}/{filename}"
-            Path(f"{self.save_dir}/{stream_uid}").mkdir(exist_ok=True)
-            fileurl = f"{self.base_url}/{filepath}"
-            frame = resize_to_720p(frame)
-            fences = self.storage_mgr.list_fences(stream_uid)
-            abs_points = points_to_abs_points(frame, fences)
-            for fence in abs_points:
-                frame = draw_fence_on_frame(frame, fence)
-            success = cv2.imwrite(filepath, frame)
-            if success:
-                log("INFO", f"抓取视频流成功: {stream_name} (UID={stream_uid}), 时间={timestamp}, 保存路径={filepath}")
-                return {"timestamp": timestamp, "image_path": filepath, "image_url": fileurl}
+    def capture_stream_frame(self, stream_name, stream_url, stream_uid, max_retries=3, retry_delay=1):
+        """抓取视频流当前帧，失败时最多尝试 max_retries 次"""
+        import time
+
+        cap = None
+        for attempt in range(1, max_retries + 1):
+            cap = cv2.VideoCapture(stream_url)
+            if cap.isOpened():
+                ret, frame = cap.read()
+                cap.release()
+                if ret:
+                    break  # 成功抓到帧，跳出重试循环
             else:
-                log("FAIL", f"抓取视频流失败: {stream_name} (UID={stream_uid}), URL={stream_url}, PATH={filepath}")
-                return None
+                cap.release()
+                frame = None
+            log("WARN", f"[尝试 {attempt}/{max_retries}] 抓取视频流失败: {stream_name} (UID={stream_uid}), URL={stream_url}")
+            time.sleep(retry_delay)
         else:
-            log("FAIL", f"抓取视频流失败: {stream_name} (UID={stream_uid}), URL={stream_url}")
+            # 三次尝试都失败
+            log("FAIL", f"抓取视频流三次尝试均失败: {stream_name} (UID={stream_uid}), URL={stream_url}")
+            return None
+
+        # 成功抓到帧后处理
+        now = datetime.datetime.now()
+        minute = (now.minute // 10) * 10
+        timestamp = now.replace(minute=minute, second=0, microsecond=0).strftime("%H:%M:%S")
+        filename = f"{stream_uid}_{now.strftime('%Y-%m-%d-%H-%M-%S')}.jpg"
+        filepath = f"{self.save_dir}/{stream_uid}/{filename}"
+        Path(f"{self.save_dir}/{stream_uid}").mkdir(exist_ok=True)
+        fileurl = f"{self.base_url}/{filepath}"
+        frame = resize_to_720p(frame)
+        fences = self.storage_mgr.list_fences(stream_uid)
+        abs_points = points_to_abs_points(frame, fences)
+        for fence in abs_points:
+            frame = draw_fence_on_frame(frame, fence)
+        success = cv2.imwrite(filepath, frame)
+        if success:
+            log("INFO", f"抓取视频流成功: {stream_name} (UID={stream_uid}), 时间={timestamp}, 保存路径={filepath}")
+            return {"timestamp": timestamp, "image_path": filepath, "image_url": fileurl}
+        else:
+            log("FAIL", f"抓取视频流失败: {stream_name} (UID={stream_uid}), URL={stream_url}, PATH={filepath}")
             return None
 
     def save_one_frame(self, stream_uid, stream_name, frame_data, today):
