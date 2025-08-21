@@ -3,15 +3,13 @@ import datetime
 import time
 import cv2  # 用于抓取视频帧
 import os
-from storage import StorageManager, ImageReportManager, RecipientsManager
+from storage import StorageManager, ImageReportManager
 import schedule
 import json
 from alert_dispatcher import send_email_alert, recipient_mgr
 from ai.local_ai import call_local_ai_model
 from ai.qwen_ai import call_qwen_via_client
 from utils import log, image_path_to_base64, save_report_to_docx
-
-recipents_manager = RecipientsManager()
 
 with open('config.json', encoding='utf-8') as f:
     config = json.load(f)
@@ -53,6 +51,38 @@ class AutoReportScheduler:
             log("FAIL", f"抓取视频流失败: {stream_name} (UID={stream_uid}), URL={stream_url}")
             return None
 
+    def save_one_frame(self, stream_uid, stream_name, frame_data, today):
+        if frame_data:
+            report = self.report_mgr.get_report(stream_uid, today)
+            if not report:
+                # 初始化当天的报告
+                self.report_mgr.add_report(stream_uid, stream_name)
+                report = self.report_mgr.get_report(stream_uid, today)
+                log("INFO", f"新建报表: {stream_name} (UID={stream_uid})")
+            # 添加/更新本次抓取的帧
+            images = report.get("images", [])
+            frame_hour = frame_data["timestamp"].split(":")[0]  # 取小时部分 "15"
+            updated = False
+            for idx, img in enumerate(images):
+                if img["timestamp"].startswith(frame_hour.zfill(2)):  # 找到对应小时
+                    if img["image_path"]:
+                        log("WARNING", f"{stream_name} ({stream_uid}) 在 {img['timestamp']} 已存在 image_path={img['image_path']}，将被替换为 {frame_data['image_path']}")
+                    images[idx] = frame_data  # 替换
+                    updated = True
+                    break
+            if not updated:
+                # 如果不存在该小时，就插入到正确位置（按 timestamp 排序）
+                images.append(frame_data)
+                images.sort(key=lambda x: x["timestamp"])
+            # 更新到当天报告
+            self.report_mgr.update_report(stream_uid, date=today, images=images)
+            img_count = len([img for img in images if img.get("image_path")])
+            log("INFO", f"报表更新完成: {stream_name} (UID={stream_uid}), 当天帧总数={img_count}")
+            return True
+        else:
+            log("FAIL", f"当前帧为空，未更新报表: {stream_name} (UID={stream_uid})")
+            return False
+
     def capture_all_streams(self):
         """整点抓取所有视频流"""
         streams = self.storage_mgr.list_streams()
@@ -69,36 +99,7 @@ class AutoReportScheduler:
             stream_name = stream.get("name", "未知名称")
             stream_url = stream["stream_url"]
             frame_data = self.capture_stream_frame(stream_name, stream_url, stream_uid)
-            if frame_data:
-                report = self.report_mgr.get_report(stream_uid, today)
-                if not report:
-                    # 初始化当天的报告
-                    self.report_mgr.add_report(stream_uid, stream_name)
-                    report = self.report_mgr.get_report(stream_uid, today)
-                    log("INFO", f"新建报表: {stream_name} (UID={stream_uid})")
-                # 添加/更新本次抓取的帧
-                images = report.get("images", [])
-                frame_hour = frame_data["timestamp"].split(":")[0]  # 取小时部分 "15"
-                updated = False
-                for idx, img in enumerate(images):
-                    if img["timestamp"].startswith(frame_hour.zfill(2)):  # 找到对应小时
-                        if img["image_path"]:
-                            log("WARNING", f"{stream_name} ({stream_uid}) 在 {img['timestamp']} 已存在 image_path={img['image_path']}，将被替换为 {frame_data['image_path']}")
-                        images[idx] = frame_data  # 替换
-                        updated = True
-                        break
-                if not updated:
-                    # 如果不存在该小时，就插入到正确位置（按 timestamp 排序）
-                    images.append(frame_data)
-                    images.sort(key=lambda x: x["timestamp"])
-                # 更新到当天报告
-                self.report_mgr.update_report(stream_uid, date=today, images=images)
-                img_count = len([img for img in images if img.get("image_path")])
-                log("INFO", f"报表更新完成: {stream_name} (UID={stream_uid}), 当天帧总数={img_count}")
-
-            else:
-                log("FAIL", f"当前帧为空，未更新报表: {stream_name} (UID={stream_uid})")
-                all_success = False
+            all_success = self.save_one_frame(stream_uid, stream_name, frame_data, today)
         if all_success:
             log("SUCCESS", "本轮抓图所有视频流均成功")
         else:

@@ -8,7 +8,7 @@ from datetime import datetime, timedelta  # 日期时间处理
 import hashlib  # 哈希算法库
 import base64  # Base64编码库
 import urllib.parse  # URL解析库
-from storage import StorageManager, AlertStorageManager, RecipientsManager  # 自定义存储管理模块
+from storage import StorageManager, AlertStorageManager, RecipientsManager, ImageReportManager
 import cv2  # OpenCV图像处理库
 import time  # 时间模块
 import smtplib  # SMTP邮件协议库
@@ -23,13 +23,17 @@ import urllib.request  # URL请求
 import numpy as np
 from storage import MessageManager
 from utils import save_frames_as_video, save_key_frames, md5, log, cv2_frame_to_base64
+from daily_schedule import AutoReportScheduler
 
 message_manager = MessageManager()
+
 
 with open('config.json', encoding='utf-8') as f:
     config = json.load(f)
 
 base_url = f'http://{config['host']}:{config['port']}'
+
+auto_report_scheduler = AutoReportScheduler(StorageManager(), ImageReportManager(), base_url=base_url)
 
 
 # 初始化存储管理器
@@ -231,6 +235,10 @@ def dispatch_alert_multi_frames(stream_id, fence_result, frames):
     # ai_report = call_qwen_via_client(imgs=base64_images)  # 通义千问大模型
     # ai_report = call_local_ai_model(image_paths=image_paths)  # 本地大模型（图片）
     ai_report = call_local_ai_model(video_path=video_path)  # 本地大模型（视频）
+
+    # 存入report
+    frame_data = {"timestamp": timestamp, "image_path": image_paths[-1], "image_url": image_urls[-1]}
+    auto_report_scheduler.save_one_frame(stream_id, stream_name, frame_data, datetime.now().strftime("%Y-%m-%d"))
 
 
     if not ai_report:
