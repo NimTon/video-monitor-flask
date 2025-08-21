@@ -83,7 +83,7 @@ class AutoReportScheduler:
             # 更新到当天报告
             self.report_mgr.update_report(stream_uid, date=today, images=images)
             img_count = len([img for img in images if img.get("image_path")])
-            log("INFO", f"报表更新完成: {stream_name} (UID={stream_uid}), 当天帧总数={img_count}")
+            log("INFO", f"报表更新完成: {stream_name} (UID={stream_uid}), 今天帧总数={img_count}")
             return True
         else:
             log("FAIL", f"当前帧为空，未更新报表: {stream_name} (UID={stream_uid})")
@@ -132,7 +132,7 @@ class AutoReportScheduler:
                 log("WARNING", f"视频流 {stream_name} (UID={stream_uid}) 的 {yesterday} 报告不足 1 张，跳过。")
                 continue
             elif 1 <= img_count < 24:
-                log("WARNING", f"视频流 {stream_name} (UID={stream_uid}) 的 {yesterday} 报告不足 24 张（当前 {img_count} 张）。")
+                log("WARNING", f"视频流 {stream_name} (UID={stream_uid}) 的 {yesterday} 报告不足 24 张（那天 {img_count} 张）。")
             img_paths = [img.get("image_path") for img in images if img.get("image_path")]
             image_captions = [img.get("timestamp") for img in images if img.get("image_path")]
             # 调用 AI 生成单个监控总结
