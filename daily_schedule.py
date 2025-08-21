@@ -62,6 +62,7 @@ class AutoReportScheduler:
                 self.report_mgr.add_report(stream_uid, stream_name)
                 log("INFO", f"新建报表: {stream_name} (UID={stream_uid})")
             report = self.report_mgr.get_report(stream_uid, today)
+            print(report, stream_uid, today)
             # 添加/更新本次抓取的帧
             images = report.get("images", [])
             frame_hour = frame_data["timestamp"].split(":")[0]  # 取小时部分 "15"
@@ -203,11 +204,11 @@ if __name__ == "__main__":
     report_scheduler = AutoReportScheduler(storage_mgr, report_mgr, save_dir="images/daily", base_url=base_url)
 
     # 启动定时任务
-    report_scheduler.start_scheduler()
+    # report_scheduler.start_scheduler()
     log("INFO", "调度器已启动。")
 
-    # 手动测试抓图
-    # report_scheduler.capture_all_streams()
+     # 手动测试抓图
+    report_scheduler.capture_all_streams()
 
     # 手动测试 AI 总结
     # report_scheduler.daily_ai_summary()
@@ -215,4 +216,4 @@ if __name__ == "__main__":
     # schedule 需要不断循环运行才能触发任务
     while True:
         schedule.run_pending()  # 运行所有到期的任务
-        time.sleep(1)  # 休眠1秒避免CPU占用过高
+        time.sleep(60)  # 休眠60秒避免CPU占用过高
