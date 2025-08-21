@@ -3,13 +3,12 @@ import datetime
 import time
 import cv2  # 用于抓取视频帧
 import os
-from storage import StorageManager, ImageReportManager
+from storage import StorageManager, ImageReportManager, RecipientsManager
 import schedule
 import json
-from alert_dispatcher import send_email_alert, recipient_mgr
 from ai.local_ai import call_local_ai_model
 from ai.qwen_ai import call_qwen_via_client
-from utils import log, image_path_to_base64, save_report_to_docx, resize_to_720p, points_to_abs_points, draw_fence_on_frame
+from utils import log, image_path_to_base64, save_report_to_docx, resize_to_720p, points_to_abs_points, draw_fence_on_frame, send_email_alert
 
 with open('config.json', encoding='utf-8') as f:
     config = json.load(f)
@@ -58,12 +57,11 @@ class AutoReportScheduler:
 
     def save_one_frame(self, stream_uid, stream_name, frame_data, today):
         if frame_data:
-            report = self.report_mgr.get_report(stream_uid, today)
+            report = self.report_mgr.get_report(stream_uid)
             if not report:
-                # 初始化当天的报告
                 self.report_mgr.add_report(stream_uid, stream_name)
-                report = self.report_mgr.get_report(stream_uid, today)
                 log("INFO", f"新建报表: {stream_name} (UID={stream_uid})")
+            report = self.report_mgr.get_report(stream_uid, today)
             # 添加/更新本次抓取的帧
             images = report.get("images", [])
             frame_hour = frame_data["timestamp"].split(":")[0]  # 取小时部分 "15"
@@ -141,7 +139,7 @@ class AutoReportScheduler:
             log("SUCCESS", f"视频流 {stream_name} (UID={stream_uid}) 的 {yesterday} AI总结已生成。")
             individual_summaries.append(f"{stream_name} (UID={stream_uid}): {ai_summary}")
             # 发送邮箱
-            recipients = recipient_mgr.get_recipients_by_stream_id(stream_uid)
+            recipients = RecipientsManager().get_recipients_by_stream_id(stream_uid)
             if not recipients:
                 log("WARNING", f"视频流 {stream_name} (UID={stream_uid}) 未绑定联系人。")
             for recipient in recipients:

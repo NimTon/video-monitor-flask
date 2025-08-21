@@ -609,7 +609,7 @@ class ImageReportManager:
         }
         data.append(new_report)
         self.save_all(data)
-        return stream_uid
+        return new_report
 
     def update_report(self, stream_uid, date: str, report=None, hour: str = None, image_path=None, image_url=None, images=None):
         """
