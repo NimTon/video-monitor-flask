@@ -174,6 +174,7 @@ class AutoReportScheduler:
             if docx_file:
                 log("SUCCESS", f"Word 总摘要报告已保存: {docx_file}")
                 try:
+                    docx_file = os.path.abspath(docx_file)
                     pdf_file = docx_to_pdf(docx_file)
                     log("SUCCESS", f"PDF 总摘要报告已保存: {pdf_file}")
                 except Exception as e:
@@ -217,6 +218,7 @@ class AutoReportScheduler:
             if docx_file:
                 log("SUCCESS", f"Word 总摘要报告已保存: {docx_file}")
                 try:
+                    docx_file = os.path.abspath(docx_file)
                     pdf_file = docx_to_pdf(docx_file)
                     log("SUCCESS", f"PDF 总摘要报告已保存: {pdf_file}")
                 except Exception as e:
