@@ -43,11 +43,11 @@ class AutoReportScheduler:
             else:
                 cap.release()
                 frame = None
-            log("WARN", f"[尝试 {attempt}/{max_retries}] 抓取视频流失败: {stream_name} (UID={stream_uid}), URL={stream_url}")
+            log("WARN", f"[尝试 {attempt}/{max_retries}] 抓取视频流失败: {stream_name} (UID={stream_uid}), URL={stream_url}。")
             time.sleep(retry_delay)
         else:
             # 三次尝试都失败
-            log("FAIL", f"抓取视频流三次尝试均失败: {stream_name} (UID={stream_uid}), URL={stream_url}")
+            log("FAIL", f"抓取视频流三次尝试均失败: {stream_name} (UID={stream_uid}), URL={stream_url}。")
             return None
 
         # 成功抓到帧后处理
@@ -65,10 +65,10 @@ class AutoReportScheduler:
             frame = draw_fence_on_frame(frame, fence)
         success = cv2.imwrite(filepath, frame)
         if success:
-            log("INFO", f"抓取视频流成功: {stream_name} (UID={stream_uid}), 时间={timestamp}, 保存路径={filepath}")
+            log("INFO", f"抓取视频流成功: {stream_name} (UID={stream_uid}), 时间={timestamp}, 保存路径={filepath}。")
             return {"timestamp": timestamp, "image_path": filepath, "image_url": fileurl}
         else:
-            log("FAIL", f"抓取视频流失败: {stream_name} (UID={stream_uid}), URL={stream_url}, PATH={filepath}")
+            log("FAIL", f"抓取视频流失败: {stream_name} (UID={stream_uid}), URL={stream_url}, PATH={filepath}。")
             return None
 
     def save_one_frame(self, stream_uid, stream_name, frame_data, today):
@@ -86,7 +86,7 @@ class AutoReportScheduler:
                 if img["timestamp"].startswith(frame_hour.zfill(2)):  # 找到对应小时
                     if img["image_path"]:
                         log("WARNING",
-                            f"{stream_name} ({stream_uid}) 在 {img['timestamp']} 已存在 image_path={img['image_path']}，将被替换为 {frame_data['image_path']}")
+                            f"{stream_name} ({stream_uid}) 在 {img['timestamp']} 已存在 image_path={img['image_path']}，将被替换为 {frame_data['image_path']}。")
                     images[idx] = frame_data  # 替换
                     updated = True
                     break
@@ -97,20 +97,20 @@ class AutoReportScheduler:
             # 更新到当天报告
             self.report_mgr.update_report(stream_uid, date=today, images=images)
             img_count = len([img for img in images if img.get("image_path")])
-            log("INFO", f"报表更新完成: {stream_name} (UID={stream_uid}), 今天帧总数={img_count}")
+            log("INFO", f"报表更新完成: {stream_name} (UID={stream_uid}), 今天帧总数={img_count}。")
             return True
         else:
-            log("FAIL", f"当前帧为空，未更新报表: {stream_name} (UID={stream_uid})")
+            log("FAIL", f"当前帧为空，未更新报表: {stream_name} (UID={stream_uid})。")
             return False
 
     def capture_all_streams(self):
         """整点抓取所有视频流"""
         streams = self.storage_mgr.list_streams()
         if not streams:
-            log("WARNING", "没有视频流可抓取")
+            log("WARNING", "没有视频流可抓取。")
             return
 
-        log("INFO", f"开始抓取视频流，总数: {len(streams)}")
+        log("INFO", f"开始抓取视频流，总数: {len(streams)}。")
         all_success = True
         today = datetime.datetime.now().strftime("%Y-%m-%d")
 
@@ -121,9 +121,9 @@ class AutoReportScheduler:
             frame_data = self.capture_stream_frame(stream_name, stream_url, stream_uid)
             all_success = self.save_one_frame(stream_uid, stream_name, frame_data, today)
         if all_success:
-            log("SUCCESS", "本轮抓图所有视频流均成功")
+            log("SUCCESS", "本轮抓图所有视频流均成功。")
         else:
-            log("INFO", "本轮抓图完成，但部分视频流抓取失败")
+            log("INFO", "本轮抓图完成，但部分视频流抓取失败。")
 
     def daily_ai_summary(self):
         """每天8点调用AI生成前一天的总结，并生成总摘要"""
@@ -172,15 +172,15 @@ class AutoReportScheduler:
             )
             pdf_file = None
             if docx_file:
-                log("SUCCESS", f"Word 总摘要报告已保存: {docx_file}")
+                log("SUCCESS", f"视频流 {stream_name} (UID={stream_uid}) 的 Word 报告已保存: {docx_file}。")
                 try:
                     docx_file = os.path.abspath(docx_file)
                     pdf_file = docx_to_pdf(docx_file)
-                    log("SUCCESS", f"PDF 总摘要报告已保存: {pdf_file}")
+                    log("SUCCESS", f"视频流 {stream_name} (UID={stream_uid}) 的 PDF 报告已保存: {pdf_file}。")
                 except Exception as e:
-                    log("FAIL", f"PDF 总摘要报告导出失败: {e}")
+                    log("FAIL", f"视频流 {stream_name} (UID={stream_uid}) 的 PDF 报告导出失败: {e}")
             else:
-                log("FAIL", f"Word 总摘要报告保存失败")
+                log("FAIL", f"视频流 {stream_name} (UID={stream_uid}) 的 Word 报告保存失败。")
             recipients = RecipientsManager().get_recipients_by_stream_id(stream_uid)
             if not recipients:
                 log("WARNING", f"视频流 {stream_name} (UID={stream_uid}) 未绑定联系人。")
@@ -188,13 +188,13 @@ class AutoReportScheduler:
                 contact = recipient.get("contact", {})
                 email_addr = contact.get("email")
                 if not email_addr:
-                    log("WARNING", f"视频流 {stream_name} (UID={stream_uid}) 收件人 {recipient.get('name', '')} 未配置邮箱")
+                    log("WARNING", f"视频流 {stream_name} (UID={stream_uid}) 收件人 {recipient.get('name', '')} 未配置邮箱。")
                     continue
-                success = send_email_alert(ai_summary, email_addr, attachments=img_paths.append(pdf_file), subject=f"视频流 {stream_name} (UID={stream_uid}) {yesterday} 报告")
+                success = send_email_alert(ai_summary, email_addr, attachments=img_paths.append(pdf_file), subject=f"视频流 {stream_name} (UID={stream_uid}) {yesterday} 报告。")
                 if success:
-                    log("SUCCESS", f"已发送邮件给 {email_addr} ({stream_name}, UID={stream_uid})")
+                    log("SUCCESS", f"视频流 {stream_name} (UID={stream_uid}) 的报告已发送邮件给 {email_addr}。")
                 else:
-                    log("FAIL", f"邮件发送失败: {email_addr} ({stream_name}, UID={stream_uid})")
+                    log("FAIL", f"视频流 {stream_name} (UID={stream_uid}) 的报告邮件发送失败: {email_addr}。")
 
         # 生成所有监控的总摘要
         if individual_summaries:
@@ -216,23 +216,23 @@ class AutoReportScheduler:
                 title=f"{yesterday} 所有监控的总摘要"
             )
             if docx_file:
-                log("SUCCESS", f"Word 总摘要报告已保存: {docx_file}")
+                log("SUCCESS", f"Word 总摘要报告已保存: {docx_file}。")
                 try:
                     docx_file = os.path.abspath(docx_file)
                     pdf_file = docx_to_pdf(docx_file)
-                    log("SUCCESS", f"PDF 总摘要报告已保存: {pdf_file}")
+                    log("SUCCESS", f"PDF 总摘要报告已保存: {pdf_file}。")
                 except Exception as e:
                     log("FAIL", f"PDF 总摘要报告导出失败: {e}")
             else:
-                log("FAIL", f"Word 总摘要报告保存失败")
+                log("FAIL", f"Word 总摘要报告保存失败。")
             # 发送总摘要邮件
             summary_recipients = ["576467179@qq.com"]
             for email_addr in summary_recipients:
-                success = send_email_alert(overall_summary, email_addr, attachments=[pdf_file], subject=f"视频流 {yesterday} 报告总摘要")
+                success = send_email_alert(overall_summary, email_addr, attachments=[pdf_file], subject=f"视频流 {yesterday} 报告总摘要。")
                 if success:
-                    log("SUCCESS", f"总摘要已发送给 {email_addr}")
+                    log("SUCCESS", f"总摘要已发送给 {email_addr}。")
                 else:
-                    log("FAIL", f"总摘要邮件发送失败: {email_addr}")
+                    log("FAIL", f"总摘要邮件发送失败: {email_addr}。")
 
     def start_scheduler(self):
         """启动定时任务"""
@@ -251,14 +251,14 @@ if __name__ == "__main__":
     report_scheduler = AutoReportScheduler(storage_mgr, report_mgr, save_dir="images/daily", base_url=base_url)
 
     # 启动定时任务
-    report_scheduler.start_scheduler()
+    # report_scheduler.start_scheduler()
     log("INFO", "调度器已启动。")
 
     # 手动测试抓图
     # report_scheduler.capture_all_streams()
 
     # 手动测试 AI 总结
-    # report_scheduler.daily_ai_summary()
+    report_scheduler.daily_ai_summary()
 
     # schedule 需要不断循环运行才能触发任务
     while True:
