@@ -97,7 +97,7 @@ class AutoReportScheduler:
             # 更新到当天报告
             self.report_mgr.update_report(stream_uid, date=today, images=images)
             img_count = len([img for img in images if img.get("image_path")])
-            log("INFO", f"报表更新完成: {stream_name} (UID={stream_uid}), 今天帧总数={img_count}")
+            log("INFO", f"报表更新完成: {stream_name} (UID={stream_uid}), {today} 帧总数={img_count}")
             return True
         else:
             log("FAIL", f"当前帧为空，未更新报表: {stream_name} (UID={stream_uid})")
