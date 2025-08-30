@@ -64,6 +64,7 @@ class StorageManager:
         data = self.load_all()  # 加载现有数据
         if not stream_uid:
             stream_uid = str(uuid.uuid4())  # 生成唯一ID
+        group_id = str(uuid.uuid4())
         stream_uid = chinese_to_pinyin(stream_uid)
 
         # 创建新视频流对象
@@ -75,7 +76,8 @@ class StorageManager:
             "threshold": 0.8,  # 默认阈值
             "frequency": 10,  # 默认检测频率
             "fences": [],  # 空围栏列表
-            "recipient_uids": []  # 空接收人列表
+            "recipient_uids": [],  # 空接收人列表
+            "group_id": group_id
         }
 
         data.append(new_stream)  # 添加到数据列表
@@ -205,6 +207,32 @@ class StorageManager:
             data[idx]["recipient_uids"].remove(recipient_uid)  # 移除接收人
             self.save_all(data)  # 保存
         return True  # 成功
+
+    def set_stream_group(self, stream_uid, group_id):
+        """设置视频流的编组"""
+        return self.update_stream(stream_uid, group_id=group_id)
+
+    def get_stream_group(self, stream_uid):
+        """获取视频流所在编组"""
+        stream = self.get_stream(stream_uid)
+        if stream:
+            return stream.get("group_id")
+        return None
+
+    def list_groups(self):
+        """列出所有存在的编组ID"""
+        data = self.load_all()
+        groups = set()
+        for stream in data:
+            gid = stream.get("group_id")
+            if gid:
+                groups.add(gid)
+        return list(groups)
+
+    def list_streams_by_group(self, group_id):
+        """获取某个编组下的所有视频流"""
+        data = self.load_all()
+        return [s for s in data if s.get("group_id") == group_id]
 
 
 class RecipientsManager:
