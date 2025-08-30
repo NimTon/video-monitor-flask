@@ -24,7 +24,7 @@ class FenceChangeDetector:
             polygon = np.array(self.points)  # 转换为NumPy数组
             # 计算多边形面积
             self.fence_area = cv2.contourArea(polygon)
-            print(f"[Fence] 设置完成，围栏面积约为 {self.fence_area:.1f} 像素，开始监控...")
+            # print(f"[Fence] 设置完成，围栏面积约为 {self.fence_area:.1f} 像素，开始监控...")
         else:
             raise ValueError("电子围栏至少需要3个点")
 
@@ -77,4 +77,4 @@ class FenceChangeDetector:
             cv2.imshow(f"Fence Debug", overlay)
             cv2.waitKey(1)
 
-        return changed, changed_area
+        return changed, changed_area, change_ratio
