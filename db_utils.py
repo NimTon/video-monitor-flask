@@ -33,7 +33,7 @@ class DBHelper:
             CREATE TABLE IF NOT EXISTS captured_frames (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 stream_uid TEXT,
-                group_id TEXT,
+                group_uid TEXT,
                 timestamp TEXT,
                 frame_path TEXT
             );
@@ -44,7 +44,7 @@ class DBHelper:
             CREATE TABLE IF NOT EXISTS fence_detections (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 stream_uid TEXT,
-                group_id TEXT,
+                group_uid TEXT,
                 fence_uid TEXT,
                 change_ratio REAL,
                 changed INTEGER, -- 0=normal,1=abnormal
@@ -58,7 +58,7 @@ class DBHelper:
             CREATE TABLE IF NOT EXISTS merged_videos (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 stream_uid TEXT,
-                group_id TEXT,
+                group_uid TEXT,
                 fence_uid TEXT,
                 video_path TEXT,
                 duration REAL, -- 秒
@@ -70,14 +70,14 @@ class DBHelper:
             conn.commit()
 
     # ------------------ 抓帧表操作 ------------------
-    def insert_frame(self, stream_uid, group_id, timestamp, frame_path):
+    def insert_frame(self, stream_uid, group_uid, timestamp, frame_path):
         """插入抓帧表"""
         with self.get_conn() as conn:
             cur = conn.cursor()
             cur.execute("""
-            INSERT INTO captured_frames (stream_uid, group_id, timestamp, frame_path)
+            INSERT INTO captured_frames (stream_uid, group_uid, timestamp, frame_path)
             VALUES (?, ?, ?, ?);
-            """, (stream_uid, group_id, timestamp.isoformat(), frame_path))
+            """, (stream_uid, group_uid, timestamp.isoformat(), frame_path))
             conn.commit()
             return cur.lastrowid
 
@@ -93,18 +93,18 @@ class DBHelper:
             return [dict(row) for row in cur.fetchall()]
 
     # ------------------ 异常检测表操作 ------------------
-    def insert_detection(self, stream_uid, group_id, fence_uid, change_ratio, changed, timestamp, frame_path):
+    def insert_detection(self, stream_uid, group_uid, fence_uid, change_ratio, changed, timestamp, frame_path):
         with self.get_conn() as conn:
             cur = conn.cursor()
             cur.execute("""
             INSERT INTO fence_detections 
-            (stream_uid, group_id, fence_uid, change_ratio, changed, timestamp, frame_path)
+            (stream_uid, group_uid, fence_uid, change_ratio, changed, timestamp, frame_path)
             VALUES (?, ?, ?, ?, ?, ?, ?);
-            """, (stream_uid, group_id, fence_uid, change_ratio, int(changed), timestamp.isoformat(), frame_path))
+            """, (stream_uid, group_uid, fence_uid, change_ratio, int(changed), timestamp.isoformat(), frame_path))
             conn.commit()
             return cur.lastrowid
 
-    def get_abnormal_detections(self, stream_uid=None, group_id=None, fence_uid=None):
+    def get_abnormal_detections(self, stream_uid=None, group_uid=None, fence_uid=None):
         """获取异常检测结果"""
         with self.get_conn() as conn:
             cur = conn.cursor()
@@ -113,9 +113,9 @@ class DBHelper:
             if stream_uid:
                 query += " AND stream_uid=?"
                 params.append(stream_uid)
-            if group_id:
-                query += " AND group_id=?"
-                params.append(group_id)
+            if group_uid:
+                query += " AND group_uid=?"
+                params.append(group_uid)
             if fence_uid:
                 query += " AND fence_uid=?"
                 params.append(fence_uid)
@@ -123,13 +123,24 @@ class DBHelper:
             return [dict(row) for row in cur.fetchall()]
 
     # ------------------ 视频合成表操作 ------------------
-    def insert_merged_video(self, stream_uid, group_id, fence_uid, video_path, duration, size, timestamp):
+    def insert_merged_video(self, stream_uid, group_uid, fence_uid, video_path, duration, size, timestamp):
         with self.get_conn() as conn:
             cur = conn.cursor()
             cur.execute("""
             INSERT INTO merged_videos
-            (stream_uid, group_id, fence_uid, video_path, duration, size, timestamp)
+            (stream_uid, group_uid, fence_uid, video_path, duration, size, timestamp)
             VALUES (?, ?, ?, ?, ?, ?, ?);
-            """, (stream_uid, group_id, fence_uid, video_path, duration, size, timestamp.isoformat()))
+            """, (stream_uid, group_uid, fence_uid, video_path, duration, size, timestamp.isoformat()))
             conn.commit()
             return cur.lastrowid
+
+    # ------------------ 获取某个组下的所有 stream ------------------
+    def get_streams_by_group(self, group_id):
+        """根据 group_id 获取所有 stream"""
+        with self.get_conn() as conn:
+            cur = conn.cursor()
+            cur.execute("""
+            SELECT DISTINCT stream_uid FROM captured_frames WHERE group_id=?;
+            """, (group_id,))
+            rows = cur.fetchall()
+            return [row['stream_uid'] for row in rows]
