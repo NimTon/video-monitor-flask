@@ -25,9 +25,10 @@ class StorageManager:
                 with open(filepath, 'r', encoding='utf-8') as f:
                     data = json.load(f)
 
-                    # 重置所有视频流状态为stopped
+                # 重置所有视频流状态为stopped
                 for stream in data:
-                    stream["status"] = "stopped"
+                    pass
+                    # stream["status"] = "stopped"  # 暂时取消重置状态
 
                     # 写回更新后的数据
                 with open(filepath, 'w', encoding='utf-8') as f:
