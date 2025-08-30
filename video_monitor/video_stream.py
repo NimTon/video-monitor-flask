@@ -71,9 +71,7 @@ class VideoStreamThread(threading.Thread):
                     significant_change_detected = False
 
                     for idx, detector in enumerate(self.detectors):
-                        changed, area = detector.detect_change(frame, self.change_threshold, self.debug)
-                        fence_area = detector.fence_area
-                        change_ratio = area / (fence_area + 1e-5)
+                        changed, area, change_ratio = detector.detect_change(frame, self.change_threshold, self.debug)
 
                         if changed:
                             significant_change_detected = True
