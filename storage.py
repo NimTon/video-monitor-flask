@@ -65,7 +65,7 @@ class StorageManager:
         data = self.load_all()  # 加载现有数据
         if not stream_uid:
             stream_uid = str(uuid.uuid4())  # 生成唯一ID
-        group_id = str(uuid.uuid4())
+        group_uid = str(uuid.uuid4())
         stream_uid = chinese_to_pinyin(stream_uid)
 
         # 创建新视频流对象
@@ -78,7 +78,7 @@ class StorageManager:
             "frequency": 10,  # 默认检测频率
             "fences": [],  # 空围栏列表
             "recipient_uids": [],  # 空接收人列表
-            "group_id": group_id
+            "group_uid": group_uid
         }
 
         data.append(new_stream)  # 添加到数据列表
