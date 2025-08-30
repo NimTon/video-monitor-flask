@@ -81,7 +81,7 @@ async def detect_worker():
         await asyncio.sleep(0)
 
 
-# ------------------ 合成视频模块 ------------------
+# ------------------ 编组合成视频模块 ------------------
 async def merge_worker():
     while True:
         groups = storage_manger.list_groups()
