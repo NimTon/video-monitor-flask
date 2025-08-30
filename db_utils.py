@@ -6,7 +6,8 @@ from datetime import datetime
 with open('config.json', encoding='utf-8') as f:
     config = json.load(f)
 
-db_path = config.get("db_path")
+db_path = config.get("db_path", "video_monitor.db")
+
 
 class DBHelper:
     def __init__(self, db_path=db_path):
@@ -26,64 +27,109 @@ class DBHelper:
         """初始化表结构"""
         with self.get_conn() as conn:
             cur = conn.cursor()
+
+            # 抓帧表
             cur.execute("""
-            CREATE TABLE IF NOT EXISTS video_frames (
+            CREATE TABLE IF NOT EXISTS captured_frames (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 stream_uid TEXT,
-                fence_uid TEXT,
                 group_id TEXT,
                 timestamp TEXT,
-                frame_path TEXT,
-                detect_status TEXT DEFAULT 'pending', -- pending / normal / abnormal
-                merge_status TEXT DEFAULT 'pending'   -- pending / merged
+                frame_path TEXT
             );
             """)
+
+            # 异常检测表
+            cur.execute("""
+            CREATE TABLE IF NOT EXISTS fence_detections (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                stream_uid TEXT,
+                group_id TEXT,
+                fence_uid TEXT,
+                change_ratio REAL,
+                changed INTEGER, -- 0=normal,1=abnormal
+                timestamp TEXT,
+                frame_path TEXT
+            );
+            """)
+
+            # 视频合成表
+            cur.execute("""
+            CREATE TABLE IF NOT EXISTS merged_videos (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                stream_uid TEXT,
+                group_id TEXT,
+                fence_uid TEXT,
+                video_path TEXT,
+                duration REAL, -- 秒
+                size INTEGER,  -- 字节
+                timestamp TEXT
+            );
+            """)
+
             conn.commit()
 
-    def insert_frame(self, stream_uid, fence_uid, group_id, timestamp, frame_path):
-        """插入新帧"""
+    # ------------------ 抓帧表操作 ------------------
+    def insert_frame(self, stream_uid, group_id, timestamp, frame_path):
+        """插入抓帧表"""
         with self.get_conn() as conn:
             cur = conn.cursor()
             cur.execute("""
-            INSERT INTO video_frames (stream_uid, fence_uid, group_id, timestamp, frame_path)
-            VALUES (?, ?, ?, ?, ?);
-            """, (stream_uid, fence_uid, group_id, timestamp.isoformat(), frame_path))
+            INSERT INTO captured_frames (stream_uid, group_id, timestamp, frame_path)
+            VALUES (?, ?, ?, ?);
+            """, (stream_uid, group_id, timestamp.isoformat(), frame_path))
             conn.commit()
             return cur.lastrowid
 
-    def update_detect_status(self, frame_id, status):
-        """更新检测状态"""
-        with self.get_conn() as conn:
-            cur = conn.cursor()
-            cur.execute("UPDATE video_frames SET detect_status=? WHERE id=?;", (status, frame_id))
-            conn.commit()
-
-    def update_merge_status(self, frame_id, status):
-        """更新合成状态"""
-        with self.get_conn() as conn:
-            cur = conn.cursor()
-            cur.execute("UPDATE video_frames SET merge_status=? WHERE id=?;", (status, frame_id))
-            conn.commit()
-
     def get_pending_frames(self, limit=10):
-        """获取待检测的帧"""
+        """获取最近抓取的帧，用于异常检测"""
         with self.get_conn() as conn:
             cur = conn.cursor()
-            cur.execute("SELECT * FROM video_frames WHERE detect_status='pending' ORDER BY timestamp ASC LIMIT ?;", (limit,))
-            rows = [dict(row) for row in cur.fetchall()]
-            return rows
+            cur.execute("""
+            SELECT * FROM captured_frames
+            ORDER BY timestamp ASC
+            LIMIT ?;
+            """, (limit,))
+            return [dict(row) for row in cur.fetchall()]
 
-    def get_abnormal_groups(self, group_id):
-        """查询某个 group 下的异常帧"""
+    # ------------------ 异常检测表操作 ------------------
+    def insert_detection(self, stream_uid, group_id, fence_uid, change_ratio, changed, timestamp, frame_path):
         with self.get_conn() as conn:
             cur = conn.cursor()
-            cur.execute("SELECT * FROM video_frames WHERE group_id=? AND detect_status='abnormal';", (group_id,))
-            rows = [dict(row) for row in cur.fetchall()]
-            return rows
-
-    def delete_frame(self, frame_id):
-        """删除某一帧"""
-        with self.get_conn() as conn:
-            cur = conn.cursor()
-            cur.execute("DELETE FROM video_frames WHERE id=?;", (frame_id,))
+            cur.execute("""
+            INSERT INTO fence_detections 
+            (stream_uid, group_id, fence_uid, change_ratio, changed, timestamp, frame_path)
+            VALUES (?, ?, ?, ?, ?, ?, ?);
+            """, (stream_uid, group_id, fence_uid, change_ratio, int(changed), timestamp.isoformat(), frame_path))
             conn.commit()
+            return cur.lastrowid
+
+    def get_abnormal_detections(self, stream_uid=None, group_id=None, fence_uid=None):
+        """获取异常检测结果"""
+        with self.get_conn() as conn:
+            cur = conn.cursor()
+            query = "SELECT * FROM fence_detections WHERE changed=1"
+            params = []
+            if stream_uid:
+                query += " AND stream_uid=?"
+                params.append(stream_uid)
+            if group_id:
+                query += " AND group_id=?"
+                params.append(group_id)
+            if fence_uid:
+                query += " AND fence_uid=?"
+                params.append(fence_uid)
+            cur.execute(query, params)
+            return [dict(row) for row in cur.fetchall()]
+
+    # ------------------ 视频合成表操作 ------------------
+    def insert_merged_video(self, stream_uid, group_id, fence_uid, video_path, duration, size, timestamp):
+        with self.get_conn() as conn:
+            cur = conn.cursor()
+            cur.execute("""
+            INSERT INTO merged_videos
+            (stream_uid, group_id, fence_uid, video_path, duration, size, timestamp)
+            VALUES (?, ?, ?, ?, ?, ?, ?);
+            """, (stream_uid, group_id, fence_uid, video_path, duration, size, timestamp.isoformat()))
+            conn.commit()
+            return cur.lastrowid
