@@ -135,12 +135,12 @@ class DBHelper:
             return cur.lastrowid
 
     # ------------------ 获取某个组下的所有 stream ------------------
-    def get_streams_by_group(self, group_id):
-        """根据 group_id 获取所有 stream"""
+    def get_streams_by_group(self, group_uid):
+        """根据 group_uid 获取所有 stream"""
         with self.get_conn() as conn:
             cur = conn.cursor()
             cur.execute("""
-            SELECT DISTINCT stream_uid FROM captured_frames WHERE group_id=?;
-            """, (group_id,))
+            SELECT DISTINCT stream_uid FROM captured_frames WHERE group_uid=?;
+            """, (group_uid,))
             rows = cur.fetchall()
             return [row['stream_uid'] for row in rows]
