@@ -12,5 +12,6 @@
   "machine_codes": [
     "1",
     "2"
-  ]
+  ],
+  "db_path": "video_db.sqlite"
 }
