@@ -208,15 +208,15 @@ class StorageManager:
             self.save_all(data)  # 保存
         return True  # 成功
 
-    def set_stream_group(self, stream_uid, group_id):
+    def set_stream_group(self, stream_uid, group_uid):
         """设置视频流的编组"""
-        return self.update_stream(stream_uid, group_id=group_id)
+        return self.update_stream(stream_uid, group_uid=group_uid)
 
     def get_stream_group(self, stream_uid):
         """获取视频流所在编组"""
         stream = self.get_stream(stream_uid)
         if stream:
-            return stream.get("group_id")
+            return stream.get("group_uid")
         return None
 
     def list_groups(self):
@@ -224,15 +224,15 @@ class StorageManager:
         data = self.load_all()
         groups = set()
         for stream in data:
-            gid = stream.get("group_id")
+            gid = stream.get("group_uid")
             if gid:
                 groups.add(gid)
         return list(groups)
 
-    def list_streams_by_group(self, group_id):
+    def list_streams_by_group(self, group_uid):
         """获取某个编组下的所有视频流"""
         data = self.load_all()
-        return [s for s in data if s.get("group_id") == group_id]
+        return [s for s in data if s.get("group_uid") == group_uid]
 
 
 class RecipientsManager:
