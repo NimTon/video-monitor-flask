@@ -93,14 +93,14 @@ class DBHelper:
             return [dict(row) for row in cur.fetchall()]
 
     # ------------------ 异常检测表操作 ------------------
-    def insert_detection(self, stream_uid, group_uid, fence_uid, change_ratio, changed, timestamp, frame_path):
+    def insert_detection(self, stream_uid, group_uid, fence_uid, change_ratio, changed, timestamp, frame_path, frame_id):
         with self.get_conn() as conn:
             cur = conn.cursor()
             cur.execute("""
             INSERT INTO fence_detections 
-            (stream_uid, group_uid, fence_uid, change_ratio, changed, timestamp, frame_path)
-            VALUES (?, ?, ?, ?, ?, ?, ?);
-            """, (stream_uid, group_uid, fence_uid, change_ratio, int(changed), timestamp.isoformat(), frame_path))
+            (stream_uid, group_uid, fence_uid, change_ratio, changed, timestamp, frame_path, frame_id)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?);
+            """, (stream_uid, group_uid, fence_uid, change_ratio, int(changed), timestamp.isoformat(), frame_path, frame_id))
             conn.commit()
             return cur.lastrowid
 
