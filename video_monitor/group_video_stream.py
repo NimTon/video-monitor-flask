@@ -26,13 +26,10 @@ async def capture_stream(stream):
     group_uid = stream.get("group_uid")
     url = stream.get("stream_url")
     fences = [f['id'] for f in stream.get("fences", [])]
-
     os.makedirs(capture_path, exist_ok=True)
     os.makedirs(detect_path, exist_ok=True)
     os.makedirs(merge_path, exist_ok=True)
-
     cap = cv2.VideoCapture(url)
-
     while True:
         ret, frame = cap.read()
         frame = resize_to_720p(frame)
@@ -59,7 +56,7 @@ async def detect_worker():
         frame = cv2.imread(frame_path)
         if frame is None:
             log("FAIL", f"[检测] {stream_name} (UID={stream_uid}, FRENCE_UID={fence_id}) 读取帧失败: {frame_path}")
-            db.insert_detection(stream_uid, group_uid, fence_id, 0, False, timestamp, frame_path)
+            db.insert_detection(stream_uid, group_uid, fence_id, 0, False, timestamp, frame_path, frame_id)
             detect_queue.task_done()
             continue
         height, width = frame.shape[:2]
@@ -71,7 +68,7 @@ async def detect_worker():
         detector.set_fence(fence_points)
         changed, change_area, change_ratio = detector.detect_change(frame)
         change_ratio = round(change_ratio, 4)
-        db.insert_detection(stream_uid, group_uid, fence_id, change_ratio=change_ratio, changed=changed, timestamp=timestamp, frame_path=frame_path)
+        db.insert_detection(stream_uid, group_uid, fence_id, change_ratio, changed, timestamp, frame_path, frame_id)
         if 0 <= change_ratio <= 1:
             frame_path = f"{detect_path}/{stream_uid}_{fence_id}_{timestamp.strftime('%Y%m%d_%H%M%S')}.jpg"
             frame = draw_fence_on_frame(frame, fence_points)
@@ -178,13 +175,13 @@ async def merge_worker():
 # ------------------ 主程序 ------------------
 async def main():
     # 每个视频流启动一个抓帧任务
-    # capture_tasks = [asyncio.create_task(capture_stream(stream)) for stream in streams]
+    capture_tasks = [asyncio.create_task(capture_stream(stream)) for stream in streams]
 
     # 启动检测 worker
-    # detect_tasks = [asyncio.create_task(detect_worker()) for _ in range(3)]
+    detect_tasks = [asyncio.create_task(detect_worker()) for _ in range(3)]
 
     # 启动合成任务
-    merge_task = asyncio.create_task(merge_worker())
+    # merge_task = asyncio.create_task(merge_worker())
 
     # await asyncio.gather(*capture_tasks, *detect_tasks, merge_task)
 
