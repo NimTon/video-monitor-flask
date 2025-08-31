@@ -49,7 +49,8 @@ class DBHelper:
                 change_ratio REAL,
                 changed INTEGER, -- 0=normal,1=abnormal
                 timestamp TEXT,
-                frame_path TEXT
+                frame_path TEXT,
+                frame_id INTEGER
             );
             """)
 
