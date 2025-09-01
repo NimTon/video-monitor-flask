@@ -50,7 +50,8 @@ class DBHelper:
                 changed INTEGER, -- 0=normal,1=abnormal
                 timestamp TEXT,
                 frame_path TEXT,
-                frame_id INTEGER
+                frame_id INTEGER,
+                exported INTEGER DEFAULT 0 -- 0=未导出, 1=已导出
             );
             """)
 
@@ -104,14 +105,36 @@ class DBHelper:
             return [dict(row) for row in cur.fetchall()]
 
     # ------------------ 异常检测表操作 ------------------
-    def insert_detection(self, stream_uid, group_uid, fence_uid, change_ratio, changed, timestamp, frame_path, frame_id):
+    def get_pending_exports(self, group_uid=None):
+        with self.get_conn() as conn:
+            cur = conn.cursor()
+            query = "SELECT * FROM fence_detections WHERE exported=0"
+            params = []
+            if group_uid:
+                query += " AND group_uid=?"
+                params.append(group_uid)
+            cur.execute(query, params)
+            return [dict(row) for row in cur.fetchall()]
+
+    def mark_as_exported(self, detection_ids):
+        """将指定检测记录标记为已导出"""
+        with self.get_conn() as conn:
+            cur = conn.cursor()
+            cur.execute(f"""
+            UPDATE fence_detections
+            SET exported=1
+            WHERE id IN ({','.join('?' for _ in detection_ids)})
+            """, detection_ids)
+            conn.commit()
+
+    def insert_detection(self, stream_uid, group_uid, fence_uid, change_ratio, changed, timestamp, frame_path, frame_id, exported=False):
         with self.get_conn() as conn:
             cur = conn.cursor()
             cur.execute("""
             INSERT INTO fence_detections 
-            (stream_uid, group_uid, fence_uid, change_ratio, changed, timestamp, frame_path, frame_id)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?);
-            """, (stream_uid, group_uid, fence_uid, change_ratio, int(changed), timestamp.isoformat(), frame_path, frame_id))
+            (stream_uid, group_uid, fence_uid, change_ratio, changed, timestamp, frame_path, frame_id, exported)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?);
+            """, (stream_uid, group_uid, fence_uid, change_ratio, int(changed), timestamp.isoformat(), frame_path, frame_id, int(exported)))
             conn.commit()
             return cur.lastrowid
 
@@ -157,4 +180,3 @@ class DBHelper:
             """, (group_uid,))
             rows = cur.fetchall()
             return [dict(row) for row in rows]
-
