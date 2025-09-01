@@ -43,7 +43,7 @@ async def capture_stream(stream):
             success = cv2.imwrite(frame_path, frame)
             if success:
                 frame_id = db.insert_frame(stream_uid, group_uid, timestamp, frame_path)
-                log("INFO", f"[抓帧] 抓取视频帧成功: {stream_name} ({stream_uid}), frame_id={frame_id}")
+                # log("SUCCESS", f"[抓帧] 抓取视频帧成功: {stream_name} ({stream_uid}), frame_id={frame_id}")
                 for fence_id in fences:
                     await detect_queue.put((stream_name, stream_uid, frame_id, group_uid, fence_id, frame_path, timestamp))
             else:
@@ -78,7 +78,7 @@ async def detect_worker():
             frame = draw_fence_on_frame(frame, fence_points)
             cv2.imwrite(frame_path, frame)
             detect_queue.task_done()
-            log("INFO", f"[检测] {stream_name} (UID={stream_uid}, FRENCE_UID={fence_id}) 变化率：{change_ratio} 检测结果: {'异常' if changed else '正常'}")
+            # log("SUCCESS", f"[检测] {stream_name} (UID={stream_uid}, FRENCE_UID={fence_id}) 变化率：{change_ratio} 检测结果: {'异常' if changed else '正常'}")
         await asyncio.sleep(0)
 
 
@@ -219,7 +219,7 @@ async def main():
     # 启动合成任务
     merge_task = asyncio.create_task(merge_worker())
 
-    # await asyncio.gather(*capture_tasks, *detect_tasks, merge_task)
+    await asyncio.gather(*capture_tasks, *detect_tasks, merge_task)
     # await asyncio.gather(*capture_tasks, *detect_tasks)
     # await asyncio.gather(merge_task)
     # await asyncio.gather(*capture_tasks)
