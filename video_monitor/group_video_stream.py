@@ -102,8 +102,14 @@ async def merge_worker():
             log("INFO", f"组 {group_uid} 的流数据组装完成, 流数量: {len(group_streams_data)}")
             streams_bool = get_stream_change_dict(group_streams_data)
             log("INFO", f"streams_bool 生成完成: { {k: list(v.values())[:5] for k, v in streams_bool.items()} } (仅前5帧示例)")
-            fuse_bool = fuse_streams_by_position(streams_bool)
+            fuse_bool, complete = fuse_streams_by_position(streams_bool)
             log("INFO", f"fuse_bool 生成完成: { {k: list(v.values())[:5] for k, v in fuse_bool.items()} } (仅前5帧示例)")
+            if complete:
+                log("INFO", "数据流完整，准备处理帧数据")
+                # 在这里执行后续处理逻辑
+            else:
+                log("INFO", "数据流不完整，等待下一次检测正常后再处理")
+
             for stream_uid, frame_bool in fuse_bool.items():
                 export_frame_id = slice_bool_dict(frame_bool).keys()
                 log("INFO", f"stream {stream_uid} 需要导出的帧ID数量: {len(list(export_frame_id))}")
@@ -190,9 +196,11 @@ def fuse_streams_by_position(streams_bool_dict):
     按同一顺位融合布尔值：
     - streams 按 list 顺序遍历
     - 每个 stream 内的 bool 按顺序对应
+    返回：
+        fused: 融合后的 dict
+        complete: 是否可以处理（所有 stream 最后一帧为 False 表示完整）
     """
     stream_keys = list(streams_bool_dict.keys())
-    # 找出每个 stream 的 bool 列表长度
     stream_lists = [list(v.values()) for v in streams_bool_dict.values()]
     max_len = max(len(lst) for lst in stream_lists)
     for lst in stream_lists:
@@ -205,7 +213,9 @@ def fuse_streams_by_position(streams_bool_dict):
     for k, lst in zip(stream_keys, stream_lists):
         frame_ids = list(streams_bool_dict[k].keys())
         fused[k] = dict(zip(frame_ids, lst[:len(frame_ids)]))
-    return fused
+    complete = all(not lst[-1] for lst in stream_lists)
+    return fused, complete
+
 
 
 # ------------------ 主程序 ------------------
