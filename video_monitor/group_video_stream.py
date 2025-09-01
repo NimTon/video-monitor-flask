@@ -89,7 +89,7 @@ async def merge_worker():
         log("INFO", f"当前存在的组: {list(groups.keys())}")
         for group_uid in groups.keys():
             log("INFO", f"处理组: {group_uid}")
-            frame_data = pd.DataFrame(db.get_detections(group_uid=group_uid))
+            frame_data = pd.DataFrame(db.get_pending_exports(group_uid=group_uid))
             log("INFO", f"获取到的检测数据行数: {len(frame_data)}")
             group_streams_data = {}
             for _, row in frame_data.iterrows():
@@ -138,6 +138,7 @@ async def merge_worker():
                 log("INFO", f"开始生成视频, 帧数量: {len(video_frames)}")
                 video_url, video_path = save_frames_as_video(stream_uid, '0', video_frames, fps=1)
                 log("SUCCESS", f"视频生成完成: {video_path}")
+                db.mark_as_exported(frame_data['id'].tolist())
                 exit()
                 # 插入视频合成表
                 size = os.path.getsize(video_name)
