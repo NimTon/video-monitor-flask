@@ -139,15 +139,15 @@ async def merge_worker():
                 video_url, video_path = save_frames_as_video(stream_uid, '0', video_frames, fps=1)
                 log("SUCCESS", f"视频生成完成: {video_path}")
                 db.mark_as_exported(frame_data['id'].tolist())
-                exit()
-                # 插入视频合成表
-                size = os.path.getsize(video_name)
-                duration = len(video_segment[0]) / 5  # fps=5
-                db.insert_merged_video(stream_uid, group_uid, fence_uid, video_name, duration, size, datetime.now())
-                log("INFO", f"[合成] 合成视频完成: {video_name}, 帧数={len(video_segment[0])}")
-                # 标记为“已导出”
-                for frame in video_segment[0]:
-                    db.update_detect_status(frame['id'], "exported")
+                # exit()
+                # # 插入视频合成表
+                # size = os.path.getsize(video_name)
+                # duration = len(video_segment[0]) / 5  # fps=5
+                # db.insert_merged_video(stream_uid, group_uid, fence_uid, video_name, duration, size, datetime.now())
+                # log("INFO", f"[合成] 合成视频完成: {video_name}, 帧数={len(video_segment[0])}")
+                # # 标记为“已导出”
+                # for frame in video_segment[0]:
+                #     db.update_detect_status(frame['id'], "exported")
         await asyncio.sleep(10)
 
 
