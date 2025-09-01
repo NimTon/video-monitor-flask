@@ -220,14 +220,15 @@ class StorageManager:
         return None
 
     def list_groups(self):
-        """列出所有存在的编组ID"""
+        """列出所有存在的编组及其对应的 stream_uid 列表"""
         data = self.load_all()
-        groups = set()
+        groups = {}
         for stream in data:
             gid = stream.get("group_uid")
+            sid = stream.get("stream_uid")
             if gid:
-                groups.add(gid)
-        return list(groups)
+                groups.setdefault(gid, []).append(sid)
+        return groups
 
     def list_streams_by_group(self, group_uid):
         """获取某个编组下的所有视频流"""

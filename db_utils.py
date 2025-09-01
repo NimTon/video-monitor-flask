@@ -93,6 +93,16 @@ class DBHelper:
             """, (limit,))
             return [dict(row) for row in cur.fetchall()]
 
+    def get_group_frames(self, group_uid):
+        with self.get_conn() as conn:
+            cur = conn.cursor()
+            cur.execute("""
+            SELECT * FROM captured_frames
+            WHERE GROUP_UID=?
+            ORDER BY timestamp ASC;
+            """, (group_uid,))
+            return [dict(row) for row in cur.fetchall()]
+
     # ------------------ 异常检测表操作 ------------------
     def insert_detection(self, stream_uid, group_uid, fence_uid, change_ratio, changed, timestamp, frame_path, frame_id):
         with self.get_conn() as conn:
@@ -105,11 +115,11 @@ class DBHelper:
             conn.commit()
             return cur.lastrowid
 
-    def get_abnormal_detections(self, stream_uid=None, group_uid=None, fence_uid=None):
+    def get_detections(self, stream_uid=None, group_uid=None, fence_uid=None):
         """获取异常检测结果"""
         with self.get_conn() as conn:
             cur = conn.cursor()
-            query = "SELECT * FROM fence_detections WHERE changed=1"
+            query = "SELECT * FROM fence_detections WHERE 1=1"
             params = []
             if stream_uid:
                 query += " AND stream_uid=?"

@@ -5,7 +5,7 @@ from datetime import datetime
 from db_utils import DBHelper
 from storage import StorageManager
 from video_monitor.fence_detector import FenceChangeDetector
-from utils import log, resize_to_720p, draw_fence_on_frame
+from utils import log, resize_to_720p, draw_fence_on_frame, save_frames_as_video
 import pandas as pd
 
 storage_manger = StorageManager()
@@ -82,106 +82,116 @@ async def detect_worker():
 async def merge_worker():
     while True:
         groups = storage_manger.list_groups()
-        for group_uid in groups:
-            detect_data = db.get_detect_data_by_group(group_uid)
-            detect_data_df = pd.DataFrame(detect_data)
-            # TODO
-            stream_uid = stream.get("uid")
-            group_uid = stream.get("group_uid")
-            for fence in stream.get("fences", []):
-                fence_uid = fence['id']
-                rows = db.get_abnormal_detections(stream_uid=stream_uid, group_uid=group_uid, fence_uid=fence_uid)
-                if not rows:
-                    continue
-                # 获取帧的检测结果（True / False）
-                frame_paths = [r['frame_path'] for r in rows]
-                detection_results = [r['changed'] for r in rows]  # 'changed' indicates the detection result (True/False)
-                timestamps = [r['timestamp'] for r in rows]
-                # 分割连续的 TRUE 序列（允许中间有单个孤立的 FALSE）
-                video_segments_A = []
-                video_segments_B = []
-                current_segment_A = []
-                current_segment_B = []
-                def add_segment_to_video(video_segments, segment, frame_paths, timestamps):
-                    if segment:  # 如果有连续的 TRUE 帧
-                        video_segments.append((frame_paths[segment[0]:segment[-1] + 1], timestamps[segment[0]:segment[-1] + 1]))
-                # 遍历检测结果，按照条件分割连续 TRUE 帧
-                last_value = None
-                segment_A = []
-                segment_B = []
-                for i, result in enumerate(detection_results):
-                    if result:  # TRUE
-                        if last_value is None or last_value == True:
-                            if not segment_A:
-                                segment_A.append(i)
-                            elif len(segment_B) > 0:
-                                segment_B.append(i)
-                        else:
-                            if len(segment_B) > 0:
-                                add_segment_to_video(video_segments_A, segment_A, frame_paths, timestamps)
-                            segment_A = [i]
-                    elif result == False:
-                        if len(segment_A) > 0:
-                            video_segments_A.append((frame_paths[segment_A[0]:segment_A[-1] + 1], timestamps[segment_A[0]:segment_A[-1] + 1]))
-                        segment_A = []
-                        if len(segment_B) > 0:
-                            add_segment_to_video(video_segments_B, segment_B, frame_paths, timestamps)
-                            segment_B = []
-                    last_value = result
-                # 合成视频并插入数据库
-                os.makedirs("videos", exist_ok=True)
-                for idx, video_segment in enumerate(video_segments_A):
-                    video_name = f"videos/{stream_uid}_{fence_uid}_A_{datetime.now().strftime('%Y%m%d_%H%M%S')}.mp4"
-                    first_frame = cv2.imread(video_segment[0][0])  # 获取第一帧
-                    h, w, _ = first_frame.shape
-                    out = cv2.VideoWriter(video_name, cv2.VideoWriter_fourcc(*'mp4v'), 5, (w, h))
-                    for frame_path in video_segment[0]:
-                        img = cv2.imread(frame_path)
-                        if img is not None:
-                            img = cv2.resize(img, (w, h))
-                            out.write(img)
-                    out.release()
-                    # 插入视频合成表
-                    size = os.path.getsize(video_name)
-                    duration = len(video_segment[0]) / 5  # fps=5
-                    db.insert_merged_video(stream_uid, group_uid, fence_uid, video_name, duration, size, datetime.now())
-                    log("INFO", f"[合成] 合成视频完成: {video_name}, 帧数={len(video_segment[0])}")
-                    # 标记为“已导出”
-                    for frame in video_segment[0]:
-                        db.update_detect_status(frame['id'], "exported")
-                # 同理合成 B 视频
-                for idx, video_segment in enumerate(video_segments_B):
-                    video_name = f"videos/{stream_uid}_{fence_uid}_B_{datetime.now().strftime('%Y%m%d_%H%M%S')}.mp4"
-                    first_frame = cv2.imread(video_segment[0][0])  # 获取第一帧
-                    h, w, _ = first_frame.shape
-                    out = cv2.VideoWriter(video_name, cv2.VideoWriter_fourcc(*'mp4v'), 5, (w, h))
-                    for frame_path in video_segment[0]:
-                        img = cv2.imread(frame_path)
-                        if img is not None:
-                            img = cv2.resize(img, (w, h))
-                            out.write(img)
-                    out.release()
-                    # 插入视频合成表
-                    size = os.path.getsize(video_name)
-                    duration = len(video_segment[0]) / 5  # fps=5
-                    db.insert_merged_video(stream_uid, group_uid, fence_uid, video_name, duration, size, datetime.now())
-                    log("INFO", f"[合成] 合成视频完成: {video_name}, 帧数={len(video_segment[0])}")
-                    # 标记为“已导出”
-                    for frame in video_segment[0]:
-                        db.update_detect_status(frame['id'], "exported")
+        for group_uid in groups.keys():
+            frame_data = pd.DataFrame(db.get_detections(group_uid=group_uid))
+            group_streams_data = {}
+            for _, row in frame_data.iterrows():
+                stream_uid = row["stream_uid"]
+                frame_id = row["frame_id"]
+                detect_frame = row.to_dict()
+                group_streams_data.setdefault(stream_uid, {})
+                group_streams_data[stream_uid].setdefault(frame_id, [])
+                group_streams_data[stream_uid][frame_id].append(detect_frame)
+            streams_bool = get_stream_change_dict(group_streams_data)
+            fuse_bool = fuse_streams_by_position(streams_bool)
+            for stream_uid, frame_bool in fuse_bool.items():
+                export_frame_id = slice_bool_dict(frame_bool).keys()
+                video_frames = []
+                frames = frame_data.loc[export_frame_id, ['stream_uid', 'frame_path']]
+                for _, row in frames.iterrows():
+                    stream_uid = row['stream_uid']
+                    frame_path = row['frame_path']
+                    frame = cv2.imread(frame_path)
+                    height, width = frame.shape[:2]
+                    fences = storage_manger.list_fences(stream_uid)
+                    for fence in fences:
+                        fence_points = []
+                        points = fence.get('points', [])
+                        if len(points) >= 3:
+                            fence_points = [(int(p['x'] * width), int(p['y'] * height)) for p in points]
+                        frame = draw_fence_on_frame(frame, fence_points)
+                    cv2.imwrite(f'{_}.jpg', frame)
+                    # video_frames.append(frame)
+                # video_url, video_path = save_frames_as_video(stream_uid, '0',video_frames, fps=1)
+                exit()
+                # 插入视频合成表
+                size = os.path.getsize(video_name)
+                duration = len(video_segment[0]) / 5  # fps=5
+                db.insert_merged_video(stream_uid, group_uid, fence_uid, video_name, duration, size, datetime.now())
+                log("INFO", f"[合成] 合成视频完成: {video_name}, 帧数={len(video_segment[0])}")
+                # 标记为“已导出”
+                for frame in video_segment[0]:
+                    db.update_detect_status(frame['id'], "exported")
         await asyncio.sleep(10)
+
+def slice_bool_dict(bool_dict):
+    """
+    :param bool_dict: dict {frame_id: bool}, 已按 frame_id 排序
+    :return: dict {frame_id: bool} 截取片段
+    """
+    keys = list(bool_dict.keys())
+    values = list(bool_dict.values())
+    try:
+        start_idx = values.index(True)
+    except ValueError:
+        return {}
+    end_idx = start_idx
+    for i in range(start_idx + 1, len(values)):
+        if not values[i] and not values[i-1]:
+            break
+        end_idx = i
+    sliced_keys = keys[start_idx:end_idx]
+    return {k: bool_dict[k] for k in sliced_keys}
+
+def get_stream_change_dict(group_streams_data):
+    """
+    :param group_streams_data: dict, {stream_uid: {frame_id: [detect_frame, ...]}}
+    :return: dict {stream_uid: {frame_id: bool}}, 每个 stream_uid 对应自己的 frame_id -> bool
+    """
+    result = {}
+    for stream_uid, frames in group_streams_data.items():
+        stream_result = {}
+        for fid, detect_frames in frames.items():
+            stream_result[fid] = any(df.get("changed", False) for df in detect_frames)
+        result[stream_uid] = dict(sorted(stream_result.items()))  # 按 frame_id 排序
+    return result
+
+def fuse_streams_by_position(streams_bool_dict):
+    """
+    按同一顺位融合布尔值：
+    - streams 按 list 顺序遍历
+    - 每个 stream 内的 bool 按顺序对应
+    """
+    stream_keys = list(streams_bool_dict.keys())
+    # 找出每个 stream 的 bool 列表长度
+    stream_lists = [list(v.values()) for v in streams_bool_dict.values()]
+    max_len = max(len(lst) for lst in stream_lists)
+    for lst in stream_lists:
+        lst.extend([False] * (max_len - len(lst)))
+    for i in range(max_len):
+        if any(lst[i] for lst in stream_lists):
+            for lst in stream_lists:
+                lst[i] = True
+    fused = {}
+    for k, lst in zip(stream_keys, stream_lists):
+        frame_ids = list(streams_bool_dict[k].keys())
+        fused[k] = dict(zip(frame_ids, lst[:len(frame_ids)]))
+    return fused
+
+
+
 
 
 # ------------------ 主程序 ------------------
 async def main():
     # 每个视频流启动一个抓帧任务
-    capture_tasks = [asyncio.create_task(capture_stream(stream)) for stream in streams]
+    # capture_tasks = [asyncio.create_task(capture_stream(stream)) for stream in streams]
 
     # 启动检测 worker
-    detect_tasks = [asyncio.create_task(detect_worker()) for _ in range(3)]
+    # detect_tasks = [asyncio.create_task(detect_worker()) for _ in range(3)]
 
     # 启动合成任务
-    # merge_task = asyncio.create_task(merge_worker())
+    merge_task = asyncio.create_task(merge_worker())
 
     # await asyncio.gather(*capture_tasks, *detect_tasks, merge_task)
 
