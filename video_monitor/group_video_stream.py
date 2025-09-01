@@ -32,6 +32,10 @@ async def capture_stream(stream):
     cap = cv2.VideoCapture(url)
     while True:
         ret, frame = cap.read()
+        if frame is None:
+            log("WARNING", f"[抓帧] 读取到空帧: {stream_name} ({stream_uid})")
+            await asyncio.sleep(1)
+            continue
         frame = resize_to_720p(frame)
         timestamp = datetime.now()
         if ret:
@@ -39,7 +43,7 @@ async def capture_stream(stream):
             success = cv2.imwrite(frame_path, frame)
             if success:
                 frame_id = db.insert_frame(stream_uid, group_uid, timestamp, frame_path)
-                # log("INFO", f"[抓帧] 抓取视频帧成功: {stream_name} ({stream_uid}), frame_id={frame_id}")
+                log("INFO", f"[抓帧] 抓取视频帧成功: {stream_name} ({stream_uid}), frame_id={frame_id}")
                 for fence_id in fences:
                     await detect_queue.put((stream_name, stream_uid, frame_id, group_uid, fence_id, frame_path, timestamp))
             else:
@@ -82,8 +86,11 @@ async def detect_worker():
 async def merge_worker():
     while True:
         groups = storage_manger.list_groups()
+        log("INFO", f"当前存在的组: {list(groups.keys())}")
         for group_uid in groups.keys():
+            log("INFO", f"处理组: {group_uid}")
             frame_data = pd.DataFrame(db.get_detections(group_uid=group_uid))
+            log("INFO", f"获取到的检测数据行数: {len(frame_data)}")
             group_streams_data = {}
             for _, row in frame_data.iterrows():
                 stream_uid = row["stream_uid"]
@@ -92,16 +99,27 @@ async def merge_worker():
                 group_streams_data.setdefault(stream_uid, {})
                 group_streams_data[stream_uid].setdefault(frame_id, [])
                 group_streams_data[stream_uid][frame_id].append(detect_frame)
+            log("INFO", f"组 {group_uid} 的流数据组装完成, 流数量: {len(group_streams_data)}")
             streams_bool = get_stream_change_dict(group_streams_data)
+            log("INFO", f"streams_bool 生成完成: { {k: list(v.values())[:5] for k, v in streams_bool.items()} } (仅前5帧示例)")
             fuse_bool = fuse_streams_by_position(streams_bool)
+            log("INFO", f"fuse_bool 生成完成: { {k: list(v.values())[:5] for k, v in fuse_bool.items()} } (仅前5帧示例)")
             for stream_uid, frame_bool in fuse_bool.items():
                 export_frame_id = slice_bool_dict(frame_bool).keys()
+                log("INFO", f"stream {stream_uid} 需要导出的帧ID数量: {len(list(export_frame_id))}")
+                unique_frame_data = frame_data.drop_duplicates(subset='frame_id', keep='first')
+                export_frame_index = unique_frame_data['frame_id'].isin(export_frame_id)
                 video_frames = []
-                frames = frame_data.loc[export_frame_id, ['stream_uid', 'frame_path']]
-                for _, row in frames.iterrows():
+                frames = unique_frame_data.loc[export_frame_index, ['stream_uid', 'frame_path']]
+                log("INFO", f"stream {stream_uid} 对应帧数量: {len(frames)}")
+                for idx, row in frames.iterrows():
                     stream_uid = row['stream_uid']
                     frame_path = row['frame_path']
+                    log("INFO", f"读取帧: {frame_path} (stream: {stream_uid})")
                     frame = cv2.imread(frame_path)
+                    if frame is None:
+                        log("WARNING", f"读取帧失败: {frame_path}")
+                        continue
                     height, width = frame.shape[:2]
                     fences = storage_manger.list_fences(stream_uid)
                     for fence in fences:
@@ -110,9 +128,16 @@ async def merge_worker():
                         if len(points) >= 3:
                             fence_points = [(int(p['x'] * width), int(p['y'] * height)) for p in points]
                         frame = draw_fence_on_frame(frame, fence_points)
-                    cv2.imwrite(f'{_}.jpg', frame)
-                    # video_frames.append(frame)
-                # video_url, video_path = save_frames_as_video(stream_uid, '0',video_frames, fps=1)
+                    out_file = f"{stream_uid}_{idx}.jpg"
+                    success = cv2.imwrite(out_file, frame)
+                    if success:
+                        log("SUCCESS", f"保存帧成功: {out_file}")
+                    else:
+                        log("FAIL", f"保存帧失败: {out_file}")
+                    video_frames.append(frame)
+                log("INFO", f"开始生成视频, 帧数量: {len(video_frames)}")
+                video_url, video_path = save_frames_as_video(stream_uid, '0', video_frames, fps=1)
+                log("SUCCESS", f"视频生成完成: {video_path}")
                 exit()
                 # 插入视频合成表
                 size = os.path.getsize(video_name)
@@ -123,6 +148,7 @@ async def merge_worker():
                 for frame in video_segment[0]:
                     db.update_detect_status(frame['id'], "exported")
         await asyncio.sleep(10)
+
 
 def slice_bool_dict(bool_dict):
     """
@@ -137,11 +163,12 @@ def slice_bool_dict(bool_dict):
         return {}
     end_idx = start_idx
     for i in range(start_idx + 1, len(values)):
-        if not values[i] and not values[i-1]:
+        if not values[i] and not values[i - 1]:
             break
         end_idx = i
     sliced_keys = keys[start_idx:end_idx]
     return {k: bool_dict[k] for k in sliced_keys}
+
 
 def get_stream_change_dict(group_streams_data):
     """
@@ -155,6 +182,7 @@ def get_stream_change_dict(group_streams_data):
             stream_result[fid] = any(df.get("changed", False) for df in detect_frames)
         result[stream_uid] = dict(sorted(stream_result.items()))  # 按 frame_id 排序
     return result
+
 
 def fuse_streams_by_position(streams_bool_dict):
     """
@@ -179,25 +207,21 @@ def fuse_streams_by_position(streams_bool_dict):
     return fused
 
 
-
-
-
 # ------------------ 主程序 ------------------
 async def main():
     # 每个视频流启动一个抓帧任务
-    # capture_tasks = [asyncio.create_task(capture_stream(stream)) for stream in streams]
+    capture_tasks = [asyncio.create_task(capture_stream(stream)) for stream in streams]
 
     # 启动检测 worker
-    # detect_tasks = [asyncio.create_task(detect_worker()) for _ in range(3)]
+    detect_tasks = [asyncio.create_task(detect_worker()) for _ in range(3)]
 
     # 启动合成任务
     merge_task = asyncio.create_task(merge_worker())
 
     # await asyncio.gather(*capture_tasks, *detect_tasks, merge_task)
-
-    # await  asyncio.gather(*capture_tasks, *detect_tasks)
-
-    await  asyncio.gather(merge_task)
+    # await asyncio.gather(*capture_tasks, *detect_tasks)
+    # await asyncio.gather(merge_task)
+    # await asyncio.gather(*capture_tasks)
 
 
 if __name__ == "__main__":
