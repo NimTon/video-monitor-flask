@@ -104,10 +104,10 @@ async def merge_worker():
             fuse_bool, complete = fuse_streams_by_position(streams_bool)
             if complete:
                 log("INFO", f"组 {group_uid} 的流数据完整，准备处理帧数据")
-                # 在这里执行后续处理逻辑
             else:
                 log("INFO", f"组 {group_uid} 的流数据不完整，等待下一次检测正常后再处理")
-
+                await asyncio.sleep(10)
+                continue
             for stream_uid, frame_bool in fuse_bool.items():
                 export_frame_id = slice_bool_dict(frame_bool).keys()
                 log("INFO", f"stream {stream_uid} 需要导出的帧ID数量: {len(list(export_frame_id))}")
