@@ -101,14 +101,12 @@ async def merge_worker():
                 group_streams_data[stream_uid][frame_id].append(detect_frame)
             log("INFO", f"组 {group_uid} 的流数据组装完成, 流数量: {len(group_streams_data)}")
             streams_bool = get_stream_change_dict(group_streams_data)
-            log("INFO", f"streams_bool 生成完成: { {k: list(v.values())[:5] for k, v in streams_bool.items()} } (仅前5帧示例)")
             fuse_bool, complete = fuse_streams_by_position(streams_bool)
-            log("INFO", f"fuse_bool 生成完成: { {k: list(v.values())[:5] for k, v in fuse_bool.items()} } (仅前5帧示例)")
             if complete:
-                log("INFO", "数据流完整，准备处理帧数据")
+                log("INFO", f"组 {group_uid} 的流数据完整，准备处理帧数据")
                 # 在这里执行后续处理逻辑
             else:
-                log("INFO", "数据流不完整，等待下一次检测正常后再处理")
+                log("INFO", f"组 {group_uid} 的流数据不完整，等待下一次检测正常后再处理")
 
             for stream_uid, frame_bool in fuse_bool.items():
                 export_frame_id = slice_bool_dict(frame_bool).keys()
