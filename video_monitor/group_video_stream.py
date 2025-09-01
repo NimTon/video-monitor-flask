@@ -90,7 +90,7 @@ async def merge_worker():
         for group_uid in groups.keys():
             log("INFO", f"处理组: {group_uid}")
             frame_data = pd.DataFrame(db.get_pending_exports(group_uid=group_uid))
-            log("INFO", f"获取到的检测数据行数: {len(frame_data)}")
+            log("INFO", f"获取到的检测数据帧数: {len(frame_data)}")
             group_streams_data = {}
             for _, row in frame_data.iterrows():
                 stream_uid = row["stream_uid"]
@@ -99,13 +99,14 @@ async def merge_worker():
                 group_streams_data.setdefault(stream_uid, {})
                 group_streams_data[stream_uid].setdefault(frame_id, [])
                 group_streams_data[stream_uid][frame_id].append(detect_frame)
-            log("INFO", f"组 {group_uid} 的流数据组装完成, 流数量: {len(group_streams_data)}")
+            total_frames = max(len(frames) for frames in group_streams_data.values())
+            log("INFO", f"组 {group_uid} 的流数据组装完成，单视频流帧数量: {total_frames}")
             streams_bool = get_stream_change_dict(group_streams_data)
             fuse_bool, complete = fuse_streams_by_position(streams_bool)
             if complete:
-                log("INFO", f"组 {group_uid} 的流数据完整，准备处理帧数据")
+                log("INFO", f"组 {group_uid} 的流数据录制结束，准备处理帧数据")
             else:
-                log("INFO", f"组 {group_uid} 的流数据不完整，等待下一次检测正常后再处理")
+                log("INFO", f"组 {group_uid} 的流数据录制中，等待下一次检测正常后再处理")
                 await asyncio.sleep(10)
                 continue
             for stream_uid, frame_bool in fuse_bool.items():
