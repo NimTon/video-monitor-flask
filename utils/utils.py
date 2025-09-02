@@ -1,8 +1,6 @@
 import cv2
 import numpy as np
-from datetime import datetime, timedelta
-import shutil
-from matplotlib import pyplot as plt
+from datetime import datetime
 from PIL import Image
 import io
 from pypinyin import lazy_pinyin
@@ -11,12 +9,6 @@ from docx.shared import Pt, Cm
 from docx.enum.text import WD_PARAGRAPH_ALIGNMENT
 from docx.shared import RGBColor
 import os
-import smtplib
-from email.mime.text import MIMEText
-from email.mime.multipart import MIMEMultipart
-from email.header import Header
-from email.utils import formataddr
-from email.mime.application import MIMEApplication
 import base64
 from pathlib import Path
 from comtypes import client
@@ -39,36 +31,6 @@ def docx_to_pdf(docx_path: str, pdf_path: str = None) -> str:
         return pdf_path
     except Exception as e:
         raise RuntimeError(f"导出 PDF 失败: {e}")
-
-
-from email.mime.application import MIMEApplication
-
-
-def send_email_alert(message, contact_value, attachments=None, subject="视频报警通知"):
-    from_email = "576467179@qq.com"
-    auth_code = "mirozaqvewotbdci"
-    msg = MIMEMultipart()
-    msg['From'] = formataddr(("报警系统", from_email))
-    msg['To'] = contact_value
-    msg['Subject'] = Header(subject, 'utf-8')
-    msg.attach(MIMEText(message.replace("\n", "<br>"), 'html', 'utf-8'))
-    if attachments:
-        for file_path in attachments:
-            if file_path and os.path.exists(file_path):
-                with open(file_path, 'rb') as f:
-                    part = MIMEApplication(f.read(), Name=os.path.basename(file_path))
-                    part['Content-Disposition'] = f'attachment; filename="{os.path.basename(file_path)}"'
-                    msg.attach(part)
-    try:
-        server = smtplib.SMTP_SSL("smtp.qq.com", 465)
-        server.login(from_email, auth_code)
-        server.sendmail(from_email, [contact_value], msg.as_string())
-        server.quit()
-        log("SUCCESS", f"邮件发送成功: {contact_value}")
-        return True
-    except Exception as e:
-        log("FAIL", f"邮件发送失败: {contact_value}, 错误: {e}")
-        return False
 
 
 def save_report_to_docx(content: str, save_dir: str, filename: str, title: str = None, images: list = None, image_captions: list = None):

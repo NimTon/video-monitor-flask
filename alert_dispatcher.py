@@ -1,32 +1,15 @@
 # 导入第三方库和模块
-from ai.qwen_ai import call_qwen_via_client  # 导入Qwen AI的私有API调用模块
-from ai.local_ai import call_local_ai_model
-import requests  # HTTP请求库
+from utils.ai_utils import call_qwen_via_client, call_local_ai_model
 import json  # JSON处理库
-import hmac  # HMAC加密库
 from datetime import datetime, timedelta  # 日期时间处理
-import hashlib  # 哈希算法库
-import base64  # Base64编码库
-import urllib.parse  # URL解析库
 from storage import StorageManager, AlertStorageManager, RecipientsManager, ImageReportManager
 import cv2  # OpenCV图像处理库
-import time  # 时间模块
-import smtplib  # SMTP邮件协议库
-from email.mime.text import MIMEText  # 邮件文本处理
-from email.mime.multipart import MIMEMultipart  # 邮件多部分处理
-from email.mime.application import MIMEApplication  # 邮件附件处理
-from email.utils import formataddr  # 邮件地址格式化
-from email.header import Header  # 邮件头处理
-import os  # 操作系统接口
-import urllib  # URL处理
-import urllib.request  # URL请求
 import numpy as np
 from storage import MessageManager
-from utils import save_frames_as_video, save_key_frames, md5, log, cv2_frame_to_base64, send_email_alert
+from utils.utils import save_frames_as_video, save_key_frames, md5, log, cv2_frame_to_base64
 from daily_schedule import AutoReportScheduler
 
 message_manager = MessageManager()
-
 
 with open('config.json', encoding='utf-8') as f:
     config = json.load(f)
@@ -35,119 +18,10 @@ base_url = f'http://{config['host']}:{config['port']}'
 
 auto_report_scheduler = AutoReportScheduler(StorageManager(), ImageReportManager(), base_url=base_url)
 
-
 # 初始化存储管理器
 storage = StorageManager()  # 流数据存储
 alert_storage = AlertStorageManager()  # 报警配置存储
 recipient_mgr = RecipientsManager()  # 接收人管理
-
-
-
-# 钉钉报警函数
-def send_dingding_alert(message, contact_value, prev_image_path=None, curr_image_path=None):
-    """
-    发送钉钉文本消息
-    参数：
-        message       - 要发送的消息内容（str）
-        access_token  - 钉钉机器人 access_token
-        secret        - 钉钉机器人安全设置的 secret
-        retries       - 失败重试次数（默认 3）
-        timeout       - 请求超时时间（默认 5秒）
-    """
-    retries = 3  # 重试次数
-    timeout = 5  # 超时时间(秒)
-    timestamp = str(round(time.time() * 1000))  # 当前时间戳(毫秒)
-    contact_value_list = contact_value.replace(' ', '').split(',')  # 分割access_token和secret
-    access_token = contact_value_list[0]  # 获取access_token
-    secret = contact_value_list[1]  # 获取secret
-
-    # 签名计算
-    string_to_sign = f"{timestamp}\n{secret}"  # 签名字符串
-    hmac_code = hmac.new(secret.encode('utf-8'), string_to_sign.encode('utf-8'),
-                         hashlib.sha256).digest()  # HMAC-SHA256加密
-    sign = urllib.parse.quote_plus(base64.b64encode(hmac_code))  # Base64编码和URL编码
-
-    # 构造webhook URL
-    webhook_url = f"https://oapi.dingtalk.com/robot/send?access_token={access_token}&timestamp={timestamp}&sign={sign}"
-    headers = {'Content-Type': 'application/json'}  # 请求头
-
-    # 请求体
-    payload = {
-        "msgtype": "text",
-        "text": {
-            "content": message
-        }
-    }
-
-    # 重试机制
-    for attempt in range(1, retries + 1):
-        try:
-            resp = requests.post(webhook_url, headers=headers, data=json.dumps(payload), timeout=timeout)  # 发送POST请求
-            if resp.status_code == 200:  # 成功响应
-                return resp.status_code, resp.text
-            else:
-                raise Exception(f"状态码 {resp.status_code}，响应：{resp.text}")  # 抛出异常
-        except Exception as e:
-            if attempt == retries:  # 达到最大重试次数
-                raise RuntimeError(f"[钉钉消息发送失败] 已重试 {retries} 次：{e}")
-            time.sleep(2)  # 间隔2秒重试
-
-
-# 短信报警函数
-def send_sms_alert(message, contact_value, prev_image_path=None, curr_image_path=None):
-    """
-    发送短信报警
-    参数：
-        msg           - 短信内容字符串
-        contact_value - 手机号字符串，多个手机号用逗号隔开
-    """
-    # 状态码映射
-    statusStr = {
-        '0': '短信发送成功',
-        '-1': '参数不全',
-        '-2': '服务器空间不支持',
-        '30': '密码错误',
-        '40': '账号不存在',
-        '41': '余额不足',
-        '42': '账户已过期',
-        '43': 'IP地址限制',
-        '50': '内容含有敏感词'
-    }
-
-    smsapi = "http://api.smsbao.com/"  # 短信API地址
-    user = 'puyuanfeng'  # 账号
-    password_plain = '152401'  # 明文密码
-    password = md5(password_plain)  # MD5加密密码
-
-    phones = [p.strip() for p in contact_value.split(',')]  # 分割多个手机号
-    for phone in phones:
-        data = urllib.parse.urlencode({'u': user, 'p': password, 'm': phone, 'c': message})  # URL编码参数
-        send_url = smsapi + 'sms?' + data  # 构造请求URL
-
-        try:
-            response = urllib.request.urlopen(send_url, timeout=3)  # 发送请求
-            result_code = response.read().decode('utf-8')  # 获取响应
-            status_msg = statusStr.get(result_code, f'未知错误码 {result_code}')  # 获取状态信息
-            if result_code == '0':  # 发送成功
-                break
-            else:
-                raise RuntimeError(f"短信发送失败，手机号: {phone}，错误: {status_msg}")  # 抛出异常
-        except Exception as e:
-            print(f"发送短信失败，手机号: {phone}，错误: {e}")  # 打印错误
-
-
-# 微信报警函数(待实现)
-def send_wechat_alert(msg, prev_image_path=None, curr_image_path=None):
-    pass
-
-
-# 报警方法映射表
-alert_method_map = {
-    "dingding": lambda msg, contact_value, **kwargs: send_dingding_alert(msg, contact_value=contact_value, **kwargs),
-    "sms": lambda msg, contact_value, **kwargs: send_sms_alert(msg, contact_value=contact_value, **kwargs),
-    "wechat": lambda msg, contact_value, **kwargs: send_wechat_alert(msg, contact_value=contact_value, **kwargs),
-    "email": lambda msg, contact_value, **kwargs: send_email_alert(msg, contact_value=contact_value, **kwargs),
-}
 
 
 # 报警分发函数 只有 changed == True 时给所有帧加对应围栏
@@ -192,7 +66,6 @@ def dispatch_alert_multi_frames(stream_id, fence_result, frames):
     frame_data = {"timestamp": timestamp, "image_path": image_paths[-1], "image_url": image_urls[-1]}
     auto_report_scheduler.save_one_frame(stream_id, stream_name, frame_data, datetime.now().strftime("%Y-%m-%d"))
 
-
     if not ai_report:
         print('AI识别失效')
     elif ai_report['status'] == "正常":
@@ -200,7 +73,6 @@ def dispatch_alert_multi_frames(stream_id, fence_result, frames):
         print(f"stream_name:{stream_name} fence_id:{fence_id} 一切正常")
         del frames
         return  # 不触发报警，结束函数
-
 
     # 存入message.json
     message_manager.add_message(stream_uid=stream_id, fence_uid=fence_id, stream_name=stream_name,

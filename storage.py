@@ -4,7 +4,7 @@ import threading  # 提供线程锁功能，确保线程安全
 import os  # 提供操作系统相关功能，如文件路径检查
 import uuid  # 用于生成唯一标识符
 import datetime
-from utils import chinese_to_pinyin
+from utils.utils import chinese_to_pinyin
 
 
 class StorageManager:
@@ -73,7 +73,7 @@ class StorageManager:
             "name": name or f"视频流-{stream_uid[:8]}",  # 名称或默认名称
             "stream_url": stream_url,  # 视频流URL
             "status": "stopped",  # 初始状态
-            "detecting": False,   # 是否检测中
+            "detecting": False,  # 是否检测中
             "threshold": 0.8,  # 默认阈值
             "frequency": 10,  # 默认检测频率
             "fences": [],  # 空围栏列表
@@ -782,3 +782,11 @@ def unbind_stream_and_recipient(storage_mgr: StorageManager, recipients_mgr: Rec
     """双向解绑：视频流和接收人互相解绑"""
     storage_mgr.unbind_recipient_from_stream(stream_uid, recipient_uid)  # 流解绑接收人
     recipients_mgr.unbind_stream_from_recipient(recipient_uid, stream_uid)  # 接收人解绑流
+
+
+sm = StorageManager()
+rm = RecipientsManager()
+am = AlertStorageManager()
+ssm = SourceStreamManager()
+mm = MessageManager()
+irm = ImageReportManager()
