@@ -16,7 +16,7 @@ capture_path = "tmp/capture"
 detect_path = "tmp/detect"
 merge_path = "tmp/merge"
 change_threshold = 0.2
-RESTART_INTERVAL = 10  # 秒，每1小时重启一次
+RESTART_INTERVAL = 3600  # 秒，每1小时重启一次
 
 
 # ------------------ 抓帧模块 ------------------
@@ -276,9 +276,6 @@ async def main():
     # 启动合成任务
     merge_task = asyncio.create_task(merge_worker())
     await asyncio.gather(*capture_tasks, *detect_tasks, merge_task)
-    # await asyncio.gather(*capture_tasks, *detect_tasks)
-    # await asyncio.gather(merge_task)
-    # await asyncio.gather(*capture_tasks)
 
 
 async def run(loop=False):
