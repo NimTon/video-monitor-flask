@@ -104,6 +104,18 @@ class DBHelper:
             """, (group_uid,))
             return [dict(row) for row in cur.fetchall()]
 
+    def get_frames_by_stream_and_time(self, stream_uid, start_ts, end_ts):
+        with self.get_conn() as conn:
+            cur = conn.cursor()
+            cur.execute("""
+                SELECT * FROM captured_frames
+                WHERE stream_uid=?
+                AND timestamp BETWEEN ? AND ?
+                ORDER BY timestamp ASC;
+            """, (stream_uid, start_ts.isoformat(), end_ts.isoformat()))
+            return [dict(row) for row in cur.fetchall()]
+
+
     # ------------------ 异常检测表操作 ------------------
     def get_pending_exports(self, group_uid=None):
         with self.get_conn() as conn:
