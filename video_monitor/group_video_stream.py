@@ -21,6 +21,7 @@ change_threshold = 0.2
 
 # ------------------ 抓帧模块 ------------------
 async def capture_stream(stream):
+    detecting = stream.get("detecting")
     stream_uid = stream.get("uid")
     stream_name = stream.get("name")
     group_uid = stream.get("group_uid")
@@ -45,7 +46,7 @@ async def capture_stream(stream):
                 frame_id = db.insert_frame(stream_uid, group_uid, timestamp, frame_path)
                 # log("SUCCESS", f"[抓帧] 抓取视频帧成功: {stream_name} ({stream_uid}), frame_id={frame_id}")
                 for fence_id in fences:
-                    await detect_queue.put((stream_name, stream_uid, frame_id, group_uid, fence_id, frame_path, timestamp))
+                    await detect_queue.put((detecting, stream_name, stream_uid, frame_id, group_uid, fence_id, frame_path, timestamp))
             else:
                 log("FAIL", f"[抓帧] 抓取视频帧失败: {stream_name} ({stream_uid}), 保存路径={frame_path}")
         else:
@@ -56,30 +57,31 @@ async def capture_stream(stream):
 # ------------------ 异常检测模块 ------------------
 async def detect_worker():
     while True:
-        stream_name, stream_uid, frame_id, group_uid, fence_id, frame_path, timestamp = await detect_queue.get()
-        frame = cv2.imread(frame_path)
-        if frame is None:
-            log("FAIL", f"[检测] {stream_name} (UID={stream_uid}, FRENCE_UID={fence_id}) 读取帧失败: {frame_path}")
-            db.insert_detection(stream_uid, group_uid, fence_id, 0, False, timestamp, frame_path, frame_id)
-            detect_queue.task_done()
-            continue
-        height, width = frame.shape[:2]
-        fence = storage_manger.get_fence(stream_uid, fence_id)
-        fence_points = []
-        points = fence.get('points', [])
-        if len(points) >= 3:
-            fence_points = [(int(p['x'] * width), int(p['y'] * height)) for p in points]
-        detector.set_fence(fence_points)
-        changed, change_area, change_ratio = detector.detect_change(frame)
-        change_ratio = round(change_ratio, 4)
-        db.insert_detection(stream_uid, group_uid, fence_id, change_ratio, changed, timestamp, frame_path, frame_id)
-        if 0 <= change_ratio <= 1:
-            frame_path = f"{detect_path}/{stream_uid}_{fence_id}_{timestamp.strftime('%Y%m%d_%H%M%S')}.jpg"
-            frame = draw_fence_on_frame(frame, fence_points)
-            cv2.imwrite(frame_path, frame)
-            detect_queue.task_done()
-            # log("SUCCESS", f"[检测] {stream_name} (UID={stream_uid}, FRENCE_UID={fence_id}) 变化率：{change_ratio} 检测结果: {'异常' if changed else '正常'}")
-        await asyncio.sleep(0)
+        detecting, stream_name, stream_uid, frame_id, group_uid, fence_id, frame_path, timestamp = await detect_queue.get()
+        if detecting:
+            frame = cv2.imread(frame_path)
+            if frame is None:
+                log("FAIL", f"[检测] {stream_name} (UID={stream_uid}, FRENCE_UID={fence_id}) 读取帧失败: {frame_path}")
+                db.insert_detection(stream_uid, group_uid, fence_id, 0, False, timestamp, frame_path, frame_id)
+                detect_queue.task_done()
+                continue
+            height, width = frame.shape[:2]
+            fence = storage_manger.get_fence(stream_uid, fence_id)
+            fence_points = []
+            points = fence.get('points', [])
+            if len(points) >= 3:
+                fence_points = [(int(p['x'] * width), int(p['y'] * height)) for p in points]
+            detector.set_fence(fence_points)
+            changed, change_area, change_ratio = detector.detect_change(frame, change_threshold=0.1)
+            change_ratio = round(change_ratio, 4)
+            db.insert_detection(stream_uid, group_uid, fence_id, change_ratio, changed, timestamp, frame_path, frame_id)
+            if 0 <= change_ratio <= 1:
+                frame_path = f"{detect_path}/{stream_uid}_{fence_id}_{timestamp.strftime('%Y%m%d_%H%M%S')}.jpg"
+                frame = draw_fence_on_frame(frame, fence_points)
+                cv2.imwrite(frame_path, frame)
+                detect_queue.task_done()
+                # log("SUCCESS", f"[检测] {stream_name} (UID={stream_uid}, FRENCE_UID={fence_id}) 变化率：{change_ratio} 检测结果: {'异常' if changed else '正常'}")
+            await asyncio.sleep(0)
 
 
 # ------------------ 编组合成视频模块 ------------------
@@ -102,16 +104,23 @@ async def merge_worker():
             total_frames = max(len(frames) for frames in group_streams_data.values())
             log("INFO", f"组 {group_uid} 的流数据组装完成，单视频流帧数量: {total_frames}")
             streams_bool = get_stream_change_dict(group_streams_data)
-            fuse_bool, complete = fuse_streams_by_position(streams_bool)
-            if complete:
+            fuse_bool, status = fuse_streams_by_position(streams_bool)
+            if status == "completed":
                 log("INFO", f"组 {group_uid} 的流数据录制结束，准备处理帧数据")
-            else:
-                log("INFO", f"组 {group_uid} 的流数据录制中，等待下一次检测正常后再处理")
+            elif status == "recording":
+                log("INFO", f"组 {group_uid} 的流数据录制中，等待检测正常后再处理")
                 await asyncio.sleep(10)
                 continue
-            for stream_uid, frame_bool in fuse_bool.items():
-                export_frame_id = slice_bool_dict(frame_bool).keys()
-                log("INFO", f"stream {stream_uid} 需要导出的帧ID数量: {len(list(export_frame_id))}")
+            elif status == "waiting":
+                log("INFO", f"组 {group_uid} 的流数据尚未开始录制，等待检测异常出现")
+                await asyncio.sleep(10)
+                continue
+            captured_frames = pd.DataFrame(db.get_group_frames(group_uid))
+            streams_frames = {uid: {int(idx): timestamp for idx, timestamp in zip(captured_frames[captured_frames['stream_uid'] == uid]['id'].values, captured_frames[captured_frames['stream_uid'] == uid]['timestamp'].values)} for uid in set(captured_frames['stream_uid'])}
+            start_ts, end_ts = get_fuse_bool_time_range(streams_frames, fuse_bool)
+            for stream_uid in streams_frames.keys():
+                export_frame_id = pd.DataFrame(db.get_frames_by_stream_and_time(stream_uid, start_ts, end_ts))['id'].values
+                log("INFO", f"stream {stream_uid} 需要导出的帧数量: {len(list(export_frame_id))}")
                 unique_frame_data = frame_data.drop_duplicates(subset='frame_id', keep='first')
                 export_frame_index = unique_frame_data['frame_id'].isin(export_frame_id)
                 video_frames = []
@@ -133,10 +142,11 @@ async def merge_worker():
                         if len(points) >= 3:
                             fence_points = [(int(p['x'] * width), int(p['y'] * height)) for p in points]
                         frame = draw_fence_on_frame(frame, fence_points)
-                    out_file = f"{stream_uid}_{idx}.jpg"
+                    out_file = f"{merge_path}/{stream_uid}_{idx}.jpg"
                     success = cv2.imwrite(out_file, frame)
                     if success:
-                        log("SUCCESS", f"保存帧成功: {out_file}")
+                        # log("SUCCESS", f"保存帧成功: {out_file}")
+                        pass
                     else:
                         log("FAIL", f"保存帧失败: {out_file}")
                     video_frames.append(frame)
@@ -144,43 +154,35 @@ async def merge_worker():
                 video_url, video_path = save_frames_as_video(stream_uid, '0', video_frames, fps=1)
                 log("SUCCESS", f"视频生成完成: {video_path}")
                 db.mark_as_exported(frame_data['id'].tolist())
-                # exit()
-                # # 插入视频合成表
-                # size = os.path.getsize(video_name)
-                # duration = len(video_segment[0]) / 5  # fps=5
-                # db.insert_merged_video(stream_uid, group_uid, fence_uid, video_name, duration, size, datetime.now())
-                # log("INFO", f"[合成] 合成视频完成: {video_name}, 帧数={len(video_segment[0])}")
-                # # 标记为“已导出”
-                # for frame in video_segment[0]:
-                #     db.update_detect_status(frame['id'], "exported")
+                size = os.path.getsize(video_path)
+                duration = len(video_frames) / 1  # fps=1
+                db.insert_merged_video(stream_uid, group_uid, '0', video_path, duration, size, datetime.now())
         await asyncio.sleep(10)
 
 
-def slice_bool_dict(bool_dict):
+def get_fuse_bool_time_range(streams_frames, fuse_bool):
     """
-    :param bool_dict: dict {frame_id: bool}, 已按 frame_id 排序
-    :return: dict {frame_id: bool} 截取片段
+    streams_frames: {stream_uid: {frame_id: timestamp_str}}
+    fuse_bool: {stream_uid: {frame_id: bool}}
+    返回 fuse_bool 在 streams_frames 中的最大时间戳区间 (start_ts, end_ts)
+    可能来自不同的 stream_uid
     """
-    keys = list(bool_dict.keys())
-    values = list(bool_dict.values())
-    try:
-        start_idx = values.index(True)
-    except ValueError:
-        return {}
-    end_idx = start_idx
-    for i in range(start_idx + 1, len(values)):
-        if not values[i] and not values[i - 1]:
-            break
-        end_idx = i
-    sliced_keys = keys[start_idx:end_idx]
-    return {k: bool_dict[k] for k in sliced_keys}
+    all_timestamps = []
+    a_dt = {uid: {fid: datetime.fromisoformat(ts) for fid, ts in frames.items()}
+            for uid, frames in streams_frames.items()}
+    for uid, bool_dict in fuse_bool.items():
+        if uid not in a_dt:
+            continue
+        for fid, flag in bool_dict.items():
+            all_timestamps.append(a_dt[uid][fid])
+    if not all_timestamps:
+        return None  # 没有匹配的 True 帧
+    start_ts = min(all_timestamps)
+    end_ts = max(all_timestamps)
+    return start_ts, end_ts
 
 
 def get_stream_change_dict(group_streams_data):
-    """
-    :param group_streams_data: dict, {stream_uid: {frame_id: [detect_frame, ...]}}
-    :return: dict {stream_uid: {frame_id: bool}}, 每个 stream_uid 对应自己的 frame_id -> bool
-    """
     result = {}
     for stream_uid, frames in group_streams_data.items():
         stream_result = {}
@@ -191,14 +193,6 @@ def get_stream_change_dict(group_streams_data):
 
 
 def fuse_streams_by_position(streams_bool_dict):
-    """
-    按同一顺位融合布尔值：
-    - streams 按 list 顺序遍历
-    - 每个 stream 内的 bool 按顺序对应
-    返回：
-        fused: 融合后的 dict
-        complete: 是否可以处理（所有 stream 最后一帧为 False 表示完整）
-    """
     stream_keys = list(streams_bool_dict.keys())
     stream_lists = [list(v.values()) for v in streams_bool_dict.values()]
     max_len = max(len(lst) for lst in stream_lists)
@@ -208,13 +202,27 @@ def fuse_streams_by_position(streams_bool_dict):
         if any(lst[i] for lst in stream_lists):
             for lst in stream_lists:
                 lst[i] = True
+    first_true_idx = None
+    for i in range(max_len):
+        if any(lst[i] for lst in stream_lists):
+            first_true_idx = i
+            break
+    if first_true_idx is not None:
+        stream_lists = [lst[first_true_idx:] for lst in stream_lists]
+    else:
+        first_true_idx = 0
     fused = {}
     for k, lst in zip(stream_keys, stream_lists):
         frame_ids = list(streams_bool_dict[k].keys())
-        fused[k] = dict(zip(frame_ids, lst[:len(frame_ids)]))
-    complete = all(not lst[-1] for lst in stream_lists)
-    return fused, complete
-
+        fused[k] = dict(zip(frame_ids[first_true_idx:], lst[:len(frame_ids) - first_true_idx]))
+    if first_true_idx == 0 and all(not any(lst) for lst in stream_lists):
+        status = "waiting"  # 全 False
+    else:
+        if all(lst[-1] for lst in stream_lists):
+            status = "recording"  # 最后一帧 True
+        else:
+            status = "completed"  # 最后一帧 False
+    return fused, status
 
 
 # ------------------ 主程序 ------------------
