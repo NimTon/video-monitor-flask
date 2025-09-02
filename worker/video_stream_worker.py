@@ -12,9 +12,9 @@ storage_manger = StorageManager()
 detector = FenceChangeDetector()
 db = DBHelper()
 detect_queues = {}
-capture_path = "../tmp/capture"
-detect_path = "../tmp/detect"
-merge_path = "../tmp/merge"
+capture_path = "./tmp/capture"
+detect_path = "./tmp/detect"
+merge_path = "./tmp/merge"
 change_threshold = 0.2
 RESTART_INTERVAL = 3600  # 秒，每1小时重启一次
 
