@@ -152,9 +152,13 @@ class AutoReportScheduler:
             # 调用 AI 生成单个监控总结
             camera_information = f"报告日期：{yesterday}，图片日期：{list(zip(img_paths, image_captions))}，stream_uid：{stream_uid}，stream_name：{stream_name}"
             combined_prompt = camera_information + daily_prompt
-            ai_summary = call_local_ai_model(ai_prompt=combined_prompt, image_paths=img_paths, json_str=False)
-            # imgs_base64 = [image_path_to_base64(i) for i in img_paths]
-            # ai_summary = call_qwen_via_client(combined_prompt, imgs_base64, model='qwen-vl-max-latest', json_str=False)
+            try:
+                ai_summary = call_local_ai_model(ai_prompt=combined_prompt, image_paths=img_paths, json_str=False)
+                # imgs_base64 = [image_path_to_base64(i) for i in img_paths]
+                # ai_summary = call_qwen_via_client(combined_prompt, imgs_base64, model='qwen-vl-max-latest', json_str=False)
+            except Exception as e:
+                log("FAIL", f"调用模型失败: {e}")
+                ai_summary = None
             # 更新当天 report 字段
             self.report_mgr.update_report(stream_uid, date=yesterday, report=ai_summary)
             log("SUCCESS", f"视频流 {stream_name} (UID={stream_uid}) 的 {yesterday} AI总结已生成。")
@@ -201,8 +205,12 @@ class AutoReportScheduler:
             combined_prompt = daily_summary_prompt + "请基于以下各监控的AI总结生成一份总摘要:" + "\n".join(individual_summaries)
             today_information = f"报告日期：{yesterday}"
             combined_prompt = today_information + combined_prompt
-            overall_summary = call_local_ai_model(ai_prompt=combined_prompt, json_str=False)
-            # overall_summary = call_qwen_via_client(combined_prompt, model="qwen-plus", json_str=False)
+            try:
+                overall_summary = call_local_ai_model(ai_prompt=combined_prompt, json_str=False)
+                # overall_summary = call_qwen_via_client(combined_prompt, model="qwen-plus", json_str=False)
+            except Exception as e:
+                log("FAIL", f"调用本地模型生成总体总结失败: {e}")
+                overall_summary = None  # 或设置为默认提示，如 "识别失败"
             # 保存到特殊的总报告 UID，例如 "ALL_STREAMS"
             self.report_mgr.update_overall_summary(yesterday, overall_summary)
             log("SUCCESS", f"{yesterday} 所有监控的总摘要已生成。")
