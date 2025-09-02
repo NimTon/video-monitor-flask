@@ -189,8 +189,7 @@ def save_frames_as_video(stream_id, fence_id, frames, video_root='./videos', bas
     文件名格式: {stream_id}_{fence_id}_{时间戳}.mp4
     """
     now_time_str = datetime.now().strftime('%Y%m%d_%H%M%S')
-    now = datetime.now()
-    Path(f"{video_root}/{stream_id}").mkdir(exist_ok=True)
+    os.makedirs(f"{video_root}/{stream_id}", exist_ok=True)
 
     # 删除超过7天的旧文件
     # for file in os.listdir(video_root):
