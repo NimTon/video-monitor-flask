@@ -3,7 +3,7 @@ from contextlib import contextmanager
 import json
 from datetime import datetime
 
-with open('../config.json', encoding='utf-8') as f:
+with open('config.json', encoding='utf-8') as f:
     config = json.load(f)
 
 db_path = config.get("db_path", "video_monitor.db")
@@ -51,8 +51,8 @@ class DBHelper:
                 timestamp TEXT,
                 frame_path TEXT,
                 frame_id INTEGER,
-                exported INTEGER DEFAULT 0 -- 0=未导出, 1=已导出
-                alerted INTEGER DEFAULT 0; -- 0=未报警, 1=已报警
+                exported INTEGER DEFAULT 0, -- 0=未导出, 1=已导出
+                alerted INTEGER DEFAULT 0 -- 0=未报警, 1=已报警
             );
             """)
 
