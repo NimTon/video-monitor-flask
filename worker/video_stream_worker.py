@@ -12,7 +12,7 @@ import pandas as pd
 storage_manger = StorageManager()
 detector = FenceChangeDetector()
 db = DBHelper()
-detect_queue = asyncio.Queue()
+detect_queues = {}
 capture_path = "../tmp/capture"
 detect_path = "../tmp/detect"
 merge_path = "../tmp/merge"
@@ -21,7 +21,7 @@ RESTART_INTERVAL = 3600  # 秒，每1小时重启一次
 
 
 # ------------------ 抓帧模块 ------------------
-async def capture_stream(stream):
+async def capture_stream(stream, queue):
     detecting = stream.get("detecting")
     stream_uid = stream.get("uid")
     stream_name = stream.get("name")
@@ -47,7 +47,7 @@ async def capture_stream(stream):
                 frame_id = db.insert_frame(stream_uid, group_uid, timestamp, frame_path)
                 # log("SUCCESS", f"[抓帧] 抓取视频帧成功: {stream_name} ({stream_uid}), frame_id={frame_id}")
                 for fence_id in fences:
-                    await detect_queue.put((detecting, stream_name, stream_uid, frame_id, group_uid, fence_id, frame_path, timestamp))
+                    await queue.put((detecting, stream_name, stream_uid, frame_id, group_uid, fence_id, frame_path, timestamp))
             else:
                 log("FAIL", f"[抓帧] 抓取视频帧失败: {stream_name} ({stream_uid}), 保存路径={frame_path}")
         else:
@@ -56,15 +56,15 @@ async def capture_stream(stream):
 
 
 # ------------------ 异常检测模块 ------------------
-async def detect_worker():
+async def detect_worker(queue):
     while True:
-        detecting, stream_name, stream_uid, frame_id, group_uid, fence_id, frame_path, timestamp = await detect_queue.get()
+        detecting, stream_name, stream_uid, frame_id, group_uid, fence_id, frame_path, timestamp = await queue.get()
         if detecting:
             frame = cv2.imread(frame_path)
             if frame is None:
                 log("FAIL", f"[检测] {stream_name} (UID={stream_uid}, FRENCE_UID={fence_id}) 读取帧失败: {frame_path}")
                 db.insert_detection(stream_uid, group_uid, fence_id, 0, False, timestamp, frame_path, frame_id)
-                detect_queue.task_done()
+                queue.task_done()
                 continue
             height, width = frame.shape[:2]
             fence = storage_manger.get_fence(stream_uid, fence_id)
@@ -80,7 +80,7 @@ async def detect_worker():
                 frame_path = f"{detect_path}/{stream_uid}_{fence_id}_{timestamp.strftime('%Y%m%d_%H%M%S')}.jpg"
                 frame = draw_fence_on_frame(frame, fence_points)
                 cv2.imwrite(frame_path, frame)
-                detect_queue.task_done()
+                queue.task_done()
             await asyncio.sleep(0)
 
 
@@ -162,19 +162,30 @@ async def merge_worker():
 
 # ------------------ 主程序 ------------------
 async def run_system():
-    global streams, detect_queue
-
-    storage_manger = StorageManager()  # 重新加载 json 配置
+    global streams, detect_queues
+    log("INFO", "系统启动中...")
+    storage_manger = StorageManager()
+    log("INFO", "加载存储管理器完成")
     streams = get_running_streams(storage_manger)
-    detect_queue = asyncio.Queue()
-
-    # 启动任务
-    capture_tasks = [asyncio.create_task(capture_stream(stream)) for stream in streams]
-    detect_tasks = [asyncio.create_task(detect_worker()) for _ in range(3)]
+    log("INFO", f"加载运行中的视频流: {len(streams)} 个")
+    detect_queues = {stream['uid']: asyncio.Queue() for stream in streams}
+    log("INFO", "检测队列初始化完成")
+    # 抓帧任务
+    capture_tasks = []
+    for stream in streams:
+        log("INFO", f"启动抓帧任务: {stream['uid']}")
+        capture_tasks.append(asyncio.create_task(capture_stream(stream, detect_queues[stream['uid']])))
+    # 检测任务
+    detect_tasks = []
+    for stream_uid, queue in detect_queues.items():
+        log("INFO", f"启动检测任务: {stream_uid}")
+        detect_tasks.append(asyncio.create_task(detect_worker(queue)))
+    # 合成任务
+    log("INFO", "启动合成任务")
     merge_task = asyncio.create_task(merge_worker())
+    log("SUCCESS", "系统运行中...")
+    return capture_tasks + detect_tasks + [merge_task]
 
-    all_tasks = capture_tasks + detect_tasks + [merge_task]
-    return all_tasks
 
 
 async def main_loop():
@@ -195,25 +206,6 @@ async def main_loop():
             await asyncio.sleep(2)  # 防止立刻重启导致冲突
 
 
-async def main():
-    streams = get_running_streams(storage_manger)
-    # 每个视频流启动一个抓帧任务
-    capture_tasks = [asyncio.create_task(capture_stream(stream)) for stream in streams]
-    # 启动检测 worker
-    detect_tasks = [asyncio.create_task(detect_worker()) for _ in range(3)]
-    # 启动合成任务
-    merge_task = asyncio.create_task(merge_worker())
-    # 启动报警分发任务
-
-    await asyncio.gather(*capture_tasks, *detect_tasks, merge_task)
-
-
-async def run(loop=False):
-    if loop:
-        await main_loop()
-    else:
-        await main()
-
 
 if __name__ == "__main__":
-    asyncio.run(run(loop=True))
+    asyncio.run(main_loop())
