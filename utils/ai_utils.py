@@ -18,14 +18,13 @@ prompt = prompts['normal']
 
 def extract_json_dict_from_ai_reply(text: str):
     if not text:
-        return None
+        raise ValueError("AI 回复为空")
 
     start = text.find("{")
     end = text.rfind("}")
 
     if start == -1 or end == -1 or start >= end:
-        print("未找到有效的 JSON 结构", text)
-        return None
+        raise ValueError(f"未找到有效的 JSON 结构: {text}")
 
     json_candidate = text[start:end + 1].strip()
 
@@ -39,62 +38,55 @@ def extract_json_dict_from_ai_reply(text: str):
     try:
         return ast.literal_eval(json_candidate)
     except Exception as e:
-        print("解析失败:", e, text)
-        return None
+        raise ValueError(f"解析失败: {e}, 原始文本: {text}") from e
 
 
 def call_qwen_via_client(p=prompt, imgs=None, model='qwen-vl-max-latest', json_str=True):
     client = OpenAI(api_key=api_key, base_url=base_url)
     system_prompt = "你是一个ai助手"
     user_prompt = p
+
     try:
         if imgs:
-            content = [*[{"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{img_b64}"}} for img_b64 in imgs], {"type": "text", "text": user_prompt}]
-            completion = client.chat.completions.create(
-                model=model,
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": content}
-                ]
-            )
-            result = completion.choices[0].message.content
-            if json_str:
-                return extract_json_dict_from_ai_reply(result)
-            else:
-                return result
+            content = [*[{"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{img_b64}"}} for img_b64 in imgs],
+                       {"type": "text", "text": user_prompt}]
         else:
             content = [{"type": "text", "text": user_prompt}]
-            completion = client.chat.completions.create(
-                model=model,
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": content}
-                ]
-            )
-            result = completion.choices[0].message.content
-            if json_str:
-                return extract_json_dict_from_ai_reply(result)
-            else:
-                return result
+
+        completion = client.chat.completions.create(
+            model=model,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": content}
+            ]
+        )
+
+        result = completion.choices[0].message.content
+        if not result:
+            raise ValueError("AI 回复为空")
+
+        if json_str:
+            return extract_json_dict_from_ai_reply(result)
+        else:
+            return result
+
     except Exception as e:
-        print("[调用失败] 千问接口返回：", e)
-        return None
+        raise RuntimeError(f"调用千问接口失败: {e}") from e
 
 
-def call_local_ai_model(ai_prompt=prompt, image_paths=None, video_path=None, json_str=True):
+def call_local_ai_model(ai_prompt=None, image_paths=None, video_path=None, json_str=True):
     files = []
     opened_files = []
     url = None
+
     # 参数合法性检查
     if image_paths and video_path:
-        print("[错误] 不能同时传入图片和视频")
-        return None
+        raise ValueError("不能同时传入图片和视频")
     elif image_paths:
         url = SAY_IMAGES_URL
         for path in image_paths:
             if not os.path.exists(path):
-                print(f"[警告] 文件不存在 - {path}")
-                continue
+                raise FileNotFoundError(f"文件不存在: {path}")
             ext = os.path.splitext(path)[1].lower()
             mime = f"image/{ext[1:]}" if ext else "image/jpeg"
             f = open(path, "rb")
@@ -103,46 +95,44 @@ def call_local_ai_model(ai_prompt=prompt, image_paths=None, video_path=None, jso
     elif video_path:
         url = SAY_VIDEO_URL
         if not os.path.exists(video_path):
-            print(f"[错误] 视频文件不存在 - {video_path}")
-            return None
+            raise FileNotFoundError(f"视频文件不存在: {video_path}")
         ext = os.path.splitext(video_path)[1].lower()
         mime = f"video/{ext[1:]}" if ext else "video/mp4"
         f = open(video_path, "rb")
         opened_files.append(f)
         files.append(("files", (os.path.basename(video_path), f, mime)))
     else:
-        # 纯文本模式
-        url = SAY_MSG_URL
+        url = SAY_MSG_URL  # 纯文本模式
+
     try:
         if files:
             response = requests.post(url, files=files, data={"prompt": ai_prompt})
-            # 关闭文件
-            for f in opened_files:
-                f.close()
         else:
             response = requests.post(url, data={"prompt": ai_prompt})
-        if response.status_code == 200:
-            result_text = None
+
+        # 关闭文件
+        for f in opened_files:
+            f.close()
+
+        if response.status_code != 200:
+            raise RuntimeError(f"调用模型接口失败，状态码: {response.status_code}，响应内容: {response.text}")
+
+        try:
+            result_text = response.json().get("result")
+        except json.JSONDecodeError as e:
+            raise ValueError(f"响应不是有效 JSON: {response.text}") from e
+
+        if not result_text:
+            raise ValueError(f"响应中没有 result 字段: {response.text}")
+
+        if json_str:
             try:
-                result_text = response.json().get("result")
-            except json.JSONDecodeError:
-                print("[异常] 响应不是 JSON：", response.text)
-                return None
-            if result_text:
-                if json_str:
-                    try:
-                        return extract_json_dict_from_ai_reply(result_text)
-                    except Exception as e:
-                        print("[异常] JSON 解析失败，返回原始文本:", e)
-                        return result_text
-                else:
-                    return result_text
-            else:
-                print("[警告] 响应中没有 result 字段：", response.text)
-                return None
+                return extract_json_dict_from_ai_reply(result_text)
+            except Exception as e:
+                raise ValueError(f"解析 AI 回复 JSON 失败: {result_text}") from e
         else:
-            print(f"[错误] 状态码: {response.status_code}，响应内容: {response.text}")
-            return None
+            return result_text
+
     except Exception as e:
-        print("[异常] 调用本地模型接口失败:", e)
-        return None
+        # 统一抛出异常
+        raise RuntimeError(f"调用本地模型接口异常: {e}") from e
