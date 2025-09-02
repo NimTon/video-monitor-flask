@@ -211,7 +211,7 @@ def save_frames_as_video(stream_id, fence_id, frames, video_root='./videos', bas
     height, width = frames[0].shape[:2]
     fourcc = cv2.VideoWriter_fourcc(*'avc1')
     video_filename = f"{stream_id}/{stream_id}_{fence_id}_{now_time_str}.mp4"
-    video_path = os.path.join(video_root, video_filename)
+    video_path = f"{video_root}/{video_filename}"
 
     video_writer = cv2.VideoWriter(video_path, fourcc, fps, (width, height))
     for frame in frames:
