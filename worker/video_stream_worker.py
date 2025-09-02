@@ -4,8 +4,7 @@ import os
 from datetime import datetime
 from utils.db_utils import DBHelper
 from storage import StorageManager
-from utils.stream_utils import get_fuse_bool_time_range, get_stream_change_dict, fuse_streams_by_position, get_running_streams
-from video_monitor.fence_detector import FenceChangeDetector
+from utils.stream_utils import get_fuse_bool_time_range, get_stream_change_dict, fuse_streams_by_position, get_running_streams, FenceChangeDetector
 from utils.utils import log, resize_to_720p, draw_fence_on_frame, save_frames_as_video
 import pandas as pd
 
