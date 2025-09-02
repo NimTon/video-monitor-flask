@@ -394,7 +394,7 @@ def activate_stream(stream_id):
     # # 保存线程引用
     # app.video_threads[stream_id] = thread
     # 更新视频流状态为运行中
-    storage.update_stream(stream_id, status="running")
+    storage.update_stream(stream_id, detecting=True)
     return jsonify({"message": "流已启动"})
 
 
@@ -411,7 +411,7 @@ def deactivate_stream(stream_id):
     # # 从字典中移除线程
     # del app.video_threads[stream_id]
     # 更新视频流状态为停止
-    storage.update_stream(stream_id, name=None, stream_url=None, detecting=False)
+    storage.update_stream(stream_id, detecting=False)
     return jsonify({"message": "流已停止"})
 
 
