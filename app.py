@@ -1,12 +1,5 @@
-# 导入Flask框架及相关模块
-import threading
 from flask import Flask, request, jsonify, send_from_directory
-# 从video_monitor.video_stream模块导入VideoStreamThread类
-from video_monitor.video_stream import VideoStreamThread
-# 从storage模块导入三个管理类
 from storage import StorageManager, RecipientsManager, AlertStorageManager, SourceStreamManager, MessageManager
-# 从alert_dispatcher模块导入dispatch_alert函数
-from alert_dispatcher import dispatch_alert_multi_frames
 import requests
 import json
 import os
