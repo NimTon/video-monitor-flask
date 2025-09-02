@@ -17,6 +17,7 @@ capture_path = "tmp/capture"
 detect_path = "tmp/detect"
 merge_path = "tmp/merge"
 change_threshold = 0.2
+RESTART_INTERVAL = 3600  # 秒，每1小时重启一次
 
 
 # ------------------ 抓帧模块 ------------------
@@ -226,21 +227,59 @@ def fuse_streams_by_position(streams_bool_dict):
 
 
 # ------------------ 主程序 ------------------
+async def run_system():
+    global streams, detect_queue
+
+    storage_manger.reload()  # 重新加载 json 配置
+    streams = [stream for stream in storage_manger.list_streams() if stream.get("status") == "running"]
+    detect_queue = asyncio.Queue()
+
+    # 启动任务
+    capture_tasks = [asyncio.create_task(capture_stream(stream)) for stream in streams]
+    detect_tasks = [asyncio.create_task(detect_worker()) for _ in range(3)]
+    merge_task = asyncio.create_task(merge_worker())
+
+    all_tasks = capture_tasks + detect_tasks + [merge_task]
+    return all_tasks
+
+
+async def main_loop():
+    while True:
+        log("INFO", f"系统启动: {datetime.now()}")
+        tasks = await run_system()
+
+        # 等待一小时或被取消
+        try:
+            await asyncio.wait_for(asyncio.gather(*tasks), timeout=RESTART_INTERVAL)
+        except asyncio.TimeoutError:
+            log("INFO", f"达到重启周期: {datetime.now()}, 重启系统")
+            # 取消所有任务
+            for t in tasks:
+                t.cancel()
+            # 等待任务彻底取消
+            await asyncio.gather(*tasks, return_exceptions=True)
+            await asyncio.sleep(2)  # 防止立刻重启导致冲突
+
+
 async def main():
     # 每个视频流启动一个抓帧任务
     capture_tasks = [asyncio.create_task(capture_stream(stream)) for stream in streams]
-
     # 启动检测 worker
     detect_tasks = [asyncio.create_task(detect_worker()) for _ in range(3)]
-
     # 启动合成任务
     merge_task = asyncio.create_task(merge_worker())
-
     await asyncio.gather(*capture_tasks, *detect_tasks, merge_task)
     # await asyncio.gather(*capture_tasks, *detect_tasks)
     # await asyncio.gather(merge_task)
     # await asyncio.gather(*capture_tasks)
 
 
+async def run(loop=False):
+    if loop:
+        asyncio.run(main_loop())  # 每小时重启一次
+    else:
+        asyncio.run(main())  # 持续运行
+
+
 if __name__ == "__main__":
-    asyncio.run(main())
+    run(loop=True)
