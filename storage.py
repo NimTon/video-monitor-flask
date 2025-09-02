@@ -73,6 +73,7 @@ class StorageManager:
             "name": name or f"视频流-{stream_uid[:8]}",  # 名称或默认名称
             "stream_url": stream_url,  # 视频流URL
             "status": "stopped",  # 初始状态
+            "detecting": False,   # 是否检测中
             "threshold": 0.8,  # 默认阈值
             "frequency": 10,  # 默认检测频率
             "fences": [],  # 空围栏列表
@@ -83,6 +84,17 @@ class StorageManager:
         data.append(new_stream)  # 添加到数据列表
         self.save_all(data)  # 保存数据
         return stream_uid  # 返回新流ID
+
+    def set_detecting(self, stream_uid, detecting: bool):
+        """设置检测状态"""
+        return self.update_stream(stream_uid, detecting=detecting)
+
+    def is_detecting(self, stream_uid):
+        """获取检测状态"""
+        stream = self.get_stream(stream_uid)
+        if stream:
+            return stream.get("detecting", False)
+        return False
 
     def update_stream(self, stream_uid, **kwargs):
         """更新视频流信息"""
