@@ -11,13 +11,12 @@ import pandas as pd
 storage_manger = StorageManager()
 detector = FenceChangeDetector()
 db = DBHelper()
-streams = [stream for stream in storage_manger.list_streams() if stream.get("status") == "running"]
 detect_queue = asyncio.Queue()
 capture_path = "tmp/capture"
 detect_path = "tmp/detect"
 merge_path = "tmp/merge"
 change_threshold = 0.2
-RESTART_INTERVAL = 3600  # 秒，每1小时重启一次
+RESTART_INTERVAL = 10  # 秒，每1小时重启一次
 
 
 # ------------------ 抓帧模块 ------------------
@@ -226,12 +225,19 @@ def fuse_streams_by_position(streams_bool_dict):
     return fused, status
 
 
+def get_running_streams(storage_manger):
+    streams = [stream for stream in storage_manger.list_streams() if stream.get("status") == "running"]
+    if len(streams) == 0:
+        log("WARNING", "当前没有运行的流，只在检测历史内查找合适的数据帧")
+    return streams
+
+
 # ------------------ 主程序 ------------------
 async def run_system():
     global streams, detect_queue
 
-    storage_manger.reload()  # 重新加载 json 配置
-    streams = [stream for stream in storage_manger.list_streams() if stream.get("status") == "running"]
+    storage_manger = StorageManager()  # 重新加载 json 配置
+    streams = get_running_streams(storage_manger)
     detect_queue = asyncio.Queue()
 
     # 启动任务
@@ -262,6 +268,7 @@ async def main_loop():
 
 
 async def main():
+    streams = get_running_streams(storage_manger)
     # 每个视频流启动一个抓帧任务
     capture_tasks = [asyncio.create_task(capture_stream(stream)) for stream in streams]
     # 启动检测 worker
@@ -276,10 +283,10 @@ async def main():
 
 async def run(loop=False):
     if loop:
-        asyncio.run(main_loop())  # 每小时重启一次
+        await main_loop()
     else:
-        asyncio.run(main())  # 持续运行
+        await main()
 
 
 if __name__ == "__main__":
-    run(loop=True)
+    asyncio.run(run(loop=True))
