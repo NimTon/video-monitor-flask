@@ -21,7 +21,7 @@ RESTART_INTERVAL = 3600  # 秒，每1小时重启一次
 
 
 # ------------------ 抓帧模块 ------------------
-async def capture_stream(stream, queue):
+async def capture_stream(stream, queues):
     detecting = stream.get("detecting")
     stream_uid = stream.get("uid")
     stream_name = stream.get("name")
@@ -47,7 +47,7 @@ async def capture_stream(stream, queue):
                 frame_id = db.insert_frame(stream_uid, group_uid, timestamp, frame_path)
                 # log("SUCCESS", f"[抓帧] 抓取视频帧成功: {stream_name} ({stream_uid}), frame_id={frame_id}")
                 for fence_id in fences:
-                    await queue.put((detecting, stream_name, stream_uid, frame_id, group_uid, fence_id, frame_path, timestamp))
+                    await queues[(stream_uid, fence_id)].put((detecting, stream_name, stream_uid, frame_id, group_uid, fence_id, frame_path, timestamp))
             else:
                 log("FAIL", f"[抓帧] 抓取视频帧失败: {stream_name} ({stream_uid}), 保存路径={frame_path}")
         else:
@@ -162,23 +162,28 @@ async def merge_worker():
 
 # ------------------ 主程序 ------------------
 async def run_system():
-    global streams, detect_queues
+    global detect_queues
     log("INFO", "系统启动中...")
     storage_manger = StorageManager()
     log("INFO", "加载存储管理器完成")
     streams = get_running_streams(storage_manger)
     log("INFO", f"加载运行中的视频流: {len(streams)} 个")
-    detect_queues = {stream['uid']: asyncio.Queue() for stream in streams}
+    # 初始化 (stream_uid, fence_uid) 队列
+    detect_queues = {}
+    for stream in streams:
+        for fence in stream.get("fences", []):
+            detect_queues[(stream['uid'], fence['id'])] = asyncio.Queue()
     log("INFO", "检测队列初始化完成")
     # 抓帧任务
     capture_tasks = []
     for stream in streams:
-        log("INFO", f"启动抓帧任务: {stream['uid']}")
-        capture_tasks.append(asyncio.create_task(capture_stream(stream, detect_queues[stream['uid']])))
+        log("INFO", f"启动抓帧任务: {stream.get("name")} (UID={stream.get("uid")})")
+        capture_tasks.append(asyncio.create_task(capture_stream(stream, detect_queues)))
     # 检测任务
     detect_tasks = []
-    for stream_uid, queue in detect_queues.items():
-        log("INFO", f"启动检测任务: {stream_uid}")
+    stream_names = {s['uid']: s['name'] for s in streams}
+    for (stream_uid, fence_uid), queue in detect_queues.items():
+        log("INFO", f"启动检测任务: {stream_names.get(stream_uid)} (UID={stream_uid}, FRENCE_UID={fence_uid})")
         detect_tasks.append(asyncio.create_task(detect_worker(queue)))
     # 合成任务
     log("INFO", "启动合成任务")
@@ -187,12 +192,10 @@ async def run_system():
     return capture_tasks + detect_tasks + [merge_task]
 
 
-
 async def main_loop():
     while True:
         log("INFO", f"系统启动: {datetime.now()}")
         tasks = await run_system()
-
         # 等待一小时或被取消
         try:
             await asyncio.wait_for(asyncio.gather(*tasks), timeout=RESTART_INTERVAL)
@@ -204,7 +207,6 @@ async def main_loop():
             # 等待任务彻底取消
             await asyncio.gather(*tasks, return_exceptions=True)
             await asyncio.sleep(2)  # 防止立刻重启导致冲突
-
 
 
 if __name__ == "__main__":
