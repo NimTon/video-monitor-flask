@@ -80,6 +80,7 @@ async def detect_worker(queue):
                 frame = draw_fence_on_frame(frame, fence_points)
                 cv2.imwrite(frame_path, frame)
                 queue.task_done()
+                log("SUCCESS", f"[检测] {stream_name} (UID={stream_uid}, FRENCE_UID={fence_id}) 变化率：{change_ratio} 检测结果: {'异常' if changed else '正常'}")
             await asyncio.sleep(0)
 
 
