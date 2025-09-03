@@ -41,7 +41,7 @@ class DBHelper:
 
             # 异常检测表
             cur.execute("""
-                        CREATE TABLE IF NOT EXISTS fence_detections
+                        CREATE TABLE IF NOT EXISTS fence_detections 
                         (
                             id               INTEGER PRIMARY KEY AUTOINCREMENT,
                             stream_uid       TEXT,
@@ -55,11 +55,13 @@ class DBHelper:
                             exported         INTEGER DEFAULT 0,    -- 0=未导出, 1=已导出
                             ai_checked       INTEGER DEFAULT 0,
                             ai_status        INTEGER DEFAULT NULL, -- 0=normal,1=AI判定异常,-1=失败
-                            ai_result        TEXT    DEFAULT '',
+                            ai_result        TEXT    DEFAULT NULL,
                             alerted          INTEGER DEFAULT 0,
                             event_uid        TEXT,                 -- 事件ID (UUID)
                             group_event_uid  TEXT,
-                            alert_video_path TEXT    DEFAULT ''
+                            before_image_path TEXT   DEFAULT NULL, -- 新增：前一帧图像路径
+                            after_image_path  TEXT   DEFAULT NULL, -- 新增：后一帧图像路径
+                            alert_video_path TEXT    DEFAULT NULL
                         );
                         """)
 
@@ -155,25 +157,63 @@ class DBHelper:
             return [dict(row) for row in cur.fetchall()]
 
     # ------------------ 异常检测表操作 ------------------
-    def update_ai_result(self, detection_id, ai_checked=1, ai_status=None, ai_result=None, alert_video_path=None):
+    def update_alerted(self, detection_id, alerted=1):
+        """
+        更新指定检测记录的 alerted 状态为 True
+        :param detection_id: 检测记录 ID
+        :param alerted: 是否已报警，默认 1（True）
+        :return: 更新的行数
+        """
+        with self.get_conn() as conn:
+            cur = conn.cursor()
+            cur.execute("""
+                UPDATE fence_detections
+                SET alerted = ?
+                WHERE id = ?;
+            """, (int(alerted), detection_id))
+            conn.commit()
+            return cur.rowcount  # 返回更新的行数
+
+    def update_ai_result(
+            self,
+            detection_id,
+            ai_checked=1,
+            ai_status=None,
+            ai_result=None,
+            before_image_path=None,
+            after_image_path=None,
+            alert_video_path=None
+    ):
         """
         更新指定检测记录的 AI 识别结果
         :param detection_id: 检测记录 ID
         :param ai_checked: 是否已 AI 识别，默认 1
         :param ai_status: AI 判断状态，1=异常, 0=正常, -1=失败
         :param ai_result: AI 识别结果（文本）
+        :param before_image_path: 前一帧图像路径
+        :param after_image_path: 后一帧图像路径
         :param alert_video_path: 回溯视频路径
         """
         with self.get_conn() as conn:
             cur = conn.cursor()
             cur.execute("""
-                        UPDATE fence_detections
-                        SET ai_checked=?,
-                            ai_result=?,
-                            ai_status=?,
-                            alert_video_path=?
-                        WHERE id = ?;
-                        """, (int(ai_checked), int(ai_status), ai_result, alert_video_path, detection_id))
+                UPDATE fence_detections
+                SET ai_checked=?,
+                    ai_result=?,
+                    ai_status=?,
+                    before_image_path=?,
+                    after_image_path=?,
+                    alert_video_path=?
+                WHERE id=?;
+            """, (
+                int(ai_checked),
+                ai_result,
+                int(ai_status) if ai_status is not None else None,
+                before_image_path,
+                after_image_path,
+                alert_video_path,
+                detection_id
+            ))
             conn.commit()
             return cur.rowcount  # 返回更新的行数
 
@@ -214,21 +254,62 @@ class DBHelper:
             conn.commit()
             return event_uid, group_event_uid
 
-    def insert_detection(self, stream_uid, group_uid, fence_uid, change_ratio, changed, timestamp, frame_path, frame_id, exported=False, event_uid=None,
-                         group_event_uid=None, ai_checked=False, ai_status=None, ai_result='', alerted=False, alert_video_path=''):
+    def insert_detection(
+        self,
+        stream_uid,
+        group_uid,
+        fence_uid,
+        change_ratio,
+        changed,
+        timestamp,
+        frame_path,
+        frame_id,
+        exported=False,
+        event_uid=None,
+        group_event_uid=None,
+        ai_checked=False,
+        ai_status=None,
+        ai_result=None,
+        alerted=False,
+        before_image_path=None,
+        after_image_path=None,
+        alert_video_path=None,
+    ):
+        """
+        插入一条检测记录
+        """
         with self.get_conn() as conn:
             cur = conn.cursor()
             cur.execute("""
-                        INSERT INTO fence_detections
-                        (stream_uid, group_uid, fence_uid, change_ratio, changed, timestamp, frame_path, frame_id, exported, event_uid, group_event_uid,
-                         ai_checked, ai_status, ai_result, alerted, alert_video_path)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
-                        """, (
-                            stream_uid, group_uid, fence_uid, change_ratio, int(changed), timestamp.isoformat(), frame_path, frame_id,
-                            int(exported), event_uid, group_event_uid, int(ai_checked), int(ai_status), ai_result, int(alerted), alert_video_path
-                        ))
+                INSERT INTO fence_detections
+                (stream_uid, group_uid, fence_uid, change_ratio, changed, timestamp,
+                 frame_path, frame_id, exported, event_uid, group_event_uid,
+                 ai_checked, ai_status, ai_result, alerted,
+                 before_image_path, after_image_path, alert_video_path)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+            """, (
+                stream_uid,
+                group_uid,
+                fence_uid,
+                change_ratio,
+                int(changed),
+                timestamp.isoformat(),
+                frame_path,
+                frame_id,
+                int(exported),
+                event_uid,
+                group_event_uid,
+                int(ai_checked),
+                int(ai_status) if ai_status is not None else None,
+                ai_result,
+                int(alerted),
+                before_image_path,
+                after_image_path,
+                alert_video_path
+            ))
             conn.commit()
             return cur.lastrowid
+
 
     def get_detections(self, stream_uid=None, group_uid=None, fence_uid=None):
         """获取异常检测结果"""
