@@ -77,7 +77,7 @@ async def alert_worker():
                     await asyncio.sleep(1)
                     continue
 
-                # 触发报警
+                # 触发报警 TODO 有需要再改为异步
                 attachments = [before_image_path, after_image_path, after_image_path]
                 alert_status = -1
                 for r in recipients:

@@ -47,7 +47,7 @@ async def ai_worker():
                 image_urls, image_paths = save_key_frames(stream_uid, fence_uid, video_frames, base_url=BASE_URL)
                 log("INFO", f"[AI] {stream_name} 视频生成完成: {video_path}")
                 try:
-                    ai_result = call_local_ai_model(video_path=video_path)
+                    ai_result = call_local_ai_model(video_path=video_path) #  TODO 有需要再改为异步
                     if not ai_result:
                         log("WARNING", f"[AI] {stream_name} AI识别返回空结果 DETECTION_ID={detection_id}")
                         ai_status = -1
