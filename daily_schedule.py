@@ -194,11 +194,11 @@ class AutoReportScheduler:
                 if not email_addr:
                     log("WARNING", f"视频流 {stream_name} (UID={stream_uid}) 收件人 {recipient.get('name', '')} 未配置邮箱。")
                     continue
-                success = send_email_alert(ai_summary, email_addr, attachments=img_paths.append(pdf_file), subject=f"视频流 {stream_name} (UID={stream_uid}) {yesterday} 报告。")
-                if success:
+                try:
+                    send_email_alert(ai_summary, email_addr, attachments=img_paths.append(pdf_file), subject=f"视频流 {stream_name} (UID={stream_uid}) {yesterday} 报告。")
                     log("SUCCESS", f"视频流 {stream_name} (UID={stream_uid}) 的报告已发送邮件给 {email_addr}。")
-                else:
-                    log("FAIL", f"视频流 {stream_name} (UID={stream_uid}) 的报告邮件发送失败: {email_addr}。")
+                except Exception as e:
+                    log("FAIL", f"视频流 {stream_name} (UID={stream_uid}) 的报告邮件发送失败: {email_addr}, ERROR={e}。")
 
         # 生成所有监控的总摘要
         if individual_summaries:
@@ -236,11 +236,11 @@ class AutoReportScheduler:
             # 发送总摘要邮件
             summary_recipients = ["576467179@qq.com"]
             for email_addr in summary_recipients:
-                success = send_email_alert(overall_summary, email_addr, attachments=[pdf_file], subject=f"视频流 {yesterday} 报告总摘要。")
-                if success:
+                try:
+                    send_email_alert(overall_summary, email_addr, attachments=[pdf_file], subject=f"视频流 {yesterday} 报告总摘要。")
                     log("SUCCESS", f"总摘要已发送给 {email_addr}。")
-                else:
-                    log("FAIL", f"总摘要邮件发送失败: {email_addr}。")
+                except Exception as e:
+                    log("FAIL", f"总摘要邮件发送失败: {email_addr}, ERROR={e}。")
 
     def start_scheduler(self):
         """启动定时任务"""
