@@ -31,21 +31,23 @@ def get_streams_worker():
                 try:
                     live_url = zk_api.get_live_url(lot_source, service_no, device_no)
                 except Exception as e:
-                    log("FAIL", f"[EMERGENCY STREAM] 获取设备 {device_name} 直播地址失败: {e}")
+                    log("FAIL", f"[EMERGENCY STREAM] 获取设备 {device_name} (UID={stream_uid}) 直播地址失败: {e}")
                     continue
 
                 if not live_url:
-                    log("WARNING", f"[EMERGENCY STREAM] 设备 {device_name} 没有可用直播地址")
+                    log("WARNING", f"[EMERGENCY STREAM] 设备 {device_name} (UID={stream_uid}) 没有可用直播地址")
                     continue
 
                 # 如果视频流不存在就添加，有则更新
                 stream = sm.get_stream(stream_uid)
                 if not stream:
                     sm.add_stream(live_url, name=device_name, stream_uid=stream_uid)
-                    log("SUCCESS", f"[EMERGENCY STREAM] 新增视频流: {device_name} ({stream_uid})")
+                    log("SUCCESS", f"[EMERGENCY STREAM] 新增视频流: {device_name} (UID={stream_uid})")
                 else:
                     sm.update_stream(stream_uid, stream_url=live_url)
-                    log("SUCCESS", f"[EMERGENCY STREAM] 更新视频流: {device_name} ({stream_uid})")
+                    log("SUCCESS", f"[EMERGENCY STREAM] 更新视频流: {device_name} (UID={stream_uid})")
+                sm.set_stream_group(stream_uid, machine)
+                log("SUCCESS", f"[EMERGENCY STREAM] 设置视频流编组: {device_name} (UID={stream_uid}) -> GROUP_UID={machine}")
 
     log("INFO", "[EMERGENCY STREAM] === 获取设备信息完成 ===")
 
