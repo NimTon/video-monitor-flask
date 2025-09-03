@@ -11,7 +11,12 @@ from config import BASE_URL
 
 async def alert_worker():
     while True:
-        template = asm.get_alert_templates()[0]
+        templates = asm.get_alert_templates()
+        if len(templates) == 0:
+            log("FAIL", "[ALERT] 当前无消息模板，休眠2秒")
+            await asyncio.sleep(2)
+            continue
+        template = templates[0]
         pending_alerts = pd.DataFrame(db.get_pending_alerts())
         if pending_alerts.empty:
             log("INFO", "[ALERT] 当前无待报警记录，休眠2秒")
