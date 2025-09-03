@@ -1,14 +1,17 @@
 import asyncio
-from datetime import datetime, timedelta
+from datetime import datetime
 from utils.db_utils import db
-from storage import sm,rm
-from utils.utils import log, save_frames_as_video
+from storage import sm, rm, asm, mm
+from utils.utils import log
+from utils.alert_utils import send_alert
+from urllib.parse import urljoin
 import pandas as pd
-import cv2
+from config import BASE_URL
 
 
 async def alert_worker():
     while True:
+        template = asm.get_alert_templates()[0]
         pending_alerts = pd.DataFrame(db.get_pending_alerts())
         if pending_alerts.empty:
             log("INFO", "[ALERT] 当前无待报警记录，休眠2秒")
@@ -18,58 +21,69 @@ async def alert_worker():
         grouped = pending_alerts.groupby(['stream_uid', 'fence_uid'])
         for (stream_uid, fence_uid), group in grouped:
             stream_info = sm.get_stream(stream_uid)
-            stream_name = stream_info.get("name", stream_uid) if stream_info else stream_uid
-            log("INFO", f"[ALERT] {stream_name} (UID={stream_uid}), 围栏 {fence_uid}, 待报警记录 {len(group)}")
-
-            # 获取所有绑定该 stream 的接收人
+            stream_name = stream_info.get("name")
+            log("INFO", f"[ALERT] {stream_name} (UID={stream_uid}, FENCE_UID={fence_uid}), 待报警记录 {len(group)}")
             recipients = rm.get_recipients_by_stream_id(stream_uid)
-
             for _, alert in group.iterrows():
                 detection_id = alert.get("id")
+                ai_result = alert.get("ai_result")
+                fence_uid = alert.get("fence_uid")
+                change_ratio = alert.get("change_ratio")
+                before_image_path = alert.get("before_image_path")
+                after_image_path = alert.get("after_image_path")
+                alert_video_path = alert.get("alert_video_path")
+                before_image_url = urljoin(BASE_URL, before_image_path)
+                after_image_url = urljoin(BASE_URL, after_image_path)
+                alert_video_url = urljoin(BASE_URL, alert_video_path)
                 timestamp = datetime.fromisoformat(alert.get("timestamp"))
-                log("INFO", f"[ALERT] 处理 DETECTION_ID={detection_id}, TIMESTAMP={timestamp}")
+                log("INFO", f"[ALERT] 处理 {stream_name} (UID={stream_uid}, FENCE_UID={fence_uid}, DETECTION_ID={detection_id}, TIMESTAMP={timestamp})")
 
-                # 获取前10秒的帧生成报警视频
-                start_ts = timestamp - timedelta(seconds=10)
-                end_ts = timestamp
-                frames_10s = pd.DataFrame(
-                    db.get_detected_frames_by_stream_and_time(stream_uid, fence_uid, start_ts, end_ts)
+                # 存入message.json
+                mm.add_message(
+                    stream_uid=stream_uid,
+                    fence_uid=fence_uid,
+                    stream_name=stream_name,
+                    change_ratio=f"{change_ratio:.3f}",
+                    ai_report=ai_result,
+                    image_before_url=before_image_url,
+                    image_after_url=after_image_url,
+                    video_url=alert_video_url
                 )
-                video_frames = []
-                for idx, row in frames_10s.iterrows():
-                    frame_path = row['frame_path']
-                    frame = cv2.imread(frame_path)
-                    if frame is None:
-                        log("FAIL", f"[ALERT] {stream_name} (UID={stream_uid}, FENCE_UID={fence_uid}) 读取帧失败: {frame_path}")
-                        continue
-                    video_frames.append(frame)
 
-                if not video_frames:
-                    log("WARNING", f"[ALERT] {stream_name} (UID={stream_uid}) 无可用帧生成报警视频，跳过 DETECTION_ID={detection_id}")
-                    continue
+                template_vars = {
+                    "stream_name": stream_name,
+                    "fence_id": fence_uid,
+                    "timestamp": timestamp,
+                    "change_ratio": f"{change_ratio:.3f}",
+                    "ai_report": ai_result,
+                    "image_url": f"{before_image_url} {after_image_url}",
+                    "video_url": alert_video_url
+                }
+                message = ''
+                try:
+                    message = template['text'].format(**template_vars)  # 渲染模板
+                except Exception as e:
+                    log("FAIL", f"{stream_name} (UID={stream_uid}, FENCE_UID={fence_uid}, DETECTION_ID={detection_id}, TIMESTAMP={timestamp}) 的组装报警信息失败: {e}")
 
-                video_url, video_path = save_frames_as_video(stream_uid, fence_uid, video_frames, fps=1)
-                log("INFO", f"[ALERT] {stream_name} 报警视频生成完成: {video_path}")
-
-                # 触发报警（这里用循环调用接收人 contact，可以替换为实际发送接口）
+                # 触发报警
+                attachments = [before_image_path, after_image_path, after_image_path]
                 alert_status = -1
                 for r in recipients:
+                    contact = r.get("contact")
                     try:
-                        contact = r.get("contact")
-                        # send_alert(contact, stream_name, fence_uid, video_path)
-                        log("INFO", f"[ALERT] 已向接收人 {r['name']} ({contact}) 发送报警")
-                        alert_status = 1
+                        for method_name, contact_value in contact.items():
+                            send_alert(method_name, contact_value, message, attachments)
+                            log("SUCCESS", f"[ALERT] {stream_name} (UID={stream_uid}, FENCE_UID={fence_uid}, DETECTION_ID={detection_id}, TIMESTAMP={timestamp}) 已向接收人 {r['name']} ({contact}) 发送 {method_name} 报警")
+                            alert_status = 1
                     except Exception as e:
-                        log("FAIL", f"[ALERT] 向接收人 {r['name']} ({contact}) 发送报警失败: {e}")
+                        log("FAIL", f"[ALERT] {stream_name} (UID={stream_uid}, FENCE_UID={fence_uid}, DETECTION_ID={detection_id}, TIMESTAMP={timestamp}) 向接收人 {r['name']} ({contact}) 发送报警失败: {e}")
 
                 # 更新数据库
                 db.update_alerted(
                     detection_id=detection_id,
-                    alerted=alert_status,
-                    alert_time=datetime.now(),
-                    alert_video_path=video_path
+                    alerted=alert_status
                 )
-                log("INFO", f"[ALERT] {stream_name} 数据库更新完成 DETECTION_ID={detection_id}, ALERTED={alert_status}")
+                log("INFO", f"[ALERT] {stream_name} (UID={stream_uid}, FENCE_UID={fence_uid}, DETECTION_ID={detection_id}, TIMESTAMP={timestamp}) 数据库更新完成")
 
 
 async def run_alert_module():
