@@ -3,9 +3,10 @@ from datetime import datetime, timedelta
 from utils.db_utils import db
 from storage import sm
 from utils.ai_utils import extract_json_dict_from_ai_reply, call_local_ai_model, call_qwen_via_client
-from utils.utils import log, save_frames_as_video, draw_fence_on_frame
+from utils.utils import log, save_frames_as_video, draw_fence_on_frame, save_key_frames
 import pandas as pd
 import cv2
+from config import BASE_URL
 
 
 async def ai_worker():
@@ -40,7 +41,8 @@ async def ai_worker():
                 if not video_frames:
                     log("WARNING", f"[AI] {stream_name} (UID={stream_uid}) 无可用帧生成视频，跳过 DETECTION_ID={detection_id}")
                     continue
-                video_url, video_path = save_frames_as_video(stream_uid, fence_uid, video_frames, fps=1)
+                video_url, video_path = save_frames_as_video(stream_uid, fence_uid, video_frames, base_url=BASE_URL, fps=1)
+                image_urls, image_paths = save_key_frames(stream_uid, fence_uid, video_frames, base_url=BASE_URL)
                 log("INFO", f"[AI] {stream_name} 视频生成完成: {video_path}")
                 try:
                     ai_result = call_local_ai_model(video_path=video_path)
@@ -59,6 +61,8 @@ async def ai_worker():
                     ai_checked=1,
                     ai_status=ai_status,
                     ai_result=str(ai_result),
+                    before_image_path=image_paths[0],
+                    after_image_path=image_paths[1],
                     alert_video_path=video_path,
                 )
                 log("INFO", f"[AI] {stream_name} 数据库更新完成 DETECTION_ID={detection_id}, AI_STATUS={ai_status}")
