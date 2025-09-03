@@ -66,6 +66,7 @@ async def ai_worker():
                     alert_video_path=video_path,
                 )
                 log("INFO", f"[AI] {stream_name} 数据库更新完成 DETECTION_ID={detection_id}, AI_STATUS={ai_status}")
+                await asyncio.sleep(1)
 
 
 async def run_ai_module():
