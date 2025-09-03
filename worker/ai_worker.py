@@ -36,10 +36,12 @@ async def ai_worker():
                     frame = cv2.imread(frame_path)
                     if frame is None:
                         log("FAIL", f"[AI] {stream_name} (UID={stream_uid}, FENCE_UID={fence_uid}) 读取帧失败: {frame_path}")
+                        await asyncio.sleep(1)
                         continue
                     video_frames.append(frame)
                 if not video_frames:
                     log("WARNING", f"[AI] {stream_name} (UID={stream_uid}) 无可用帧生成视频，跳过 DETECTION_ID={detection_id}")
+                    await asyncio.sleep(1)
                     continue
                 video_url, video_path = save_frames_as_video(stream_uid, fence_uid, video_frames, base_url=BASE_URL, fps=1)
                 image_urls, image_paths = save_key_frames(stream_uid, fence_uid, video_frames, base_url=BASE_URL)

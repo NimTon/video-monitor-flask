@@ -69,6 +69,8 @@ async def alert_worker():
                     message = template['text'].format(**template_vars)  # 渲染模板
                 except Exception as e:
                     log("FAIL", f"{stream_name} (UID={stream_uid}, FENCE_UID={fence_uid}, DETECTION_ID={detection_id}, TIMESTAMP={timestamp}) 的组装报警信息失败: {e}")
+                    await asyncio.sleep(1)
+                    continue
 
                 # 触发报警
                 attachments = [before_image_path, after_image_path, after_image_path]
@@ -82,13 +84,14 @@ async def alert_worker():
                             alert_status = 1
                     except Exception as e:
                         log("FAIL", f"[ALERT] {stream_name} (UID={stream_uid}, FENCE_UID={fence_uid}, DETECTION_ID={detection_id}, TIMESTAMP={timestamp}) 向接收人 {r['name']} ({contact}) 发送报警失败: {e}")
-
+                        await asyncio.sleep(1)
+                        continue
                 # 更新数据库
                 db.update_alerted(
                     detection_id=detection_id,
                     alerted=alert_status
                 )
-                log("INFO", f"[ALERT] {stream_name} (UID={stream_uid}, FENCE_UID={fence_uid}, DETECTION_ID={detection_id}, TIMESTAMP={timestamp}) 数据库更新完成")
+                log("SUCCESS", f"[ALERT] {stream_name} (UID={stream_uid}, FENCE_UID={fence_uid}, DETECTION_ID={detection_id}, TIMESTAMP={timestamp}) 数据库更新完成")
                 await asyncio.sleep(1)
 
 async def run_alert_module():

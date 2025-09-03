@@ -64,6 +64,7 @@ async def detect_worker(queue):
                 log("FAIL", f"[检测] {stream_name} (UID={stream_uid}, FENCE_UID={fence_id}) 读取帧失败: {frame_path}")
                 db.insert_detection(stream_uid, group_uid, fence_id, 0, False, timestamp, frame_path, frame_id)
                 queue.task_done()
+                await asyncio.sleep(1)
                 continue
             height, width = frame.shape[:2]
             fence = storage_manger.get_fence(stream_uid, fence_id)
