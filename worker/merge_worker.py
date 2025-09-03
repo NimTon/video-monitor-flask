@@ -7,13 +7,16 @@ import pandas as pd
 from utils.db_utils import db
 from utils.stream_utils import get_stream_change_dict, fuse_streams_by_position, get_fuse_bool_time_range
 from utils.utils import log, draw_fence_on_frame, save_frames_as_video
-from worker.detect_worker import storage_manger, merge_path
+from storage import sm
+
+merge_path = "./tmp/merge"
+os.makedirs(merge_path, exist_ok=True)
 
 
 # ------------------ 编组合成视频模块 ------------------
 async def merge_worker():
     while True:
-        groups = storage_manger.list_groups()
+        groups = sm.list_groups()
         log("INFO", f"[MERGE] 当前存在的组: {list(groups.keys())}")
         for group_uid in groups.keys():
             group_event_uid = None
@@ -65,7 +68,7 @@ async def merge_worker():
                         log("WARNING", f"[MERGE] 读取帧失败: {frame_path}")
                         continue
                     height, width = frame.shape[:2]
-                    fences = storage_manger.list_fences(stream_uid)
+                    fences = sm.list_fences(stream_uid)
                     for fence in fences:
                         fence_points = []
                         points = fence.get('points', [])
