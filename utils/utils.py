@@ -230,8 +230,7 @@ def save_key_frames(stream_id, fence_id, frames, image_root='./images', base_url
     文件名格式: {stream_id}_{fence_id}_{时间戳}_1.jpg / _2.jpg
     """
     now_time_str = datetime.now().strftime('%Y%m%d_%H%M%S')
-    now = datetime.now()
-    Path(f"{image_root}/{stream_id}").mkdir(exist_ok=True)
+    os.makedirs(f"{image_root}/{stream_id}", exist_ok=True)
 
     # 删除超过7天的旧文件
     # for file in os.listdir(image_root):
