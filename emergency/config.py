@@ -1,0 +1,5 @@
+ZK_TOKEN = "FZK865AI9184C4A66"
+MACHINE_CODES = [
+    "1",
+    "2"
+]
