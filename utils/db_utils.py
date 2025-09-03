@@ -1,15 +1,10 @@
 import sqlite3
 from contextlib import contextmanager
-import json
-
-with open('config.json', encoding='utf-8') as f:
-    config = json.load(f)
-
-db_path = config.get("db_path", "video_monitor.db")
+from config import DB_PATH
 
 
 class DBHelper:
-    def __init__(self, db_path=db_path):
+    def __init__(self, db_path=DB_PATH):
         self.db_path = db_path
         self.init_db()
 
@@ -78,7 +73,8 @@ class DBHelper:
                             size            INTEGER, -- 字节
                             timestamp       TEXT,
                             event_uid       TEXT,    -- 事件ID (UUID)
-                            group_event_uid TEXT
+                            group_event_uid TEXT,
+                            alerted          INTEGER DEFAULT 0
                         );
                         """)
 
@@ -255,25 +251,25 @@ class DBHelper:
             return event_uid, group_event_uid
 
     def insert_detection(
-        self,
-        stream_uid,
-        group_uid,
-        fence_uid,
-        change_ratio,
-        changed,
-        timestamp,
-        frame_path,
-        frame_id,
-        exported=False,
-        event_uid=None,
-        group_event_uid=None,
-        ai_checked=False,
-        ai_status=None,
-        ai_result=None,
-        alerted=False,
-        before_image_path=None,
-        after_image_path=None,
-        alert_video_path=None,
+            self,
+            stream_uid,
+            group_uid,
+            fence_uid,
+            change_ratio,
+            changed,
+            timestamp,
+            frame_path,
+            frame_id,
+            exported=False,
+            event_uid=None,
+            group_event_uid=None,
+            ai_checked=False,
+            ai_status=None,
+            ai_result=None,
+            alerted=False,
+            before_image_path=None,
+            after_image_path=None,
+            alert_video_path=None,
     ):
         """
         插入一条检测记录
@@ -309,7 +305,6 @@ class DBHelper:
             ))
             conn.commit()
             return cur.lastrowid
-
 
     def get_detections(self, stream_uid=None, group_uid=None, fence_uid=None):
         """获取异常检测结果"""
@@ -396,6 +391,56 @@ class DBHelper:
                         """, (group_uid,))
             rows = cur.fetchall()
             return [dict(row) for row in rows]
+
+    # ------------------ 更新alerted数据 ------------------
+    def update_alerted(self,
+                       ids=None,
+                       stream_uids=None,
+                       event_uids=None,
+                       group_event_uids=None,
+                       group_uids=None,
+                       fence_uids=None,
+                       alerted=1):
+        """
+        更新 merged_videos 表的 alerted 字段
+        :param ids: 单个 id 或 id 列表
+        :param stream_uids: 单个 stream_uid 或列表
+        :param event_uids: 单个 event_uid 或列表
+        :param group_event_uids: 单个 group_event_uid 或列表
+        :param group_uids: 单个 group_uid 或列表
+        :param fence_uids: 单个 fence_uid 或列表
+        :param alerted: alerted 状态 (默认 1)
+        :return: 更新的行数
+        """
+        conditions = []
+        params = []
+        def add_condition(field, values):
+            if values is None:
+                return
+            if not isinstance(values, list):
+                values = [values]
+            placeholders = ",".join("?" * len(values))
+            conditions.append(f"{field} IN ({placeholders})")
+            params.extend(values)
+        add_condition("id", ids)
+        add_condition("stream_uid", stream_uids)
+        add_condition("event_uid", event_uids)
+        add_condition("group_event_uid", group_event_uids)
+        add_condition("group_uid", group_uids)
+        add_condition("fence_uid", fence_uids)
+        if not conditions:
+            raise ValueError("必须提供至少一个条件参数")
+        where_clause = " OR ".join(conditions)  # 不同条件之间 OR，满足任意条件即可
+        query = f"""
+            UPDATE merged_videos
+            SET alerted=?
+            WHERE {where_clause};
+        """
+        with self.get_conn() as conn:
+            cur = conn.cursor()
+            cur.execute(query, [alerted] + params)
+            conn.commit()
+            return cur.rowcount
 
     # ------------------ 事件表操作 ------------------
     # def insert_event(self, event_uid, group_event_uid, group_uid, stream_uid, fence_uid,
