@@ -12,7 +12,6 @@ detector = FenceChangeDetector()
 detect_queues = {}
 capture_path = "./tmp/capture"
 detect_path = "./tmp/detect"
-merge_path = "./tmp/merge"
 change_threshold = 0.2
 RESTART_INTERVAL = 3600  # 秒，每1小时重启一次
 
@@ -27,7 +26,6 @@ async def capture_stream(stream, queues):
     fences = [f['id'] for f in stream.get("fences", [])]
     os.makedirs(capture_path, exist_ok=True)
     os.makedirs(detect_path, exist_ok=True)
-    os.makedirs(merge_path, exist_ok=True)
     cap = cv2.VideoCapture(url)
     while True:
         ret, frame = cap.read()
