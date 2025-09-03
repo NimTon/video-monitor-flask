@@ -12,7 +12,4 @@ LOCAL_AI_TEXT_URL = "http://10.30.4.32:5810/api/sayMsg"
 QWEN_API_KEY = "sk-f3ec150157ec41baaa516b15d1feaeae"
 QWEN_URL = "https://dashscope.aliyuncs.com/compatible-mode/v1"
 
-ZK_TOKEN = "FZK865AI9184C4A66"
-MACHINE_CODES = ["1", "2"]
-
 DB_PATH = "video_db.sqlite"
