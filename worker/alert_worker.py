@@ -24,6 +24,10 @@ async def alert_worker():
             stream_name = stream_info.get("name")
             log("INFO", f"[ALERT] {stream_name} (UID={stream_uid}, FENCE_UID={fence_uid}), 待报警记录 {len(group)}")
             recipients = rm.get_recipients_by_stream_id(stream_uid)
+            if not recipients:
+                log("WARNING", f"[ALERT] {stream_name} (UID={stream_uid}) 没有配置报警接收人")
+                continue
+
             for _, alert in group.iterrows():
                 detection_id = alert.get("id")
                 ai_result = alert.get("ai_result")
