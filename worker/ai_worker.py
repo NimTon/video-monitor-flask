@@ -2,8 +2,8 @@ import asyncio
 from datetime import datetime, timedelta
 from utils.db_utils import db
 from storage import sm
-from utils.ai_utils import extract_json_dict_from_ai_reply, call_local_ai_model, call_qwen_via_client
-from utils.utils import log, save_frames_as_video, draw_fence_on_frame, save_key_frames
+from utils.ai_utils import call_local_ai_model, call_qwen_via_client
+from utils.utils import log, save_frames_as_video, save_key_frames
 import pandas as pd
 import cv2
 from config import BASE_URL
