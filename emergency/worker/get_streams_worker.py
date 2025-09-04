@@ -46,8 +46,8 @@ def get_streams_worker():
                 else:
                     sm.update_stream(stream_uid, stream_url=live_url)
                     log("SUCCESS", f"[EMERGENCY STREAM] 更新视频流: {device_name} (UID={stream_uid})")
-                sm.set_stream_group(stream_uid, machine)
-                log("SUCCESS", f"[EMERGENCY STREAM] 设置视频流编组: {device_name} (UID={stream_uid}) -> GROUP_UID={machine}")
+                sm.set_stream_group(stream_uid, warehouse_code)
+                log("SUCCESS", f"[EMERGENCY STREAM] 设置视频流编组: {device_name} (UID={stream_uid}) -> GROUP_UID={warehouse_code}")
 
     log("INFO", "[EMERGENCY STREAM] === 获取设备信息完成 ===")
 
