@@ -10,6 +10,7 @@ def get_streams_worker():
         log("INFO", f"[EMERGENCY STREAM] 获取机器 {machine} 的设备列表...")
         try:
             devices = zk_api.get_devices(machine)
+            print(devices)
         except Exception as e:
             log("FAIL", f"[EMERGENCY STREAM] 机器 {machine} 获取设备失败: {e}")
             continue
@@ -26,6 +27,7 @@ def get_streams_worker():
                 device_no = dev.get("deviceNo")
                 device_name = dev.get("deviceName")
                 stream_uid = chinese_to_pinyin(device_name)
+                detecting = dev.get("isAi") == 'Y'
                 log("INFO", f"[EMERGENCY STREAM] 处理设备: {device_name} (UID={stream_uid})")
 
                 try:
@@ -48,6 +50,7 @@ def get_streams_worker():
                     log("SUCCESS", f"[EMERGENCY STREAM] 更新视频流: {device_name} (UID={stream_uid})")
                 sm.set_stream_group(stream_uid, warehouse_code)
                 log("SUCCESS", f"[EMERGENCY STREAM] 设置视频流编组: {device_name} (UID={stream_uid}) -> GROUP_UID={warehouse_code}")
+                sm.set_detecting(stream_uid, detecting)
 
     log("INFO", "[EMERGENCY STREAM] === 获取设备信息完成 ===")
 
