@@ -84,30 +84,19 @@ class DBHelper:
                         );
                         """)
 
-            # 预警事件表
-            # cur.execute("""
-            #             CREATE TABLE IF NOT EXISTS events
-            #             (
-            #                 id                INTEGER PRIMARY KEY AUTOINCREMENT,
-            #                 event_uid         TEXT UNIQUE,
-            #                 group_event_id    TEXT,
-            #                 group_uid         TEXT,
-            #                 stream_uid        TEXT,
-            #                 fence_uid         TEXT,
-            #                 stream_name       TEXT,
-            #                 timestamp         TEXT,
-            #                 change_ratio      TEXT,
-            #                 alerted           INTEGER DEFAULT 0,
-            #                 ai_checked        INTEGER DEFAULT 0,
-            #                 ai_report         TEXT,
-            #                 image_before_url  TEXT,
-            #                 image_after_url   TEXT,
-            #                 image_before_path TEXT,
-            #                 image_after_path  TEXT,
-            #                 videourl          TEXT,
-            #                 videopath         TEXT
-            #             );
-            #             """)
+            # 编组预警事件表
+            cur.execute("""
+                        CREATE TABLE IF NOT EXISTS events
+                        (
+                            id                INTEGER PRIMARY KEY AUTOINCREMENT,
+                            group_event_id    TEXT,
+                            group_uid         TEXT,
+                            timestamp         TEXT,
+                            alerted           INTEGER DEFAULT 0,
+                            ai_checked        INTEGER DEFAULT 0,
+                            ai_report         TEXT
+                        );
+                        """)
 
             conn.commit()
 
@@ -573,28 +562,79 @@ class DBHelper:
             return cur.rowcount > 0
 
     # ------------------ 事件表操作 ------------------
-    # def insert_event(self, event_uid, group_event_uid, group_uid, stream_uid, fence_uid,
-    #                  stream_name, timestamp, change_ratio, alerted=0, ai_checked=0,
-    #                  ai_report="", image_before_url="", image_after_url="",
-    #                  image_before_path="", image_after_path="", videourl="", videopath=""):
-    #     """插入事件记录"""
-    #     with self.get_conn() as conn:
-    #         cur = conn.cursor()
-    #         cur.execute("""
-    #                     INSERT INTO events
-    #                     (event_uid, group_event_uid, group_uid, stream_uid, fence_uid, stream_name,
-    #                      timestamp, change_ratio, alerted, ai_checked, ai_report,
-    #                      image_before_url, image_after_url, image_before_path, image_after_path,
-    #                      videourl, videopath)
-    #                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    #                     """, (
-    #                         event_uid, group_event_uid, group_uid, stream_uid, fence_uid, stream_name,
-    #                         timestamp, str(change_ratio), int(alerted), int(ai_checked), ai_report,
-    #                         image_before_url, image_after_url, image_before_path, image_after_path,
-    #                         videourl, videopath
-    #                     ))
-    #         conn.commit()
-    #         return cur.lastrowid
+    def insert_event(self, group_event_id, group_uid, timestamp, alerted=0, ai_checked=0, ai_report=None):
+        """插入一条事件记录"""
+        with self.get_conn() as conn:
+            cur = conn.cursor()
+            cur.execute("""
+                        INSERT INTO events (group_event_id, group_uid, timestamp, alerted, ai_checked, ai_report)
+                        VALUES (?, ?, ?, ?, ?, ?);
+                        """, (group_event_id, group_uid, timestamp.isoformat(), alerted, ai_checked, ai_report))
+            conn.commit()
+            return cur.lastrowid
+
+    def get_event_by_id(self, event_id):
+        """根据 ID 获取事件"""
+        with self.get_conn() as conn:
+            cur = conn.cursor()
+            cur.execute("""
+                        SELECT *
+                        FROM events
+                        WHERE id = ?;
+                        """, (event_id,))
+            row = cur.fetchone()
+            return dict(row) if row else None
+
+    def get_events_by_group(self, group_uid, limit=50):
+        """根据 group_uid 获取事件列表"""
+        with self.get_conn() as conn:
+            cur = conn.cursor()
+            cur.execute("""
+                        SELECT *
+                        FROM events
+                        WHERE group_uid = ?
+                        ORDER BY timestamp ASC
+                        LIMIT ?;
+                        """, (group_uid, limit))
+            return [dict(row) for row in cur.fetchall()]
+
+    def get_unchecked_events(self, limit=10):
+        """获取未经过 AI 检查的事件"""
+        with self.get_conn() as conn:
+            cur = conn.cursor()
+            cur.execute("""
+                        SELECT *
+                        FROM events
+                        WHERE ai_checked = 0
+                        ORDER BY timestamp ASC
+                        LIMIT ?;
+                        """, (limit,))
+            return [dict(row) for row in cur.fetchall()]
+
+    def mark_event_alerted(self, event_id):
+        """标记事件为已告警"""
+        with self.get_conn() as conn:
+            cur = conn.cursor()
+            cur.execute("""
+                        UPDATE events
+                        SET alerted = 1
+                        WHERE id = ?;
+                        """, (event_id,))
+            conn.commit()
+            return cur.rowcount
+
+    def update_ai_result_for_event(self, event_id, ai_checked=1, ai_report=None):
+        """更新事件的 AI 检查结果"""
+        with self.get_conn() as conn:
+            cur = conn.cursor()
+            cur.execute("""
+                        UPDATE events
+                        SET ai_checked = ?,
+                            ai_report = ?
+                        WHERE id = ?;
+                        """, (int(ai_checked), ai_report, event_id))
+            conn.commit()
+            return cur.rowcount
 
 
 db = DBHelper()
