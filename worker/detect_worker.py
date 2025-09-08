@@ -86,6 +86,9 @@ async def run_system():
     log("INFO", "系统启动中...")
     log("INFO", "加载存储管理器完成")
     streams = get_running_streams(storage_manger)
+    if len(streams) == 0:
+        log("WARNING", "当前没有运行的流")
+        await asyncio.sleep(RESTART_INTERVAL)
     log("INFO", f"加载运行中的视频流: {len(streams)} 个")
     # 初始化 (stream_uid, fence_uid) 队列
     detect_queues = {}

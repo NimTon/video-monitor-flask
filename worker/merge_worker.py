@@ -44,14 +44,22 @@ async def merge_worker():
                 await asyncio.sleep(10)
                 continue
             for stream_uid in group_streams_data.keys():
+                stream_name = sm.get_stream(stream_uid).get("name")
                 fence_uids = [fence['id'] for fence in sm.get_stream(stream_uid).get('fences')]
                 for fence_uid in fence_uids:
-                    detect_fence_frame = frame_data[frame_data['fence_uid'] == fence_uid]
+                    detect_fence_frame = frame_data[frame_data['fence_uid'] == fence_uid].copy()
                     detect_fence_frame['timestamp'] = pd.to_datetime(detect_fence_frame['timestamp'])
-                    first_changed_row = detect_fence_frame[detect_fence_frame['changed'] == True].iloc[0]
+                    detect_changed_fence_frame = detect_fence_frame[detect_fence_frame['changed'] == 1]
+                    if len(detect_changed_fence_frame) == 0:
+                        log("INFO", f"[MERGE] 组 {group_uid} 的流 {stream_name} (UID={stream_uid}, FENCE_UID={fence_uid}) 未检测到异常，跳过")
+                        continue
+                    first_changed_row = detect_changed_fence_frame.iloc[0]
                     end_ts = first_changed_row['timestamp']
                     start_ts = end_ts - pd.Timedelta(seconds=10)
                     export_detected_frames = pd.DataFrame(db.get_detected_frames_by_stream_fence_and_time(stream_uid, start_ts, end_ts, fence_uid=fence_uid))
+                    if len(export_detected_frames) < 10:
+                        log("INFO", f"[MERGE] 组 {group_uid} 的流 {stream_name} (UID={stream_uid}, FENCE_UID={fence_uid}) 的回放帧不足 10 张(现有 {export_detected_frames} 张)，跳过")
+                        continue
                     log("INFO", f"[MERGE] stream {stream_uid} 需要导出的帧数量: {len(list(export_detected_frames))}")
                     video_frames = []
                     for idx, row in export_detected_frames.iterrows():
