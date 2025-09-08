@@ -40,7 +40,7 @@ async def capture_stream(stream, queues):
             success = cv2.imwrite(frame_path, frame)
             if success:
                 frame_id = db.insert_frame(stream_uid, group_uid, timestamp, frame_path)
-                # log("SUCCESS", f"[CAPTURE] 抓取视频帧成功: {stream_name} ({stream_uid}), frame_id={frame_id}")
+                log("SUCCESS", f"[CAPTURE] 抓取视频帧成功: {stream_name} ({stream_uid}), frame_id={frame_id}")
                 for fence_id in fences:
                     await queues[(stream_uid, fence_id)].put((detecting, stream_name, stream_uid, frame_id, group_uid, fence_id, frame_path, timestamp))
             else:
@@ -69,15 +69,15 @@ async def detect_worker(queue):
             if len(points) >= 3:
                 fence_points = [(int(p['x'] * width), int(p['y'] * height)) for p in points]
             detector.set_fence(fence_points)
-            changed, change_area, change_ratio = detector.detect_change(frame, change_threshold=0.0001)
+            changed, change_area, change_ratio = detector.detect_change(frame, change_threshold=0.2)
             if 0 <= change_ratio <= 1:
-                db.insert_detection(stream_uid, group_uid, fence_id, change_ratio, changed, timestamp, frame_path, frame_id)
                 frame_path = f"{detect_path}/{stream_uid}_{fence_id}_{timestamp.strftime('%Y%m%d_%H%M%S')}.jpg"
                 frame = draw_fence_on_frame(frame, fence_points)
                 cv2.imwrite(frame_path, frame)
+                db.insert_detection(stream_uid, group_uid, fence_id, change_ratio, changed, timestamp, frame_path, frame_id)
                 queue.task_done()
-                # log("SUCCESS", f"[DETECT] {stream_name} (UID={stream_uid}, FENCE_UID={fence_id}, TIMESTAMPE={timestamp}) 变化率：{change_ratio:.2f} 检测结果: {'异常' if changed else '正常'}")
-            await asyncio.sleep(0)
+                log("SUCCESS", f"[DETECT] {stream_name} (UID={stream_uid}, FENCE_UID={fence_id}, TIMESTAMPE={timestamp}) 变化率：{change_ratio:.2f} 检测结果: {'异常' if changed else '正常'}")
+            await asyncio.sleep(1)
 
 
 # ------------------ 主程序 ------------------
