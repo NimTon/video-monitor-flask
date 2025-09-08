@@ -38,36 +38,67 @@ def get_stream_change_dict(group_streams_data):
     return result
 
 
-def fuse_streams_by_position(streams_bool_dict):
+def fuse_streams_by_position(streams_bool_dict, max_consecutive_false=2):
     stream_keys = list(streams_bool_dict.keys())
     stream_lists = [list(v.values()) for v in streams_bool_dict.values()]
     max_len = max(len(lst) for lst in stream_lists)
+
+    # 对齐长度
     for lst in stream_lists:
         lst.extend([False] * (max_len - len(lst)))
+
+    # 融合逻辑：如果任意流为 True，则所有流该位置置 True
     for i in range(max_len):
         if any(lst[i] for lst in stream_lists):
             for lst in stream_lists:
                 lst[i] = True
+
+    # 找到第一个 True 的位置
     first_true_idx = None
     for i in range(max_len):
         if any(lst[i] for lst in stream_lists):
             first_true_idx = i
             break
+
     if first_true_idx is not None:
         stream_lists = [lst[first_true_idx:] for lst in stream_lists]
     else:
         first_true_idx = 0
+
     fused = {}
     for k, lst in zip(stream_keys, stream_lists):
         frame_ids = list(streams_bool_dict[k].keys())
         fused[k] = dict(zip(frame_ids[first_true_idx:], lst[:len(frame_ids) - first_true_idx]))
+
+    # 尾部剪裁：从第一个出现连续 N 个 False 的位置开始裁掉
+    for k, lst in fused.items():
+        values = list(lst.values())
+        cut_index = len(values)  # 默认不裁剪
+        consecutive_count = 0
+        for i, v in enumerate(values):
+            if not v:
+                consecutive_count += 1
+                if consecutive_count >= max_consecutive_false:
+                    cut_index = i - max_consecutive_false + 1
+                    break
+            else:
+                consecutive_count = 0
+        # 裁剪
+        keys = list(lst.keys())
+        for key in keys[cut_index + max_consecutive_false:]:
+            lst.pop(key)
+        fused[k] = lst
+
+    # 状态判断
+    last_values = [list(lst.values())[-1] if lst else False for lst in fused.values()]
     if first_true_idx == 0 and all(not any(lst) for lst in stream_lists):
-        status = "waiting"  # 全 False
+        status = "waiting"
     else:
-        if all(lst[-1] for lst in stream_lists):
-            status = "recording"  # 最后一帧 True
+        if all(last_values):
+            status = "recording"
         else:
-            status = "completed"  # 最后一帧 False
+            status = "completed"
+
     return fused, status
 
 
