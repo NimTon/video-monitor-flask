@@ -1,5 +1,4 @@
 import asyncio
-import os
 import cv2
 import pandas as pd
 from utils.db_utils import db
@@ -7,9 +6,6 @@ from utils.stream_utils import get_stream_change_dict, fuse_streams_by_position
 from utils.utils import log, save_frames_as_video, save_key_frames
 from storage import sm
 from config import BASE_URL
-
-merge_path = "./tmp/merge"
-os.makedirs(merge_path, exist_ok=True)
 
 
 # ------------------ 编组合成视频模块 ------------------
@@ -55,10 +51,10 @@ async def merge_worker():
                     first_changed_row = detect_fence_frame[detect_fence_frame['changed'] == True].iloc[0]
                     end_ts = first_changed_row['timestamp']
                     start_ts = end_ts - pd.Timedelta(seconds=10)
-                    export_detected_frame_id = pd.DataFrame(db.get_detected_frames_by_stream_fence_and_time(stream_uid, start_ts, end_ts, fence_uid=fence_uid))['id'].values
-                    log("INFO", f"[MERGE] stream {stream_uid} 需要导出的帧数量: {len(list(export_detected_frame_id))}")
+                    export_detected_frames = pd.DataFrame(db.get_detected_frames_by_stream_fence_and_time(stream_uid, start_ts, end_ts, fence_uid=fence_uid))
+                    log("INFO", f"[MERGE] stream {stream_uid} 需要导出的帧数量: {len(list(export_detected_frames))}")
                     video_frames = []
-                    for idx, row in export_detected_frame_id.iterrows():
+                    for idx, row in export_detected_frames.iterrows():
                         frame_path = row['frame_path']
                         # log("INFO", f"[MERGE] 读取帧: {frame_path} (stream: {stream_uid})")
                         frame = cv2.imread(frame_path)
@@ -71,7 +67,7 @@ async def merge_worker():
                     image_urls, image_paths = save_key_frames(stream_uid, fence_uid, video_frames, base_url=BASE_URL)
                     log("SUCCESS", f"[MERGE] 视频生成完成: {video_path}")
                     db.mark_as_exported(frame_data['id'].tolist())
-                    db.update_media_paths(frame_data['id'].tolist(),
+                    db.update_media_paths(frame_data['id'].tolist()[0],
                                           before_image_path=image_paths[0],
                                           after_image_path=image_paths[1],
                                           alert_video_path=video_path)
