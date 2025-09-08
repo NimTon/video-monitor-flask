@@ -104,8 +104,6 @@ def fuse_streams_by_position(streams_bool_dict, max_consecutive_false=2):
 
 def get_running_streams(storage_manger):
     streams = [stream for stream in storage_manger.list_streams() if stream.get("status") == "running"]
-    if len(streams) == 0:
-        log("WARNING", "当前没有运行的流，只在检测历史内查找合适的数据帧")
     return streams
 
 
