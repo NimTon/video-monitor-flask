@@ -48,6 +48,7 @@ class DBHelper:
                             frame_path        TEXT,
                             frame_id          INTEGER,
                             exported          INTEGER DEFAULT 0,    -- 0=未导出, 1=已导出
+                            group_exported    INTEGER DEFAULT 0,    -- 0=未导出, 1=已导出
                             ai_checked        INTEGER DEFAULT 0,
                             ai_status         INTEGER DEFAULT NULL, -- 0=normal,1=AI判定异常,-1=失败
                             ai_result         TEXT    DEFAULT NULL,
@@ -158,6 +159,26 @@ class DBHelper:
             return [dict(row) for row in cur.fetchall()]
 
     # ------------------ 异常检测表操作 ------------------
+    def get_detected_frames_by_stream_fence_and_time(self, stream_uid, start_ts, end_ts, fence_uid=None):
+        with self.get_conn() as conn:
+            cur = conn.cursor()
+            # 基础 SQL 和参数
+            sql = """
+                SELECT *
+                FROM fence_detections
+                WHERE stream_uid = ?
+                  AND timestamp BETWEEN ? AND ?
+            """
+            params = [stream_uid, start_ts.isoformat(), end_ts.isoformat()]
+            # 如果传了 fence_uid，则添加条件
+            if fence_uid is not None:
+                sql += " AND fence_uid = ?"
+                params.append(fence_uid)
+            # 排序
+            sql += " ORDER BY timestamp ASC;"
+            cur.execute(sql, params)
+            return [dict(row) for row in cur.fetchall()]
+
     def update_alerted(self, detection_id, alerted=1):
         """
         更新指定检测记录的 alerted 状态为 True
@@ -174,6 +195,43 @@ class DBHelper:
                         """, (int(alerted), detection_id))
             conn.commit()
             return cur.rowcount  # 返回更新的行数
+
+    def update_media_paths(self, detection_id, before_image_path=None, after_image_path=None, alert_video_path=None):
+        """
+        单独更新指定检测记录的前后帧图像和回溯视频路径
+        :param detection_id: 检测记录 ID
+        :param before_image_path: 前一帧图像路径
+        :param after_image_path: 后一帧图像路径
+        :param alert_video_path: 回溯视频路径
+        """
+        with self.get_conn() as conn:
+            cur = conn.cursor()
+
+            # 构造可变 SQL
+            fields = []
+            params = []
+            if before_image_path is not None:
+                fields.append("before_image_path=?")
+                params.append(before_image_path)
+            if after_image_path is not None:
+                fields.append("after_image_path=?")
+                params.append(after_image_path)
+            if alert_video_path is not None:
+                fields.append("alert_video_path=?")
+                params.append(alert_video_path)
+
+            if not fields:
+                return 0  # 没有字段需要更新
+
+            sql = f"""
+                UPDATE fence_detections
+                SET {', '.join(fields)}
+                WHERE id = ?;
+            """
+            params.append(detection_id)
+            cur.execute(sql, params)
+            conn.commit()
+            return cur.rowcount
 
     def update_ai_result(
             self,
@@ -207,14 +265,14 @@ class DBHelper:
                             alert_video_path=?
                         WHERE id = ?;
                         """, (
-                            int(ai_checked),
-                            ai_result,
-                            int(ai_status) if ai_status is not None else None,
-                            before_image_path,
-                            after_image_path,
-                            alert_video_path,
-                            detection_id
-                        ))
+                int(ai_checked),
+                ai_result,
+                int(ai_status) if ai_status is not None else None,
+                before_image_path,
+                after_image_path,
+                alert_video_path,
+                detection_id
+            ))
             conn.commit()
             return cur.rowcount  # 返回更新的行数
 
@@ -242,12 +300,33 @@ class DBHelper:
             cur.execute(query, params)
             return [dict(row) for row in cur.fetchall()]
 
-    def mark_as_exported(self, detection_ids, event_uid, group_event_uid):
+    def get_group_pending_exports(self, group_uid=None):
+        with self.get_conn() as conn:
+            cur = conn.cursor()
+            query = "SELECT * FROM fence_detections WHERE group_exported=0"
+            params = []
+            if group_uid:
+                query += " AND group_uid=?"
+                params.append(group_uid)
+            cur.execute(query, params)
+            return [dict(row) for row in cur.fetchall()]
+
+    def mark_as_exported(self, detection_ids):
+        with self.get_conn() as conn:
+            cur = conn.cursor()
+            cur.execute(f"""
+                UPDATE fence_detections
+                SET exported=1
+                WHERE id IN ({','.join('?' for _ in detection_ids)})
+            """, detection_ids)
+            conn.commit()
+
+    def mark_as_group_exported(self, detection_ids, event_uid, group_event_uid):
         with self.get_conn() as conn:
             cur = conn.cursor()
             cur.execute(f"""
         UPDATE fence_detections
-        SET exported=1,
+        SET group_exported=1,
             event_uid=?,
             group_event_uid=?
         WHERE id IN ({','.join('?' for _ in detection_ids)})
@@ -265,7 +344,8 @@ class DBHelper:
             timestamp,
             frame_path,
             frame_id,
-            exported=False,
+            exported=0,
+            group_exported=0,
             event_uid=None,
             group_event_uid=None,
             ai_checked=False,
@@ -284,30 +364,31 @@ class DBHelper:
             cur.execute("""
                         INSERT INTO fence_detections
                         (stream_uid, group_uid, fence_uid, change_ratio, changed, timestamp,
-                         frame_path, frame_id, exported, event_uid, group_event_uid,
+                         frame_path, frame_id, group_exported, exported, event_uid, group_event_uid,
                          ai_checked, ai_status, ai_result, alerted,
                          before_image_path, after_image_path, alert_video_path)
-                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
                         """, (
-                            stream_uid,
-                            group_uid,
-                            fence_uid,
-                            change_ratio,
-                            int(changed),
-                            timestamp.isoformat(),
-                            frame_path,
-                            frame_id,
-                            int(exported),
-                            event_uid,
-                            group_event_uid,
-                            int(ai_checked),
-                            int(ai_status) if ai_status is not None else None,
-                            ai_result,
-                            int(alerted),
-                            before_image_path,
-                            after_image_path,
-                            alert_video_path
-                        ))
+                stream_uid,
+                group_uid,
+                fence_uid,
+                change_ratio,
+                int(changed),
+                timestamp.isoformat(),
+                frame_path,
+                frame_id,
+                int(exported),
+                int(group_exported),
+                event_uid,
+                group_event_uid,
+                int(ai_checked),
+                int(ai_status) if ai_status is not None else None,
+                ai_result,
+                int(alerted),
+                before_image_path,
+                after_image_path,
+                alert_video_path
+            ))
             conn.commit()
             return cur.lastrowid
 
@@ -373,23 +454,21 @@ class DBHelper:
             return [dict(row) for row in cur.fetchall()]
 
     # ------------------ 视频合成表操作 ------------------
-    def insert_merged_video(self, stream_name, stream_uid, group_uid, fence_uid, video_path, duration, size, timestamp, exported,
-                            event_uid, group_event_uid,
-                            ai_checked=0, ai_status=None, ai_result=None, alerted=0):
+    def insert_merged_video(self, stream_name, stream_uid, group_uid, fence_uid, video_path, duration, size, timestamp, event_uid, group_event_uid,
+                            exported=0, ai_checked=0, ai_status=None, ai_result=None, alerted=0):
         """插入一条视频合成数据"""
         with self.get_conn() as conn:
             cur = conn.cursor()
             cur.execute("""
                         INSERT INTO merged_videos
-                        (stream_name, stream_uid, group_uid, fence_uid, video_path, duration, size, timestamp, exported,
-                         ai_checked, ai_status, ai_result, alerted,
-                         event_uid, group_event_uid)
+                        (stream_name, stream_uid, group_uid, fence_uid, video_path, duration, size, timestamp, event_uid, group_event_uid,
+                exported, ai_checked, ai_status, ai_result, alerted)
                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
                         """, (
-                            stream_name, stream_uid, group_uid, fence_uid, video_path, duration, size, timestamp.isoformat(), exported,
-                            ai_checked, ai_status, ai_result, alerted,
-                            event_uid, group_event_uid
-                        ))
+                stream_name, stream_uid, group_uid, fence_uid, video_path, duration, size, timestamp.isoformat(), event_uid, group_event_uid,
+                exported, ai_checked, ai_status, ai_result, alerted
+
+            ))
             conn.commit()
             return cur.lastrowid
 
