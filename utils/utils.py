@@ -138,23 +138,34 @@ def log(level: str, message: str):
 # 在报警分发时，给frame加上红色围栏标记
 def draw_fence_on_frame(frame, fence_points):
     """
-    在frame上绘制红色围栏（点和连线）
-    fence_points: [(x1, y1), (x2, y2), ...] 电子围栏顶点像素坐标列表
+    在 frame 上绘制红色围栏（点和连线）
+    兼容 3 通道 (BGR) 和 4 通道 (BGRA) 图像
     """
     if not fence_points or len(fence_points) < 3:
         return frame
 
-    # 转成numpy数组方便绘制
     pts = np.array(fence_points, np.int32).reshape((-1, 1, 2))
 
-    # 绘制多边形轮廓，红色，线宽2
-    cv2.polylines(frame, [pts], isClosed=True, color=(0, 0, 255), thickness=2)
+    if frame.shape[2] == 3:
+        # BGR 图像
+        cv2.polylines(frame, [pts], isClosed=True, color=(0, 0, 255), thickness=2)
+        for (x, y) in fence_points:
+            cv2.circle(frame, (x, y), radius=4, color=(0, 0, 255), thickness=-1)
+    elif frame.shape[2] == 4:
+        # BGRA 图像
+        overlay = np.zeros_like(frame, dtype=np.uint8)
 
-    # 绘制顶点为红色色小圆点
-    for (x, y) in fence_points:
-        cv2.circle(frame, (x, y), radius=4, color=(0, 0, 255), thickness=-1)
+        # 在 overlay 上画红色 (BGR)，同时 alpha=255
+        cv2.polylines(overlay, [pts], isClosed=True, color=(0, 0, 255, 255), thickness=2)
+        for (x, y) in fence_points:
+            cv2.circle(overlay, (x, y), radius=4, color=(0, 0, 255, 255), thickness=-1)
+
+        # 覆盖到原图（仅替换非透明像素）
+        mask = overlay[:, :, 3] > 0
+        frame[mask] = overlay[mask]
 
     return frame
+
 
 
 def cv2_frame_to_base64(frame):
