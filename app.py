@@ -4,6 +4,10 @@ import requests
 import json
 import os
 from datetime import datetime
+from utils.stream_utils import get_video_size
+from utils.utils import draw_fence_on_frame, points_to_abs_points
+import numpy as np
+import cv2
 
 with open('config.json', encoding='utf-8') as f:
     config = json.load(f)
@@ -160,6 +164,27 @@ def add_fence(stream_id):
     if not fence_id:
         # 返回未找到错误
         return jsonify({"message": "未找到对应的视频流"}), 404
+    # 绘制围栏水印
+    url = storage.get_stream(stream_id).get("stream_url")
+    width, height = get_video_size(url)
+    empty_frame = np.zeros((height, width, 4), dtype=np.uint8)  # 4通道
+    frame = empty_frame.copy()
+    fences = storage.list_fences(stream_id)
+    abs_points = points_to_abs_points(empty_frame, fences)
+    for fence in abs_points:
+        frame = draw_fence_on_frame(frame, fence)
+
+    # 转PNG字节流，准备传给第二个接口
+    _, buf = cv2.imencode(".png", frame)
+    png_bytes = buf.tobytes()
+
+    # 调用第二个接口（保存水印）
+    requests.post(
+        "http://localhost:5001/api/bind",  # 第二个app.py地址
+        files={"file": ("fence.png", png_bytes, "image/png")},
+        data={"stream_uid": stream_id, "url": url}
+    )
+
     # 返回成功响应
     return jsonify({
         "id": fence_id,
@@ -302,6 +327,7 @@ def stop_stream(stream_id):
     # 更新视频流状态为停止
     storage.update_stream(stream_id, status="stopped")
     return jsonify({"message": "流已停止"})
+
 
 @app.route('/api/streams/<stream_id>/activate', methods=['POST'])
 def activate_stream(stream_id):
@@ -852,4 +878,4 @@ def get_messages_by_fence(fence_uid):
 # 主程序入口
 if __name__ == '__main__':
     # 启动Flask应用
-    app.run(debug=True, host='0.0.0.0', port=PORT)
+    app.run(host='0.0.0.0', port=PORT)
