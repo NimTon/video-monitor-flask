@@ -107,6 +107,17 @@ def get_running_streams(storage_manger):
     return streams
 
 
+def get_video_size(url):
+    import cv2
+    cap = cv2.VideoCapture(url)
+    if not cap.isOpened():
+        return None
+    width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+    height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+    cap.release()
+    return (width, height)
+
+
 class FenceChangeDetector:
     def __init__(self):
         """初始化电子围栏变化检测器"""
@@ -169,15 +180,15 @@ class FenceChangeDetector:
             # 调试模式：可视化处理过程
             debug_img = frame.copy()
             # 绘制绿色围栏边界
-            cv2.polylines(debug_img, [np.array(self.points)], isClosed=True, color=(0,255,0), thickness=2)
+            cv2.polylines(debug_img, [np.array(self.points)], isClosed=True, color=(0, 255, 0), thickness=2)
             # 将前景掩码转为红色显示
             colored_mask = cv2.cvtColor(fgMask, cv2.COLOR_GRAY2BGR)
             colored_mask[:, :, 1:] = 0  # 保留红色通道
             # 创建半透明叠加图像
             overlay = cv2.addWeighted(debug_img, 0.7, colored_mask, 0.3, 0)
             # 添加变化比例文字
-            cv2.putText(overlay, f"Change Ratio: {change_ratio:.3f}", (10,30),
-                        cv2.FONT_HERSHEY_SIMPLEX, 1, (0,0,255), 2)
+            cv2.putText(overlay, f"Change Ratio: {change_ratio:.3f}", (10, 30),
+                        cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
             # 显示调试窗口
             cv2.imshow(f"Fence Debug", overlay)
             cv2.waitKey(1)
