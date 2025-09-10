@@ -201,10 +201,10 @@ def add_fence(stream_id):
     png_bytes = buf.tobytes()
 
     # 调用第二个接口（保存水印）
-    requests.post(
-        f"{FLOW_BASE_URL}/api/bind",
+    requests.patch(
+        f"{FLOW_BASE_URL}/api/water_mark",
         files={"file": ("fence.png", png_bytes, "image/png")},
-        data={"stream_uid": stream_id, "url": url}
+        data={"stream_uid": stream_id}
     )
 
     # 返回成功响应
@@ -249,8 +249,8 @@ def delete_fence(stream_id, fence_id):
             png_bytes = buf.tobytes()
 
             # 调用第二个接口（保存水印）
-            requests.post(
-                f"{FLOW_BASE_URL}/api/bind",
+            requests.patch(
+                f"{FLOW_BASE_URL}/api/water_mark",
                 files={"file": ("fence.png", png_bytes, "image/png")},
                 data={"stream_uid": stream_id}
             )
@@ -283,96 +283,12 @@ def start_stream(stream_id):
     if not fences:
         # 返回未找到错误
         return jsonify({"message": "未绑定电子围栏"}), 404
-    # # 检查是否已经在运行（幂等性检查）
-    # if stream_id in app.video_threads and app.video_threads[stream_id].is_alive():
-    #     return jsonify({"message": "已在运行"}), 400
-    #
-    # # 获取视频流URL
-    # stream_url = stream['stream_url']
-    # name = stream['name']
-    #
-    # # 提取检测参数
-    # try:
-    #     # 获取阈值参数，默认为0.5
-    #     threshold = float(stream.get('threshold', 0.5))
-    #     # 获取检测频率，默认为10秒
-    #     frequency = float(stream.get('frequency', 10))
-    # except Exception as e:
-    #     # 返回参数错误
-    #     return jsonify({"message": f"参数错误: {e}"}), 400
-    #
-    # # 获取视频帧尺寸用于坐标转换
-    # import cv2
-    # cap = cv2.VideoCapture(stream_url)
-    # success, frame = cap.read()
-    # if not success:
-    #     # 返回视频读取错误
-    #     return jsonify({"message": "无法读取视频帧，请检查视频地址"}), 400
-    # # 获取视频高度和宽度
-    # height, width = frame.shape[:2]
-    # cap.release()
-    #
-    # # 转换围栏点为像素坐标
-    # fences = stream.get('fences', [])
-    # fence_points = []
-    # for fence in fences:
-    #     points = fence.get('points', [])
-    #     if len(points) >= 3:
-    #         # 将相对坐标转换为绝对像素坐标
-    #         abs_points = [(int(p['x'] * width), int(p['y'] * height)) for p in points]
-    #         fence_points.append(abs_points)
-    #
-    # # 检查是否有有效围栏
-    # if len(fence_points) == 0:
-    #     return jsonify({"message": "请先设置至少一个有效的电子围栏（至少3个点）"}), 400
-    #
-    # # 定义结果回调函数
-    # def result_callback(sid, results, frames):
-    #     for r in results:
-    #         print(name, r, len(frames))
-    #         if r.get("changed"):
-    #             threading.Thread(
-    #                 target=dispatch_alert_multi_frames,
-    #                 args=(sid, r, frames),
-    #                 daemon=True
-    #             ).start()
-    #
-    # # 创建并启动视频流线程
-    # thread = VideoStreamThread(
-    #     stream_id=stream_id,
-    #     stream_url=stream_url,
-    #     result_callback=result_callback,
-    #     compare_interval=frequency,
-    #     change_threshold=threshold,
-    #     debug=False
-    # )
-    # # 设置围栏点
-    # thread.set_fences(fence_points)
-    # # 设置为守护线程
-    # thread.daemon = True
-    # # 启动线程
-    # thread.start()
-    #
-    # # 保存线程引用
-    # app.video_threads[stream_id] = thread
-    # 更新视频流状态为运行中
     storage.update_stream(stream_id, status="running")
     return jsonify({"message": "流已启动"})
 
 
 @app.route('/api/streams/<stream_id>/stop', methods=['POST'])
 def stop_stream(stream_id):
-    # # 获取视频流线程
-    # thread = app.video_threads.get(stream_id)
-    # # 如果线程不存在或已停止，也返回成功（幂等）
-    # if not thread:
-    #     storage.update_stream(stream_id, status="stopped")
-    #     return jsonify({"message": "已停止"}), 400
-    # # 停止线程
-    # thread.stop()
-    # # 从字典中移除线程
-    # del app.video_threads[stream_id]
-    # 更新视频流状态为停止
     storage.update_stream(stream_id, status="stopped")
     return jsonify({"message": "流已停止"})
 
@@ -388,96 +304,12 @@ def activate_stream(stream_id):
     if not fences:
         # 返回未找到错误
         return jsonify({"message": "未绑定电子围栏"}), 404
-    # # 检查是否已经在运行（幂等性检查）
-    # if stream_id in app.video_threads and app.video_threads[stream_id].is_alive():
-    #     return jsonify({"message": "已在运行"}), 400
-    #
-    # # 获取视频流URL
-    # stream_url = stream['stream_url']
-    # name = stream['name']
-    #
-    # # 提取检测参数
-    # try:
-    #     # 获取阈值参数，默认为0.5
-    #     threshold = float(stream.get('threshold', 0.5))
-    #     # 获取检测频率，默认为10秒
-    #     frequency = float(stream.get('frequency', 10))
-    # except Exception as e:
-    #     # 返回参数错误
-    #     return jsonify({"message": f"参数错误: {e}"}), 400
-    #
-    # # 获取视频帧尺寸用于坐标转换
-    # import cv2
-    # cap = cv2.VideoCapture(stream_url)
-    # success, frame = cap.read()
-    # if not success:
-    #     # 返回视频读取错误
-    #     return jsonify({"message": "无法读取视频帧，请检查视频地址"}), 400
-    # # 获取视频高度和宽度
-    # height, width = frame.shape[:2]
-    # cap.release()
-    #
-    # # 转换围栏点为像素坐标
-    # fences = stream.get('fences', [])
-    # fence_points = []
-    # for fence in fences:
-    #     points = fence.get('points', [])
-    #     if len(points) >= 3:
-    #         # 将相对坐标转换为绝对像素坐标
-    #         abs_points = [(int(p['x'] * width), int(p['y'] * height)) for p in points]
-    #         fence_points.append(abs_points)
-    #
-    # # 检查是否有有效围栏
-    # if len(fence_points) == 0:
-    #     return jsonify({"message": "请先设置至少一个有效的电子围栏（至少3个点）"}), 400
-    #
-    # # 定义结果回调函数
-    # def result_callback(sid, results, frames):
-    #     for r in results:
-    #         print(name, r, len(frames))
-    #         if r.get("changed"):
-    #             threading.Thread(
-    #                 target=dispatch_alert_multi_frames,
-    #                 args=(sid, r, frames),
-    #                 daemon=True
-    #             ).start()
-    #
-    # # 创建并启动视频流线程
-    # thread = VideoStreamThread(
-    #     stream_id=stream_id,
-    #     stream_url=stream_url,
-    #     result_callback=result_callback,
-    #     compare_interval=frequency,
-    #     change_threshold=threshold,
-    #     debug=False
-    # )
-    # # 设置围栏点
-    # thread.set_fences(fence_points)
-    # # 设置为守护线程
-    # thread.daemon = True
-    # # 启动线程
-    # thread.start()
-    #
-    # # 保存线程引用
-    # app.video_threads[stream_id] = thread
-    # 更新视频流状态为运行中
     storage.update_stream(stream_id, detecting=True)
     return jsonify({"message": "流已启动"})
 
 
 @app.route('/api/streams/<stream_id>/deactivate', methods=['POST'])
 def deactivate_stream(stream_id):
-    # # 获取视频流线程
-    # thread = app.video_threads.get(stream_id)
-    # # 如果线程不存在或已停止，也返回成功（幂等）
-    # if not thread:
-    #     storage.update_stream(stream_id, status="stopped")
-    #     return jsonify({"message": "已停止"}), 400
-    # # 停止线程
-    # thread.stop()
-    # # 从字典中移除线程
-    # del app.video_threads[stream_id]
-    # 更新视频流状态为停止
     storage.update_stream(stream_id, detecting=False)
     return jsonify({"message": "流已停止"})
 
