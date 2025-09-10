@@ -222,6 +222,32 @@ def update_fence(stream_id, fence_id):
 def delete_fence(stream_id, fence_id):
     # 删除围栏
     if storage.delete_fence(stream_id, fence_id):
+        # 绘制围栏水印
+        url = storage.get_stream(stream_id).get("stream_url")
+        width, height = get_video_size(url)
+        empty_frame = np.zeros((height, width, 4), dtype=np.uint8)  # 4通道
+        frame = empty_frame.copy()
+        fences = storage.list_fences(stream_id)
+        if fences:
+            abs_points = points_to_abs_points(empty_frame, fences)
+            for fence in abs_points:
+                frame = draw_fence_on_frame(frame, fence)
+
+            # 转PNG字节流，准备传给第二个接口
+            _, buf = cv2.imencode(".png", frame)
+            png_bytes = buf.tobytes()
+
+            # 调用第二个接口（保存水印）
+            requests.post(
+                f"{FLOW_BASE_URL}/api/bind",
+                files={"file": ("fence.png", png_bytes, "image/png")},
+                data={"stream_uid": stream_id, "url": url}
+            )
+        else:
+            requests.delete(
+                f"{FLOW_BASE_URL}/api/water_mark",
+                data={"stream_uid": stream_id}
+            )
         return jsonify({"message": "围栏已删除"})
     # 返回未找到错误
     return jsonify({"message": "未找到对应的围栏或视频流"}), 404
