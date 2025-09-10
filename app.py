@@ -15,6 +15,7 @@ with open('config.json', encoding='utf-8') as f:
 
 # 设置前端静态文件目录
 FRONTEND_DIST = os.path.join(os.path.dirname(__file__), "frontend", "dist")
+os.makedirs(FRONTEND_DIST, exist_ok=True)
 # 创建Flask应用实例
 # app = create_app()
 app = Flask(__name__, static_folder=None)  # 关闭默认的 static 文件服务
