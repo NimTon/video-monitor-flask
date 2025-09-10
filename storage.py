@@ -60,7 +60,7 @@ class StorageManager:
                 return i  # 返回索引
         return -1  # 未找到返回-1
 
-    def add_stream(self, stream_url, name=None, stream_uid=None, group_uid=""):
+    def add_stream(self, stream_url=None, name=None, stream_uid=None, group_uid=""):
         """添加新视频流"""
         data = self.load_all()  # 加载现有数据
         if not stream_uid:
