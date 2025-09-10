@@ -246,7 +246,7 @@ def delete_fence(stream_id, fence_id):
         else:
             requests.delete(
                 f"{FLOW_BASE_URL}/api/water_mark",
-                data={"stream_uid": stream_id}
+                json={"stream_uid": stream_id}
             )
         return jsonify({"message": "围栏已删除"})
     # 返回未找到错误
