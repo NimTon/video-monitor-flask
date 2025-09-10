@@ -8,6 +8,7 @@ from utils.stream_utils import get_video_size
 from utils.utils import draw_fence_on_frame, points_to_abs_points
 import numpy as np
 import cv2
+from config import FLOW_BASE_URL
 
 with open('config.json', encoding='utf-8') as f:
     config = json.load(f)
@@ -87,9 +88,13 @@ def create_stream():
         return jsonify({"message": "流名称 已存在"}), 400
     if stream_url in [stream_data['stream_url'] for stream_data in storage.list_streams()]:
         return jsonify({"message": "流url 已存在"}), 400
-
     # 添加视频流到存储
     stream_uid = storage.add_stream(stream_url, name)
+    # 调用第二个接口
+    requests.post(
+        f"{FLOW_BASE_URL}/api/bind",
+        data={"stream_uid": stream_uid, "url": stream_url}
+    )
     # 返回成功响应
     return jsonify({"message": "视频流创建成功", "stream_uid": stream_uid})
 
@@ -180,7 +185,7 @@ def add_fence(stream_id):
 
     # 调用第二个接口（保存水印）
     requests.post(
-        "http://localhost:5001/api/bind",  # 第二个app.py地址
+        f"{FLOW_BASE_URL}/api/bind",
         files={"file": ("fence.png", png_bytes, "image/png")},
         data={"stream_uid": stream_id, "url": url}
     )

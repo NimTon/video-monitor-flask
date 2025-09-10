@@ -1,6 +1,6 @@
 HOST = "127.0.0.1"
 PORT = 5000
-BASE_URL = f"{HOST}:{PORT}"
+BASE_URL = f"http://{HOST}:{PORT}"
 
 ZLMK_SECRET = "RMys9486msj1NraRsncf0k0lpAMmLaHP"
 ZLMK_URL = "http://172.27.109.14/index/api"
@@ -13,3 +13,5 @@ QWEN_API_KEY = "sk-f3ec150157ec41baaa516b15d1feaeae"
 QWEN_URL = "https://dashscope.aliyuncs.com/compatible-mode/v1"
 
 DB_PATH = "video_db.sqlite"
+
+FLOW_BASE_URL = "http://127.0.0.1:5001"
