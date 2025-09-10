@@ -81,21 +81,35 @@ def create_stream():
     data = request.json
     source_stream_url = data.get('source_stream_url')
     name = data.get('name')
+    is_restream = data.get('is_restream')  # 新增参数，默认 False
+
+    # 检查名称和 URL 是否重复
     if name in [s.get('name') for s in storage.list_streams() if s.get('name')]:
         return jsonify({"message": "流名称 已存在"}), 400
     if source_stream_url in [s.get('stream_url') for s in storage.list_streams() if s.get('stream_url')]:
         return jsonify({"message": "流url 已存在"}), 400
+
     stream_uid = storage.add_stream(name=name)
+
     try:
-        response = requests.post(
-            f"{FLOW_BASE_URL}/api/bind",
-            data={"stream_uid": stream_uid, "url": source_stream_url}
-        )
-        response.raise_for_status()
-        stream_url = f"{FLOW_BASE_URL}/{response.json().get("data").get("hls_url")}"
+        if is_restream:
+            # 转流逻辑，例如调用下游 bind 接口
+            response = requests.post(
+                f"{FLOW_BASE_URL}/api/bind",
+                data={"stream_uid": stream_uid, "url": source_stream_url}
+            )
+            response.raise_for_status()
+            hls_data = response.json().get("data", {})
+            stream_url = f"{FLOW_BASE_URL}/{hls_data.get('hls_url')}"
+        else:
+            # 直接存储原始流 URL
+            stream_url = source_stream_url
+
         if not stream_url:
             return jsonify({"message": "下游服务未返回 HLS 地址"}), 500
+
         storage.update_stream(stream_uid, stream_url=stream_url)
+
     except requests.RequestException as e:
         return jsonify({"message": f"绑定失败: {e}"}), 500
 
