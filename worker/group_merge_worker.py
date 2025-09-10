@@ -54,8 +54,14 @@ async def group_merge_worker():
             start_ts, end_ts = get_fuse_bool_time_range(streams_frames, fuse_bool)
             for stream_uid in streams_frames.keys():
                 stream_name = sm.get_stream(stream_uid).get("name")
-                export_frame_id = pd.DataFrame(db.get_frames_by_stream_and_time(stream_uid, start_ts, end_ts))['id'].values
-                log("INFO", f"[GROUP MERGE] stream {stream_uid} 需要导出的帧数量: {len(list(export_frame_id))}")
+                export_frame_df = pd.DataFrame(db.get_frames_by_stream_and_time(stream_uid, start_ts, end_ts))
+                if not export_frame_df.empty and 'id' in export_frame_df.columns:
+                    export_frame_id = export_frame_df['id'].values
+                    log("INFO", f"[GROUP MERGE] stream {stream_uid} 需要导出的帧数量: {len(list(export_frame_id))}")
+                else:
+                    log("WARNING", f"[GROUP MERGE] stream {stream_uid} 在时间段 {start_ts} - {end_ts} 没有可用帧，跳过")
+                    await asyncio.sleep(10)
+                    continue
                 unique_frame_data = frame_data.drop_duplicates(subset='frame_id', keep='first')
                 export_frame_index = unique_frame_data['frame_id'].isin(export_frame_id)
                 video_frames = []
