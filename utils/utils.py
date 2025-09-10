@@ -12,7 +12,8 @@ import os
 import base64
 from pathlib import Path
 from comtypes import client
-
+from colorama import init, Fore, Style
+init(autoreset=True)
 
 def docx_to_pdf(docx_path: str, pdf_path: str = None) -> str:
     if not os.path.exists(docx_path):
