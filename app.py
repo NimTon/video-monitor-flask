@@ -77,26 +77,29 @@ def welcome():
 # -------- 视频流管理接口 --------
 @app.route('/api/streams', methods=['POST'])
 def create_stream():
-    # 获取请求中的JSON数据
     data = request.json
-    # 从数据中提取视频流URL
-    stream_url = data['stream_url']
-    # 可选获取视频流名称
+    source_stream_url = data.get('source_stream_url')
     name = data.get('name')
-    # 检查是否已存在相同的视频流
-    if name in [stream_data['name'] for stream_data in storage.list_streams()]:
+    if name in [s.get('name') for s in storage.list_streams() if s.get('name')]:
         return jsonify({"message": "流名称 已存在"}), 400
-    if stream_url in [stream_data['stream_url'] for stream_data in storage.list_streams()]:
+    if source_stream_url in [s.get('stream_url') for s in storage.list_streams() if s.get('stream_url')]:
         return jsonify({"message": "流url 已存在"}), 400
-    # 添加视频流到存储
-    stream_uid = storage.add_stream(stream_url, name)
-    # 调用第二个接口
-    requests.post(
-        f"{FLOW_BASE_URL}/api/bind",
-        data={"stream_uid": stream_uid, "url": stream_url}
-    )
-    # 返回成功响应
-    return jsonify({"message": "视频流创建成功", "stream_uid": stream_uid})
+    stream_uid = storage.add_stream(name=name)
+    try:
+        response = requests.post(
+            f"{FLOW_BASE_URL}/api/bind",
+            data={"stream_uid": stream_uid, "url": source_stream_url}
+        )
+        response.raise_for_status()
+        stream_url = f"{FLOW_BASE_URL}/{response.json().get("data").get("hls_url")}"
+        if not stream_url:
+            return jsonify({"message": "下游服务未返回 HLS 地址"}), 500
+        storage.update_stream(stream_uid, stream_url=stream_url)
+    except requests.RequestException as e:
+        return jsonify({"message": f"绑定失败: {e}"}), 500
+
+    return jsonify({"message": "视频流创建成功", "stream_uid": stream_uid, "stream_url": stream_url})
+
 
 
 @app.route('/api/streams/<stream_uid>', methods=['GET'])
@@ -146,11 +149,13 @@ def delete_stream(stream_uid):
     if not storage.delete_stream(stream_uid):
         # 返回未找到错误
         return jsonify({"message": "未找到对应的视频流"}), 404
-    # 停止并删除关联的视频流线程
-    thread = app.video_threads.get(stream_uid)
-    if thread:
-        thread.stop()
-        del app.video_threads[stream_uid]
+    # 删除关联的转流线程
+    try:
+        resp = requests.delete(f"{FLOW_BASE_URL}/api/unbind/{stream_uid}")
+        if resp.status_code != 200:
+            return jsonify({"message": f"解绑失败: {resp.text}"}), 500
+    except Exception as e:
+        return jsonify({"message": f"调用解绑接口失败: {str(e)}"}), 500
     # 返回成功响应
     return jsonify({"message": "视频流已删除"})
 
@@ -609,164 +614,103 @@ def list_streams_of_recipient(recipient_uid):
     return jsonify(streams)
 
 
-# -------- 源视频流接口 --------
-# 添加拉流代理（RTMP、RTSP、HTTP-FLV 等）
-def add_stream_proxy(uid, url):
-    params = {
-        'secret': ZLMediaKit_secret,
-        'vhost': '__defaultVhost__',
-        'app': 'live',
-        'stream': uid,
-        'url': url,
-        'retry_count': -1,
-        'rtp_type': 0,
-        'timeout_sec': 5,
-        'enable_hls': True,
-        'enable_hls_fmp4': False,
-        'enable_mp4': False,
-        'enable_rtsp': False,
-        'enable_rtmp': False,
-        'enable_ts': False,
-        'enable_fmp4': False,
-        'hls_demand': False,
-        'rtsp_demand': False,
-        'rtmp_demand': False,
-        'ts_demand': False,
-        'fmp4_demand': False,
-        'enable_audio': True,
-        'add_mute_audio': True,
-        'mp4_max_second': 10,
-        'mp4_as_player': False,
-        'auto_close': False,
-    }
-    try:
-        response = requests.get(f'{ZLMediaKit_url}/addStreamProxy', params=params)
-        return response.json()
-    except Exception as e:
-        # print(f'添加拉流代理失败: {e}')
-        return None
-
-
-# 获取拉流代理列表
-def list_stream_proxy():
-    try:
-        response = requests.get(f'{ZLMediaKit_url}/listStreamProxy', params={'secret': ZLMediaKit_secret})
-        if response.json() == {'code': 0}:
-            return {'data': []}
-        else:
-            return response.json()
-    except:
-        return {'data': []}
-
-
-# 删除拉流代理
-def del_stream_proxy(uid):
-    params = {
-        'secret': ZLMediaKit_secret,
-        'key': f'__defaultVhost__/live/{uid}'
-    }
-    try:
-        response = requests.get(f'{ZLMediaKit_url}/delStreamProxy', params=params)
-        return response.json()
-    except Exception as e:
-        print(f'删除拉流代理失败: {e}')
-        return None
-
-
+# ----------------------
+# 源视频流列表
+# ----------------------
 @app.route('/api/source-streams', methods=['GET'])
 def list_source_streams():
-    """列出所有源视频流"""
     try:
-        streams = source_manager.list_source_streams()
-        stream_proxy_list = list_stream_proxy()['data']
-        # 对比拉流代理，设置状态
-        for stream in streams:
-            if any(proxy['src']['stream'] == stream['uid'] for proxy in stream_proxy_list):
-                stream['status'] = 'running'
-            else:
-                stream['status'] = 'stopped'
+        resp = requests.get(f"{FLOW_BASE_URL}/api/list")
+        resp.raise_for_status()  # 非 200 会抛异常
+        data = resp.json().get("data")  # 获取 Flow 返回的 data 字段
+        streams = []
+        for stream_uid, info in data.items():
+            stream_info = storage.get_stream(stream_uid)
+            streams.append({
+                "stream_name": stream_info.get('name'),
+                "stream_uid": stream_uid,
+                "url": info.get("url"),
+                "hls": f'{FLOW_BASE_URL}/{info.get("hls_wm")}',
+                "status": info.get("status")
+            })
         return jsonify(streams), 200
+    except requests.HTTPError as e:
+        return jsonify({"message": f"下游服务返回错误: {e}", "data": []}), resp.status_code
     except Exception as e:
-        return jsonify({"message": str(e)}), 500
+        return jsonify({"message": str(e), "data": []}), 500
 
 
+# ----------------------
+# 添加源视频流
+# ----------------------
 @app.route('/api/source-streams', methods=['POST'])
 def add_source_stream():
-    """添加一个新的源视频流"""
     try:
-        # 获取传入的参数
-        url = request.json.get('url')  # 获取视频流URL
-        stream_id = request.json.get('stream_id')  # 获取视频流ID
-        uid = request.json.get('uid')  # 获取视频流UID
-        if not uid:
-            if stream_id in [stream_data['stream_id'] for stream_data in source_manager.list_source_streams()]:
-                return jsonify({"message": "流id 已存在"}), 400
-            if url in [stream_data['stream_url'] for stream_data in source_manager.list_source_streams()]:
-                return jsonify({"message": "流url 已存在"}), 400
+        url = request.json.get('url')
+        stream_uid = request.json.get('uid')
+        watermark_path = request.json.get('watermark')
         if not url:
-            return jsonify({"message": "stream_url is required"}), 400
-        if not stream_id:
-            return jsonify({"message": "stream_id is required"}), 400
-        if uid == '':
-            # 1. 添加视频流到本地JSON文件
-            uid = source_manager.add_source_stream(url, stream_id)
-        # 2. 调用外部接口添加拉流代理
-        response = add_stream_proxy(uid, url)
-        if not response:
-            return jsonify({"message": "代理服务连接失败"}), 500
+            return jsonify({"message": "url 必填"}), 400
 
-        return jsonify({"streamid": uid}), 200
+        data = {"stream_uid": stream_uid, "url": url}
+        files = {}
+        if watermark_path:
+            files['file'] = open(watermark_path, 'rb')
 
-    except Exception as e:
-        print(e)
-        return jsonify({"message": str(e)}), 500
-
-
-@app.route('/api/source-streams/<uid>', methods=['DELETE'])
-def delete_source_stream(uid):
-    """删除源视频流"""
-    try:
-        # 1. 删除本地 JSON 文件中的视频流
-        success = source_manager.delete_source_stream(uid)
-        if not success:
-            return jsonify({"message": "Stream not found"}), 404
-
-        # 2. 调用外部接口删除拉流代理
-        response = del_stream_proxy(uid)
-        if not response:
-            return jsonify({"message": "Failed to delete stream proxy"}), 500
-
-        return jsonify({"message": "Stream deleted successfully"}), 200
+        resp = requests.post(f"{FLOW_BASE_URL}/api/bind", data=data, files=files)
+        if resp.status_code == 200:
+            return jsonify(resp.json()), 200
+        else:
+            return jsonify({"message": "下游绑定失败", "detail": resp.text}), resp.status_code
     except Exception as e:
         return jsonify({"message": str(e)}), 500
 
 
-@app.route('/api/source-streams/<stream_id>', methods=['GET'])
-def get_source_stream(stream_id):
-    """获取单个源视频流的详情"""
+# ----------------------
+# 启动单条流
+# ----------------------
+@app.route('/api/source-streams/<uid>/start', methods=['POST'])
+def start_source_stream(uid):
     try:
-        stream = source_manager.get_source_stream(stream_id)
-        if stream is None:
-            return jsonify({"message": "Stream not found"}), 404
-        return jsonify(stream), 200
+        resp = requests.post(f"{FLOW_BASE_URL}/api/start/{uid}")
+        if resp.status_code == 200:
+            return jsonify(resp.json()), 200
+        else:
+            return jsonify({"message": "下游启动失败", "detail": resp.text}), resp.status_code
     except Exception as e:
         return jsonify({"message": str(e)}), 500
 
 
-@app.route('/api/source-streams/<stream_id>', methods=['PUT'])
-def update_source_stream(stream_id):
-    """更新源视频流的 URL"""
+# ----------------------
+# 停止单条流
+# ----------------------
+@app.route('/api/source-streams/<uid>/stop', methods=['POST'])
+def stop_source_stream(uid):
     try:
-        stream_url = request.json.get('streamurl')  # 获取视频流URL
-        if not stream_url:
-            return jsonify({"message": "streamurl is required"}), 400
+        resp = requests.post(f"{FLOW_BASE_URL}/api/stop/{uid}")
+        if resp.status_code == 200:
+            return jsonify(resp.json()), 200
+        else:
+            return jsonify({"message": "下游停止失败", "detail": resp.text}), resp.status_code
+    except Exception as e:
+        return jsonify({"message": str(e)}), 500
 
-        # 更新本地 JSON 文件中的视频流信息
-        success = source_manager.update_source_stream(stream_id, stream_url)
-        if not success:
+
+# ----------------------
+# 获取单条流信息
+# ----------------------
+@app.route('/api/source-streams/<uid>', methods=['GET'])
+def get_source_stream(uid):
+    try:
+        resp = requests.get(f"{FLOW_BASE_URL}/api/list")
+        resp.raise_for_status()
+        data = resp.json().get('data', {})
+        if uid in data:
+            return jsonify({"message": "获取成功", "data": data[uid]}), 200
+        else:
             return jsonify({"message": "Stream not found"}), 404
-
-        return jsonify({"message": "Stream updated successfully"}), 200
+    except requests.HTTPError as e:
+        return jsonify({"message": f"下游服务返回错误: {e}"}), resp.status_code
     except Exception as e:
         return jsonify({"message": str(e)}), 500
 
