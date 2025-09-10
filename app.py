@@ -252,7 +252,7 @@ def delete_fence(stream_id, fence_id):
             requests.post(
                 f"{FLOW_BASE_URL}/api/bind",
                 files={"file": ("fence.png", png_bytes, "image/png")},
-                data={"stream_uid": stream_id, "url": url}
+                data={"stream_uid": stream_id}
             )
         else:
             requests.delete(
