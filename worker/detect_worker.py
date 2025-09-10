@@ -6,6 +6,7 @@ from utils.db_utils import db
 from storage import StorageManager
 from utils.stream_utils import get_running_streams, FenceChangeDetector
 from utils.utils import log, resize_to_720p, draw_fence_on_frame
+import time
 
 storage_manger = StorageManager()
 detector = FenceChangeDetector()
@@ -26,11 +27,25 @@ async def capture_stream(stream, queues):
     fences = [f['id'] for f in stream.get("fences", [])]
     os.makedirs(capture_path, exist_ok=True)
     os.makedirs(detect_path, exist_ok=True)
-    cap = cv2.VideoCapture(url)
+    cap = None
+    last_warning = 0  # 用于控制警告频率
     while True:
+        # 如果 cap 不存在或被关闭，尝试重新打开
+        if cap is None or not cap.isOpened():
+            cap = cv2.VideoCapture(url)
+            if not cap.isOpened():
+                now = time.time()
+                if now - last_warning > 5:  # 每 5 秒打印一次警告
+                    log("WARNING", f"[CAPTURE] 无法打开视频流: {stream_name} ({stream_uid}), 正在重试...")
+                    last_warning = now
+                await asyncio.sleep(2)
+                continue
         ret, frame = cap.read()
         if frame is None:
-            log("WARNING", f"[CAPTURE] 读取到空帧: {stream_name} ({stream_uid})")
+            now = time.time()
+            if now - last_warning > 5:  # 每 5 秒打印一次空帧警告
+                log("WARNING", f"[CAPTURE] 读取到空帧: {stream_name} ({stream_uid})")
+                last_warning = now
             await asyncio.sleep(1)
             continue
         frame = resize_to_720p(frame)
@@ -46,7 +61,10 @@ async def capture_stream(stream, queues):
             else:
                 log("FAIL", f"[CAPTURE] 抓取视频帧失败: {stream_name} ({stream_uid}), 保存路径={frame_path}")
         else:
-            log("WARNING", f"[CAPTURE] 读取视频帧失败: {stream_name} ({stream_uid})")
+            now = time.time()
+            if now - last_warning > 5:
+                log("WARNING", f"[CAPTURE] 读取视频帧失败: {stream_name} ({stream_uid})")
+                last_warning = now
         await asyncio.sleep(1)
 
 
