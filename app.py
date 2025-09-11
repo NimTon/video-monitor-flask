@@ -70,7 +70,21 @@ def serve_video(filename):
 # -------- 健康接口 --------
 @app.route('/api/welcome', methods=['GET'])
 def welcome():
-    return jsonify({"message": "服务器在线，欢迎使用视频流管理系统"}), 200
+    try:
+        # 调用下游 welcome 接口
+        resp = requests.get(f"{FLOW_BASE_URL}/api/welcome", timeout=3)
+        resp.raise_for_status()  # 如果状态码不是 200，抛出异常
+    except requests.RequestException as e:
+        return jsonify({
+            "message": "转流服务离线",
+            "status": "fail"
+        }), 200
+
+    return jsonify({
+        "message": "服务器在线，欢迎使用监控预警管理系统",
+        "status": "success"
+    }), 200
+
 
 
 # -------- 视频流管理接口 --------
@@ -80,6 +94,7 @@ def create_stream():
     source_stream_url = data.get('source_stream_url')
     stream_url = data.get('stream_url')
     name = data.get('name')
+    stream_uid = data.get('stream_uid')
     # 检查名称和 URL 是否重复
     if name in [s.get('name') for s in storage.list_streams() if s.get('name')]:
         return jsonify({"message": "流名称 已存在"}), 400
@@ -88,7 +103,7 @@ def create_stream():
     if stream_url in [s.get('stream_url') for s in storage.list_streams() if s.get('stream_url')]:
         return jsonify({"message": "流url 已存在"}), 400
 
-    stream_uid = storage.add_stream(name=name)
+    stream_uid = storage.add_stream(name=name, stream_uid=stream_uid)
 
     try:
         if source_stream_url:
@@ -519,13 +534,28 @@ def add_source_stream():
         watermark_path = request.json.get('watermark')
         if not url:
             return jsonify({"message": "url 必填"}), 400
-
         data = {"stream_uid": stream_uid, "url": url}
         files = {}
         if watermark_path:
             files['file'] = open(watermark_path, 'rb')
-
         resp = requests.post(f"{FLOW_BASE_URL}/api/bind", data=data, files=files)
+        if resp.status_code == 200:
+            return jsonify(resp.json()), 200
+        else:
+            return jsonify({"message": "下游绑定失败", "detail": resp.text}), resp.status_code
+    except Exception as e:
+        return jsonify({"message": str(e)}), 500
+
+# ----------------------
+# 更新源视频流
+# ----------------------
+@app.route('/api/source-streams', methods=['PATCH'])
+def update_source_stream():
+    try:
+        url = request.json.get('source_stream_url')
+        stream_uid = request.json.get('uid')
+        data = {"stream_uid": stream_uid, "url": url}
+        resp = requests.post(f"{FLOW_BASE_URL}/api/bind", json=data)
         if resp.status_code == 200:
             return jsonify(resp.json()), 200
         else:
