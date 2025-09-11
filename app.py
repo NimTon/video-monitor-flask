@@ -1,5 +1,5 @@
 from flask import Flask, request, jsonify, send_from_directory
-from storage import StorageManager, RecipientsManager, AlertStorageManager, SourceStreamManager, MessageManager
+from storage import StorageManager, RecipientsManager, AlertStorageManager, MessageManager
 import requests
 import json
 import os
@@ -25,8 +25,6 @@ storage = StorageManager()
 recipient_mgr = RecipientsManager()
 # 创建报警存储管理器实例
 alert_storage = AlertStorageManager()
-# 创建源视频流管理器实例
-source_manager = SourceStreamManager()
 # 创建 MessageManager 实例
 message_manager = MessageManager()
 # 初始化视频流线程字典，用于存储stream_id到线程的映射
