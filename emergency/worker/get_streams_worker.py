@@ -31,6 +31,7 @@ def get_streams_worker():
 
                 try:
                     live_url = zk_api.get_live_url(lot_source, service_no, device_no)
+                    log("INFO", f"[EMERGENCY STREAM] 设备 {device_name} (UID={stream_uid}) 直播地址: {live_url}")
                 except Exception as e:
                     log("FAIL", f"[EMERGENCY STREAM] 获取设备 {device_name} (UID={stream_uid}) 直播地址失败: {e}")
                     continue
