@@ -2,6 +2,8 @@ from utils.utils import log, chinese_to_pinyin
 from emergency.utils.api_utils import zk_api
 from emergency.config import MACHINE_CODES
 from storage import sm
+import requests
+from config import BASE_URL
 
 
 def get_streams_worker():
@@ -25,7 +27,8 @@ def get_streams_worker():
                 service_no = dev.get("serviceNo")
                 device_no = dev.get("deviceNo")
                 device_name = dev.get("deviceName")
-                stream_uid = chinese_to_pinyin(device_name)
+                stream_uid =  f"{device_no}-{chinese_to_pinyin(device_name)}"
+                # stream_uid = device_no
                 detecting = dev.get("isAi") == 'Y'
                 log("INFO", f"[EMERGENCY STREAM] 处理设备: {device_name} (UID={stream_uid})")
 
@@ -42,12 +45,25 @@ def get_streams_worker():
 
                 # 如果视频流不存在就添加，有则更新
                 stream = sm.get_stream(stream_uid)
-                if not stream:
-                    sm.add_stream(live_url, name=device_name, stream_uid=stream_uid)
-                    log("SUCCESS", f"[EMERGENCY STREAM] 新增视频流: {device_name} (UID={stream_uid})")
-                else:
-                    sm.update_stream(stream_uid, stream_url=live_url)
-                    log("SUCCESS", f"[EMERGENCY STREAM] 更新视频流: {device_name} (UID={stream_uid})")
+                try:
+                    if not stream:
+                        resp = requests.post(f"{BASE_URL}/api/streams", json={
+                            "source_stream_url": live_url,
+                            "name": device_name,
+                            "stream_uid": stream_uid
+                        }, timeout=5)
+                        resp.raise_for_status()
+                        log("SUCCESS", f"[EMERGENCY STREAM] 新增视频流: {device_name} (UID={stream_uid})")
+                    else:
+                        sm.update_stream(stream_uid, stream_url=live_url)
+                        resp = requests.patch(f"{BASE_URL}/api/source-streams", json={
+                            "source_stream_url": live_url,
+                            "stream_uid": stream_uid
+                        }, timeout=5)
+                        resp.raise_for_status()
+                        log("SUCCESS", f"[EMERGENCY STREAM] 更新视频流: {device_name} (UID={stream_uid})")
+                except requests.RequestException as e:
+                    log("FAIL", f"[EMERGENCY STREAM] 管理视频流失败: {device_name} (UID={stream_uid}) ERROR={e}")
                 sm.set_stream_group(stream_uid, warehouse_code)
                 log("SUCCESS", f"[EMERGENCY STREAM] 设置视频流编组: {device_name} (UID={stream_uid}) -> GROUP_UID={warehouse_code}")
                 sm.set_detecting(stream_uid, detecting)
