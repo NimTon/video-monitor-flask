@@ -703,6 +703,5 @@ def unbind_stream_and_recipient(storage_mgr: StorageManager, recipients_mgr: Rec
 sm = StorageManager()
 rm = RecipientsManager()
 asm = AlertStorageManager()
-ssm = SourceStreamManager()
 mm = MessageManager()
 irm = ImageReportManager()
