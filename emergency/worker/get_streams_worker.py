@@ -1,4 +1,4 @@
-from utils.utils import log, chinese_to_pinyin
+from utils.utils import log
 from emergency.utils.api_utils import zk_api
 from emergency.config import MACHINE_CODES
 from storage import sm
@@ -19,6 +19,7 @@ def get_streams_worker():
         log("INFO", f"[EMERGENCY STREAM] 机器 {machine} 获取到 {len(devices)} 个仓库")
         for warehouse in devices:
             warehouse_code = warehouse.get("warehouseCode")
+            owner_code =  warehouse.get("warehouseCode")
             warehouse_devices = warehouse.get("devices", [])
             log("INFO", f"[EMERGENCY STREAM] 仓库 {warehouse_code} 设备数量: {len(warehouse_devices)}")
 
@@ -27,8 +28,7 @@ def get_streams_worker():
                 service_no = dev.get("serviceNo")
                 device_no = dev.get("deviceNo")
                 device_name = dev.get("deviceName")
-                stream_uid =  f"{device_no}-{chinese_to_pinyin(device_name)}"
-                # stream_uid = device_no
+                stream_uid =  f"{owner_code}-{device_no}-{service_no}"
                 detecting = dev.get("isAi") == 'Y'
                 log("INFO", f"[EMERGENCY STREAM] 处理设备: {device_name} (UID={stream_uid})")
 
