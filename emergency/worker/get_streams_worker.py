@@ -77,9 +77,9 @@ def get_streams_worker():
                     for pos in asset_info.get("PositionAssetRelaList", []):
                         fence_uid = pos["positionCode"]
                         fence_points = pos["locationPoint"]
-                        fence_info = [pos["assetList"]["commodityDtoList"][0]["commodityName"],
-                                      pos["assetList"]["commodityDtoList"][0]["commodityCode"],
-                                      pos["assetList"]["ownerEntityName"]]
+                        fence_info = [f'商品名称: {pos["assetList"]["commodityDtoList"][0]["commodityName"]}',
+                                      f'资产编码: {pos["assetList"]["commodityDtoList"][0]["commodityCode"]}',
+                                      f'客户名称: {pos["assetList"]["ownerEntityName"]}']
                         # 4. 更新本地围栏状态
                         bg_frame, pixel_fence_points = relative_to_pixel_fence(url, fence_points)
                         fence_points = [{'x': point[0], 'y': point[1]} for point in fence_points]
