@@ -86,7 +86,6 @@ def welcome():
     }), 200
 
 
-
 # -------- 视频流管理接口 --------
 @app.route('/api/streams', methods=['POST'])
 def create_stream():
@@ -119,12 +118,10 @@ def create_stream():
                 return jsonify({"message": "下游服务未返回 HLS 地址"}), 500
 
         storage.update_stream(stream_uid, stream_url=stream_url)
-
     except requests.RequestException as e:
         return jsonify({"message": f"绑定失败: {e}"}), 500
 
-    return jsonify({"message": "视频流创建成功", "stream_uid": stream_uid, "stream_url": stream_url})
-
+    return jsonify({"message": "视频流创建成功", "data": {"stream_uid": stream_uid, "stream_url": stream_url}})
 
 
 @app.route('/api/streams/<stream_uid>', methods=['GET'])
@@ -545,6 +542,7 @@ def add_source_stream():
             return jsonify({"message": "下游绑定失败", "detail": resp.text}), resp.status_code
     except Exception as e:
         return jsonify({"message": str(e)}), 500
+
 
 # ----------------------
 # 更新源视频流
