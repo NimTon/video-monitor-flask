@@ -1,6 +1,14 @@
 from typing import Dict, Any, Optional, List
 import requests
-from emergency.config import URL_EVENT_UP, URL_GET_DEVICES, URL_UPLOAD_FILE, URL_GET_LIVE_URL, ZK_TOKEN, MACHINE_CODES
+from emergency.config import (
+    URL_EVENT_UP,
+    URL_GET_DEVICES,
+    URL_UPLOAD_FILE,
+    URL_GET_LIVE_URL,
+    URL_QUERY_AND_PUSH_ASSETS,
+    ZK_TOKEN,
+    MACHINE_CODES,
+)
 
 
 class ZhongkaiAPIError(Exception):
@@ -13,11 +21,15 @@ class ZhongkaiAPIError(Exception):
 
 class ZhongkaiAPI:
     def __init__(self):
-        self.headers = {"F-VIDEO-AI-TOKEN": ZK_TOKEN}
+        self.headers = {
+            "F-VIDEO-AI-TOKEN": ZK_TOKEN,
+            "Content-Type": "application/json"
+        }
         self.url_get_devices = URL_GET_DEVICES
         self.url_get_live_url = URL_GET_LIVE_URL
         self.url_upload_file = URL_UPLOAD_FILE
         self.url_event_up = URL_EVENT_UP
+        self.url_query_and_push_assets = URL_QUERY_AND_PUSH_ASSETS
 
     def get_devices(self, machine_code: str) -> Dict[str, Any]:
         """根据机器编号获取仓库库栋列表"""
@@ -43,7 +55,7 @@ class ZhongkaiAPI:
         """上传文件并返回文件编号"""
         with open(file_path, 'rb') as f:
             files = {"file": (file_path, f)}
-            resp = requests.post(self.url_upload_file, headers=self.headers, files=files).json()
+            resp = requests.post(self.url_upload_file, headers={"F-VIDEO-AI-TOKEN": ZK_TOKEN}, files=files).json()
         if resp.get("rspCode") != "00000000":
             raise ZhongkaiAPIError("文件上传失败", resp)
         return resp["data"]
@@ -72,6 +84,25 @@ class ZhongkaiAPI:
         if resp.get("rspCode") != "00000000":
             raise ZhongkaiAPIError("事件上报失败", resp)
         return True
+
+    def query_and_push_assets(
+            self,
+            hj_device_no: str,
+            hj_service_no: str,
+            video_play_url: str,
+            scene_code: str
+    ) -> Dict[str, Any]:
+        """获取仓库资产和围栏信息并推送实时视频流"""
+        payload = {
+            "hjDeviceNo": hj_device_no,
+            "hjServiceNo": hj_service_no,
+            "videoPlayUrl": video_play_url,
+            "sceneCode": scene_code
+        }
+        resp = requests.post(self.url_query_and_push_assets, headers=self.headers, json=payload).json()
+        if "code" in resp and resp.get("code") != 200:  # 第三接口返回格式和前面不一样
+            raise ZhongkaiAPIError("获取资产和围栏信息失败", resp)
+        return resp
 
 
 zk_api = ZhongkaiAPI()
