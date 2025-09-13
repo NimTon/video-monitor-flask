@@ -134,33 +134,71 @@ class StorageManager:
         data = self.load_all()  # 加载数据
         return data  # 返回完整列表
 
-    def add_fence(self, stream_uid, points):
+    def add_fence(self, stream_uid, points, fence_info="", fence_uid=None):
         """为视频流添加围栏"""
-        data = self.load_all()  # 加载数据
-        idx = self._find_stream_index(data, stream_uid)  # 查找流索引
+        data = self.load_all()
+        idx = self._find_stream_index(data, stream_uid)
         if idx == -1:
-            return None  # 未找到
+            return None
 
-        fence_id = str(uuid.uuid4())  # 生成围栏ID
-        fence = {"id": fence_id, "points": points}  # 创建围栏对象
-        data[idx]["fences"].append(fence)  # 添加到围栏列表
-        self.save_all(data)  # 保存
-        return fence_id  # 返回新围栏ID
+        if not fence_uid:
+            fence_uid = str(uuid.uuid4())
+        fence = {
+            "id": fence_uid,
+            "points": points,
+            "fence_info": fence_info  # 新增字段
+        }
+        data[idx]["fences"].append(fence)
+        self.save_all(data)
+        return fence_uid
 
-    def update_fence(self, stream_uid, fence_id, points):
-        """更新围栏坐标点"""
-        data = self.load_all()  # 加载数据
-        sidx = self._find_stream_index(data, stream_uid)  # 查找流索引
+    def update_fence(self, stream_uid, fence_id, points, fence_info=None):
+        """更新围栏坐标点，可同时更新 fence_info"""
+        data = self.load_all()
+        sidx = self._find_stream_index(data, stream_uid)
         if sidx == -1:
             return False
 
-        fidx = self._find_fence_index(data[sidx], fence_id)  # 查找围栏索引
+        fidx = self._find_fence_index(data[sidx], fence_id)
         if fidx == -1:
             return False
 
-        data[sidx]["fences"][fidx]["points"] = points  # 更新坐标点
-        self.save_all(data)  # 保存
-        return True  # 成功
+        if points is not None:
+            data[sidx]["fences"][fidx]["points"] = points
+        if fence_info is not None:
+            data[sidx]["fences"][fidx]["fence_info"] = fence_info
+
+        self.save_all(data)
+        return True
+
+    def update_fence_by_fence_uid(self, stream_uid, fence_id, points, fence_info) -> bool:
+        """更新单个围栏坐标点和信息，返回是否有变化"""
+        data = self.load_all()
+        sidx = self._find_stream_index(data, stream_uid)
+        if sidx == -1:
+            return False
+
+        fidx = self._find_fence_index(data[sidx], fence_id)
+        if fidx == -1:
+            fence = {"id": fence_id, "points": points, "fence_info": fence_info}
+            data[sidx]["fences"].append(fence)
+            self.save_all(data)
+            return True  # 新增算作变化
+
+        fence = data[sidx]["fences"][fidx]
+        changed = False
+
+        if fence.get("points") != points:
+            fence["points"] = points
+            changed = True
+        if fence.get("fence_info") != fence_info:
+            fence["fence_info"] = fence_info
+            changed = True
+
+        if changed:
+            self.save_all(data)
+
+        return changed
 
     def delete_fence(self, stream_uid, fence_id):
         """删除围栏"""
