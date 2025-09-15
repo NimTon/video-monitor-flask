@@ -27,9 +27,9 @@ def get_contrast_color_from_background(bg_frame, points, threshold=130):
 
     # 返回柔和高对比色
     if avg_lum > threshold:
-        return (50, 50, 50)  # 深灰
+        return (0, 0, 0)  # 深灰
     else:
-        return (200, 200, 200)  # 淡灰
+        return (255, 255, 255)  # 淡灰
 
 
 def draw_fence_with_text(bg_frame, fence_points, text_list, font_path=None, font_size=24, line_spacing=1.2):
