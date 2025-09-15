@@ -9,6 +9,7 @@ from utils.utils import draw_fence_on_frame, points_to_abs_points
 import numpy as np
 import cv2
 from config import FLOW_BASE_URL
+import traceback
 
 with open('config.json', encoding='utf-8') as f:
     config = json.load(f)
@@ -177,6 +178,7 @@ def delete_stream(stream_uid):
         if resp.status_code != 200:
             return jsonify({"message": f"解绑失败: {resp.text}"}), 500
     except Exception as e:
+        print(traceback.format_exc())
         return jsonify({"message": f"调用解绑接口失败: {str(e)}"}), 500
     # 返回成功响应
     return jsonify({"message": "视频流已删除"})
@@ -517,6 +519,7 @@ def list_source_streams():
     except requests.HTTPError as e:
         return jsonify({"message": f"下游服务返回错误: {e}", "data": []}), resp.status_code
     except Exception as e:
+        print(traceback.format_exc())
         return jsonify({"message": str(e), "data": []}), 500
 
 
@@ -541,6 +544,7 @@ def add_source_stream():
         else:
             return jsonify({"message": "下游绑定失败", "detail": resp.text}), resp.status_code
     except Exception as e:
+        print(traceback.format_exc())
         return jsonify({"message": str(e)}), 500
 
 
@@ -559,6 +563,7 @@ def update_source_stream():
         else:
             return jsonify({"message": "下游绑定失败", "detail": resp.text}), resp.status_code
     except Exception as e:
+        print(traceback.format_exc())
         return jsonify({"message": str(e)}), 500
 
 
@@ -574,6 +579,7 @@ def start_source_stream(uid):
         else:
             return jsonify({"message": "下游启动失败", "detail": resp.text}), resp.status_code
     except Exception as e:
+        print(traceback.format_exc())
         return jsonify({"message": str(e)}), 500
 
 
@@ -589,6 +595,7 @@ def stop_source_stream(uid):
         else:
             return jsonify({"message": "下游停止失败", "detail": resp.text}), resp.status_code
     except Exception as e:
+        print(traceback.format_exc())
         return jsonify({"message": str(e)}), 500
 
 
@@ -608,6 +615,7 @@ def get_source_stream(uid):
     except requests.HTTPError as e:
         return jsonify({"message": f"下游服务返回错误: {e}"}), resp.status_code
     except Exception as e:
+        print(traceback.format_exc())
         return jsonify({"message": str(e)}), 500
 
 
@@ -634,6 +642,7 @@ def add_message():
         return jsonify({"message_uid": message_uid}), 201
 
     except Exception as e:
+        print(traceback.format_exc())
         return jsonify({"message": str(e)}), 500
 
 
@@ -646,6 +655,7 @@ def get_message(message_uid):
             return jsonify({"message": "Message not found"}), 404
         return jsonify(message), 200
     except Exception as e:
+        print(traceback.format_exc())
         return jsonify({"message": str(e)}), 500
 
 
@@ -663,6 +673,7 @@ def update_message(message_uid):
         return jsonify({"message": "Message updated successfully"}), 200
 
     except Exception as e:
+        print(traceback.format_exc())
         return jsonify({"message": str(e)}), 500
 
 
@@ -677,6 +688,7 @@ def delete_message(message_uid):
         return jsonify({"message": "Message deleted successfully"}), 200
 
     except Exception as e:
+        print(traceback.format_exc())
         return jsonify({"message": str(e)}), 500
 
 
@@ -692,6 +704,7 @@ def list_messages():
         )
         return jsonify(messages), 200
     except Exception as e:
+        print(traceback.format_exc())
         return jsonify({"message": str(e)}), 500
 
 
@@ -707,6 +720,7 @@ def get_messages_by_stream(stream_uid):
         )
         return jsonify(messages), 200
     except Exception as e:
+        print(traceback.format_exc())
         return jsonify({"message": str(e)}), 500
 
 
@@ -717,6 +731,7 @@ def get_messages_by_fence(fence_uid):
         messages = message_manager.get_messages_by_fence(fence_uid)
         return jsonify(messages), 200
     except Exception as e:
+        print(traceback.format_exc())
         return jsonify({"message": str(e)}), 500
 
 
