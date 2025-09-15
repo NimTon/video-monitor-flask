@@ -134,33 +134,71 @@ class StorageManager:
         data = self.load_all()  # 加载数据
         return data  # 返回完整列表
 
-    def add_fence(self, stream_uid, points):
+    def add_fence(self, stream_uid, points, fence_info="", fence_uid=None):
         """为视频流添加围栏"""
-        data = self.load_all()  # 加载数据
-        idx = self._find_stream_index(data, stream_uid)  # 查找流索引
+        data = self.load_all()
+        idx = self._find_stream_index(data, stream_uid)
         if idx == -1:
-            return None  # 未找到
+            return None
 
-        fence_id = str(uuid.uuid4())  # 生成围栏ID
-        fence = {"id": fence_id, "points": points}  # 创建围栏对象
-        data[idx]["fences"].append(fence)  # 添加到围栏列表
-        self.save_all(data)  # 保存
-        return fence_id  # 返回新围栏ID
+        if not fence_uid:
+            fence_uid = str(uuid.uuid4())
+        fence = {
+            "id": fence_uid,
+            "points": points,
+            "fence_info": fence_info  # 新增字段
+        }
+        data[idx]["fences"].append(fence)
+        self.save_all(data)
+        return fence_uid
 
-    def update_fence(self, stream_uid, fence_id, points):
-        """更新围栏坐标点"""
-        data = self.load_all()  # 加载数据
-        sidx = self._find_stream_index(data, stream_uid)  # 查找流索引
+    def update_fence(self, stream_uid, fence_id, points, fence_info=None):
+        """更新围栏坐标点，可同时更新 fence_info"""
+        data = self.load_all()
+        sidx = self._find_stream_index(data, stream_uid)
         if sidx == -1:
             return False
 
-        fidx = self._find_fence_index(data[sidx], fence_id)  # 查找围栏索引
+        fidx = self._find_fence_index(data[sidx], fence_id)
         if fidx == -1:
             return False
 
-        data[sidx]["fences"][fidx]["points"] = points  # 更新坐标点
-        self.save_all(data)  # 保存
-        return True  # 成功
+        if points is not None:
+            data[sidx]["fences"][fidx]["points"] = points
+        if fence_info is not None:
+            data[sidx]["fences"][fidx]["fence_info"] = fence_info
+
+        self.save_all(data)
+        return True
+
+    def update_fence_by_fence_uid(self, stream_uid, fence_id, points, fence_info) -> bool:
+        """更新单个围栏坐标点和信息，返回是否有变化"""
+        data = self.load_all()
+        sidx = self._find_stream_index(data, stream_uid)
+        if sidx == -1:
+            return False
+
+        fidx = self._find_fence_index(data[sidx], fence_id)
+        if fidx == -1:
+            fence = {"id": fence_id, "points": points, "fence_info": fence_info}
+            data[sidx]["fences"].append(fence)
+            self.save_all(data)
+            return True  # 新增算作变化
+
+        fence = data[sidx]["fences"][fidx]
+        changed = False
+
+        if fence.get("points") != points:
+            fence["points"] = points
+            changed = True
+        if fence.get("fence_info") != fence_info:
+            fence["fence_info"] = fence_info
+            changed = True
+
+        if changed:
+            self.save_all(data)
+
+        return changed
 
     def delete_fence(self, stream_uid, fence_id):
         """删除围栏"""
@@ -404,90 +442,6 @@ class AlertStorageManager:
         data = self.load_all()  # 加载现有数据(实际未使用)
         data = templates  # 直接替换为新模板
         self.save_all(data)  # 保存
-
-
-class SourceStreamManager:
-    """源视频流管理类，负责管理源视频流数据的CRUD操作"""
-
-    def __init__(self, filepath='source_streams.json'):
-        """初始化源视频流管理器"""
-        self.filepath = filepath  # 存储文件路径
-        self.lock = threading.Lock()  # 创建线程锁
-
-        # 初始化数据文件
-        if not os.path.exists(filepath):  # 文件不存在
-            with open(filepath, 'w', encoding='utf-8') as f:  # 创建新文件
-                json.dump([], f, indent=2, ensure_ascii=False)  # 写入空列表
-
-    def load_all(self):
-        """加载所有源视频流数据"""
-        with self.lock:  # 加锁
-            with open(self.filepath, 'r', encoding='utf-8') as f:
-                return json.load(f)  # 返回解析后的数据
-
-    def save_all(self, data):
-        """保存所有源视频流数据"""
-        with self.lock:  # 加锁
-            with open(self.filepath, 'w', encoding='utf-8') as f:
-                json.dump(data, f, indent=2, ensure_ascii=False)  # 格式化写入
-
-    def _find_source_stream_index(self, data, uid):
-        """内部方法：根据stream_id查找源视频流的索引"""
-        for i, stream in enumerate(data):  # 遍历所有源视频流
-            if stream["uid"] == uid:  # 匹配uid
-                return i  # 返回索引位置
-        return -1  # 未找到返回-1
-
-    def add_source_stream(self, stream_url, stream_id):
-        """添加新源视频流"""
-        data = self.load_all()  # 加载现有数据
-        stream_uid = str(uuid.uuid4())  # 生成唯一ID
-
-        # 创建新源视频流对象
-        new_stream = {
-            "uid": stream_uid,  # 唯一标识
-            "stream_id": stream_id,  # 显示标识
-            "stream_url": stream_url  # 视频流URL
-        }
-
-        data.append(new_stream)  # 添加到数据列表
-        self.save_all(data)  # 保存数据
-        return stream_uid  # 返回新流ID
-
-    def update_source_stream(self, stream_id, stream_url):
-        """更新源视频流的URL"""
-        data = self.load_all()  # 加载数据
-        idx = self._find_source_stream_index(data, stream_id)  # 查找索引
-        if idx == -1:
-            return False  # 未找到返回False
-
-        # 更新视频流URL
-        data[idx]["streamurl"] = stream_url
-        self.save_all(data)  # 保存更新
-        return True  # 成功返回True
-
-    def delete_source_stream(self, uid):
-        """删除源视频流"""
-        data = self.load_all()  # 加载数据
-        idx = self._find_source_stream_index(data, uid)  # 查找索引
-        if idx != -1:
-            data.pop(idx)  # 移除元素
-            self.save_all(data)  # 保存
-            return True  # 成功
-        return False  # 未找到
-
-    def get_source_stream(self, stream_id):
-        """获取单个源视频流详情"""
-        data = self.load_all()  # 加载数据
-        for stream in data:  # 遍历查找
-            if stream["streamid"] == stream_id:
-                return stream  # 返回匹配项
-        return None  # 未找到返回None
-
-    def list_source_streams(self):
-        """列出所有源视频流"""
-        data = self.load_all()  # 加载数据
-        return data  # 返回完整列表
 
 
 class MessageManager:
@@ -787,6 +741,5 @@ def unbind_stream_and_recipient(storage_mgr: StorageManager, recipients_mgr: Rec
 sm = StorageManager()
 rm = RecipientsManager()
 asm = AlertStorageManager()
-ssm = SourceStreamManager()
 mm = MessageManager()
 irm = ImageReportManager()

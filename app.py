@@ -1,5 +1,5 @@
 from flask import Flask, request, jsonify, send_from_directory
-from storage import StorageManager, RecipientsManager, AlertStorageManager, SourceStreamManager, MessageManager
+from storage import StorageManager, RecipientsManager, AlertStorageManager, MessageManager
 import requests
 import json
 import os
@@ -9,6 +9,7 @@ from utils.utils import draw_fence_on_frame, points_to_abs_points
 import numpy as np
 import cv2
 from config import FLOW_BASE_URL
+import traceback
 
 with open('config.json', encoding='utf-8') as f:
     config = json.load(f)
@@ -25,8 +26,6 @@ storage = StorageManager()
 recipient_mgr = RecipientsManager()
 # 创建报警存储管理器实例
 alert_storage = AlertStorageManager()
-# 创建源视频流管理器实例
-source_manager = SourceStreamManager()
 # 创建 MessageManager 实例
 message_manager = MessageManager()
 # 初始化视频流线程字典，用于存储stream_id到线程的映射
@@ -72,7 +71,20 @@ def serve_video(filename):
 # -------- 健康接口 --------
 @app.route('/api/welcome', methods=['GET'])
 def welcome():
-    return jsonify({"message": "服务器在线，欢迎使用视频流管理系统"}), 200
+    try:
+        # 调用下游 welcome 接口
+        resp = requests.get(f"{FLOW_BASE_URL}/api/welcome", timeout=3)
+        resp.raise_for_status()  # 如果状态码不是 200，抛出异常
+    except requests.RequestException as e:
+        return jsonify({
+            "message": "转流服务离线",
+            "status": "fail"
+        }), 200
+
+    return jsonify({
+        "message": "服务器在线，欢迎使用监控预警管理系统",
+        "status": "success"
+    }), 200
 
 
 # -------- 视频流管理接口 --------
@@ -82,6 +94,7 @@ def create_stream():
     source_stream_url = data.get('source_stream_url')
     stream_url = data.get('stream_url')
     name = data.get('name')
+    stream_uid = data.get('stream_uid')
     # 检查名称和 URL 是否重复
     if name in [s.get('name') for s in storage.list_streams() if s.get('name')]:
         return jsonify({"message": "流名称 已存在"}), 400
@@ -90,7 +103,7 @@ def create_stream():
     if stream_url in [s.get('stream_url') for s in storage.list_streams() if s.get('stream_url')]:
         return jsonify({"message": "流url 已存在"}), 400
 
-    stream_uid = storage.add_stream(name=name)
+    stream_uid = storage.add_stream(name=name, stream_uid=stream_uid)
 
     try:
         if source_stream_url:
@@ -106,12 +119,10 @@ def create_stream():
                 return jsonify({"message": "下游服务未返回 HLS 地址"}), 500
 
         storage.update_stream(stream_uid, stream_url=stream_url)
-
     except requests.RequestException as e:
         return jsonify({"message": f"绑定失败: {e}"}), 500
 
-    return jsonify({"message": "视频流创建成功", "stream_uid": stream_uid, "stream_url": stream_url})
-
+    return jsonify({"message": "视频流创建成功", "data": {"stream_uid": stream_uid, "stream_url": stream_url}})
 
 
 @app.route('/api/streams/<stream_uid>', methods=['GET'])
@@ -167,6 +178,7 @@ def delete_stream(stream_uid):
         if resp.status_code != 200:
             return jsonify({"message": f"解绑失败: {resp.text}"}), 500
     except Exception as e:
+        print(traceback.format_exc())
         return jsonify({"message": f"调用解绑接口失败: {str(e)}"}), 500
     # 返回成功响应
     return jsonify({"message": "视频流已删除"})
@@ -507,6 +519,7 @@ def list_source_streams():
     except requests.HTTPError as e:
         return jsonify({"message": f"下游服务返回错误: {e}", "data": []}), resp.status_code
     except Exception as e:
+        print(traceback.format_exc())
         return jsonify({"message": str(e), "data": []}), 500
 
 
@@ -521,18 +534,36 @@ def add_source_stream():
         watermark_path = request.json.get('watermark')
         if not url:
             return jsonify({"message": "url 必填"}), 400
-
         data = {"stream_uid": stream_uid, "url": url}
         files = {}
         if watermark_path:
             files['file'] = open(watermark_path, 'rb')
-
         resp = requests.post(f"{FLOW_BASE_URL}/api/bind", data=data, files=files)
         if resp.status_code == 200:
             return jsonify(resp.json()), 200
         else:
             return jsonify({"message": "下游绑定失败", "detail": resp.text}), resp.status_code
     except Exception as e:
+        print(traceback.format_exc())
+        return jsonify({"message": str(e)}), 500
+
+
+# ----------------------
+# 更新源视频流
+# ----------------------
+@app.route('/api/source-streams', methods=['PATCH'])
+def update_source_stream():
+    try:
+        url = request.json.get('source_stream_url')
+        stream_uid = request.json.get('uid')
+        data = {"stream_uid": stream_uid, "url": url}
+        resp = requests.post(f"{FLOW_BASE_URL}/api/bind", json=data)
+        if resp.status_code == 200:
+            return jsonify(resp.json()), 200
+        else:
+            return jsonify({"message": "下游绑定失败", "detail": resp.text}), resp.status_code
+    except Exception as e:
+        print(traceback.format_exc())
         return jsonify({"message": str(e)}), 500
 
 
@@ -548,6 +579,7 @@ def start_source_stream(uid):
         else:
             return jsonify({"message": "下游启动失败", "detail": resp.text}), resp.status_code
     except Exception as e:
+        print(traceback.format_exc())
         return jsonify({"message": str(e)}), 500
 
 
@@ -563,6 +595,7 @@ def stop_source_stream(uid):
         else:
             return jsonify({"message": "下游停止失败", "detail": resp.text}), resp.status_code
     except Exception as e:
+        print(traceback.format_exc())
         return jsonify({"message": str(e)}), 500
 
 
@@ -582,6 +615,7 @@ def get_source_stream(uid):
     except requests.HTTPError as e:
         return jsonify({"message": f"下游服务返回错误: {e}"}), resp.status_code
     except Exception as e:
+        print(traceback.format_exc())
         return jsonify({"message": str(e)}), 500
 
 
@@ -608,6 +642,7 @@ def add_message():
         return jsonify({"message_uid": message_uid}), 201
 
     except Exception as e:
+        print(traceback.format_exc())
         return jsonify({"message": str(e)}), 500
 
 
@@ -620,6 +655,7 @@ def get_message(message_uid):
             return jsonify({"message": "Message not found"}), 404
         return jsonify(message), 200
     except Exception as e:
+        print(traceback.format_exc())
         return jsonify({"message": str(e)}), 500
 
 
@@ -637,6 +673,7 @@ def update_message(message_uid):
         return jsonify({"message": "Message updated successfully"}), 200
 
     except Exception as e:
+        print(traceback.format_exc())
         return jsonify({"message": str(e)}), 500
 
 
@@ -651,6 +688,7 @@ def delete_message(message_uid):
         return jsonify({"message": "Message deleted successfully"}), 200
 
     except Exception as e:
+        print(traceback.format_exc())
         return jsonify({"message": str(e)}), 500
 
 
@@ -666,6 +704,7 @@ def list_messages():
         )
         return jsonify(messages), 200
     except Exception as e:
+        print(traceback.format_exc())
         return jsonify({"message": str(e)}), 500
 
 
@@ -681,6 +720,7 @@ def get_messages_by_stream(stream_uid):
         )
         return jsonify(messages), 200
     except Exception as e:
+        print(traceback.format_exc())
         return jsonify({"message": str(e)}), 500
 
 
@@ -691,6 +731,7 @@ def get_messages_by_fence(fence_uid):
         messages = message_manager.get_messages_by_fence(fence_uid)
         return jsonify(messages), 200
     except Exception as e:
+        print(traceback.format_exc())
         return jsonify({"message": str(e)}), 500
 
 

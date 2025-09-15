@@ -10,10 +10,75 @@ from docx.enum.text import WD_PARAGRAPH_ALIGNMENT
 from docx.shared import RGBColor
 import os
 import base64
-from pathlib import Path
 from comtypes import client
 from colorama import init, Fore, Style
+
 init(autoreset=True)
+
+
+def to_png_bytes(img: np.ndarray) -> bytes:
+    """
+    将 OpenCV 图像编码为 PNG 字节流
+
+    参数:
+    - img: np.ndarray，BGR 或 BGRA 图像
+
+    返回:
+    - bytes，PNG 格式字节流
+    """
+    success, buf = cv2.imencode(".png", img)
+    if not success:
+        raise ValueError("PNG 编码失败")
+    return buf.tobytes()
+
+
+def capture_frame_from_url(url: str) -> np.ndarray:
+    """
+    从视频流 URL 捕获一帧
+    """
+    cap = cv2.VideoCapture(url)
+    if not cap.isOpened():
+        raise ValueError(f"无法打开视频流: {url}")
+    ret, frame = cap.read()
+    cap.release()
+    if not ret:
+        raise ValueError(f"无法从视频流获取帧: {url}")
+    return frame
+
+
+from typing import List, Tuple
+import numpy as np
+import cv2
+
+def relative_to_pixel_fence(url: str, relative_fence_points: List[List[float]]) -> Tuple[np.ndarray, List[Tuple[int, int]]]:
+    """
+    将归一化 fence_points 转换为像素坐标
+
+    Args:
+        url: 视频流 URL
+        relative_fence_points: [[x_rel, y_rel], ...] 归一化坐标，x_rel,y_rel ∈ [0,1]
+
+    Returns:
+        frame: 视频帧 np.ndarray
+        pixel_points: [(x_pixel, y_pixel), ...] 像素坐标
+    """
+    frame = capture_frame_from_url(url)  # 自己定义的抓帧函数
+    if frame is None or frame.size == 0:
+        raise ValueError(f"无法从 {url} 获取有效帧")
+
+    h, w = frame.shape[:2]
+
+    pixel_points = [
+        (
+            max(0, min(int(x_rel * w), w - 1)),
+            max(0, min(int(y_rel * h), h - 1))
+        )
+        for x_rel, y_rel in relative_fence_points
+    ]
+
+    return frame, pixel_points
+
+
 
 def docx_to_pdf(docx_path: str, pdf_path: str = None) -> str:
     if not os.path.exists(docx_path):
@@ -166,7 +231,6 @@ def draw_fence_on_frame(frame, fence_points):
         frame[mask] = overlay[mask]
 
     return frame
-
 
 
 def cv2_frame_to_base64(frame):
