@@ -236,12 +236,13 @@ def run_cycle():
 
         for warehouse in devices_data.get("data", []):
             devices = warehouse.get("devices", [])
+            owner_code = warehouse.get("warehouseCode")
             for dev in devices:
                 lot_source = dev.get("lotSource")
                 service_no = dev.get("serviceNo")
                 device_no = dev.get("deviceNo")
                 device_name = dev.get("deviceName")
-                stream_uid = chinese_to_pinyin(device_name)
+                stream_uid = f"{owner_code}-{device_no}-{service_no}"
 
                 live_url = api.get_live_url(lot_source, service_no, device_no)
                 if not live_url:
