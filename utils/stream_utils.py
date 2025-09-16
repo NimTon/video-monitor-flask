@@ -124,7 +124,7 @@ class FenceChangeDetector:
         self.points = []  # 存储围栏顶点坐标
         self.drawing_done = False  # 标记围栏是否绘制完成
         # 创建背景减除器（基于混合高斯模型）
-        self.backSub = cv2.createBackgroundSubtractorMOG2(history=20, varThreshold=50, detectShadows=True)
+        self.backSub = cv2.createBackgroundSubtractorMOG2(history=60, varThreshold=50, detectShadows=True)
         # 创建椭圆形态学核（用于降噪）
         self.kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (3, 3))
         self.fence_area = 0  # 电子围栏区域面积（像素）
