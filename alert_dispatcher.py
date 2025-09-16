@@ -22,7 +22,7 @@ import urllib  # URL处理
 import urllib.request  # URL请求
 import numpy as np
 from storage import MessageManager
-from utils import save_frames_as_video, save_key_frames, md5
+from utils import save_frames_as_video, save_key_frames, md5, cv2_frame_to_base64
 
 message_manager = MessageManager()
 
