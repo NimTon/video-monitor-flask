@@ -14,38 +14,30 @@ with open('prompts.json', encoding='utf-8') as f:
     prompts = json.load(f)
 prompt = prompts['normal']
 
-def extract_json_dict_from_ai_reply(text):
+def extract_json_dict_from_ai_reply(text: str):
     """
     从 AI 返回的文本中提取 markdown 格式中的 JSON 字符串并转换为 dict。
-
-    参数:
-        text (str): 包含 AI 返回内容的字符串。
-
-    返回:
-        dict 或 None: 成功返回 dict，失败返回 None。
     """
-    text = text.replace("```", "").replace("json", "").replace("，", ",")
-    match = re.search(r'```json(.*?)```', text, re.DOTALL)
+    # 先找 markdown 格式的 ```json ... ```
+    match = re.search(r'```json(.*?)```', text, re.DOTALL | re.IGNORECASE)
     if match:
         json_str = match.group(1).strip()
-        try:
-            data = json.loads(json_str)
-            return data  # 直接返回 dict
-        except json.JSONDecodeError as e:
-            print("JSON 解析失败:", e)
-            return None
     else:
-        text = text.strip()
-        try:
-            # 尝试作为标准 JSON 解析
-            return json.loads(text)
-        except json.JSONDecodeError:
-            try:
-                # 尝试作为 Python dict 字符串解析
-                return ast.literal_eval(text)
-            except Exception as e:
-                print("解析失败:", e)
-                return None
+        # 没有包裹代码块，就用整个字符串
+        json_str = text.strip()
+
+    # 尝试 JSON 解析
+    try:
+        return json.loads(json_str)
+    except json.JSONDecodeError:
+        pass
+
+    # 尝试 Python 字典格式解析
+    try:
+        return ast.literal_eval(json_str)
+    except Exception as e:
+        print("解析失败:", e)
+        return None
 
 
 # 使用OpenAI客户端调用通义千问API
