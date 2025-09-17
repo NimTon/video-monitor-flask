@@ -13,8 +13,25 @@ import os
 import base64
 from comtypes import client
 from colorama import init, Fore, Style
+import asyncio
 
 init(autoreset=True)
+
+
+async def clean_task(paths, interval=24*3600, days=7):
+    """
+    异步定时清理任务
+    - 启动时立即执行一次
+    - 之后每隔 interval 秒执行一次
+    """
+    while True:
+        for path in paths:
+            cleared_path = clean_old_files(path, days)
+            if cleared_path:
+                log("INFO", f"清理了 {path} 中 {len(cleared_path)} 个过期文件")
+        # 首次执行完直接等待 interval 秒，再执行下一轮
+        await asyncio.sleep(interval)
+
 
 
 def clean_old_files(path: str, day: int):
@@ -66,6 +83,7 @@ def log_multiline(level: str, *messages):
             else:
                 print(f"{indent}{line}")
 
+
 def to_png_bytes(img: np.ndarray) -> bytes:
     """
     将 OpenCV 图像编码为 PNG 字节流
@@ -100,6 +118,7 @@ from typing import List, Tuple
 import numpy as np
 import cv2
 
+
 def relative_to_pixel_fence(url: str, relative_fence_points: List[List[float]]) -> Tuple[np.ndarray, List[Tuple[int, int]]]:
     """
     将归一化 fence_points 转换为像素坐标
@@ -127,7 +146,6 @@ def relative_to_pixel_fence(url: str, relative_fence_points: List[List[float]]) 
     ]
 
     return frame, pixel_points
-
 
 
 def docx_to_pdf(docx_path: str, pdf_path: str = None) -> str:
