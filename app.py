@@ -5,11 +5,13 @@ import json
 import os
 from datetime import datetime
 from utils.stream_utils import get_video_size
-from utils.utils import draw_fence_on_frame, points_to_abs_points, clean_old_files, log
+from utils.utils import draw_fence_on_frame, points_to_abs_points, clean_old_files, log, clean_task
 import numpy as np
 import cv2
-from config import FLOW_BASE_URL
+from config import FLOW_BASE_URL, HOST, PORT
 import traceback
+import asyncio
+import threading
 
 with open('config.json', encoding='utf-8') as f:
     config = json.load(f)
@@ -40,12 +42,7 @@ ZLMediaKit_url = config['zlmk_url']  # 虚拟机
 IMAGE_DIR = os.path.join(os.getcwd(), 'images')  # 绝对路径更安全
 # 视频存放路径
 VIDEO_DIR = os.path.join(os.getcwd(), 'videos')  # 绝对路径更安全
-PORT = config['port']
 
-for path in [IMAGE_DIR, VIDEO_DIR]:
-    cleared_path = clean_old_files(path, 7)
-    if len(cleared_path) > 0:
-        log("INFO", f"清理了 {path} 中 {len(cleared_path)} 个过期文件")
 
 # -------- 前端路由 --------
 @app.route('/', defaults={'path': ''})
@@ -739,7 +736,18 @@ def get_messages_by_fence(fence_uid):
         return jsonify({"message": str(e)}), 500
 
 
+def run_flask():
+    """独立线程运行 Flask"""
+    app.run(host=HOST, port=PORT)
+
+
 # 主程序入口
 if __name__ == '__main__':
-    # 启动Flask应用
-    app.run(host='0.0.0.0', port=PORT)
+    # 启动 Flask
+    flask_thread = threading.Thread(target=run_flask, daemon=True)
+    flask_thread.start()
+
+    # 启动异步清理任务
+    loop = asyncio.get_event_loop()
+    loop.create_task(clean_task([VIDEO_DIR, IMAGE_DIR]))
+    loop.run_forever()
