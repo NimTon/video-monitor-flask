@@ -555,9 +555,9 @@ def add_source_stream():
 def update_source_stream():
     try:
         url = request.json.get('source_stream_url')
-        stream_uid = request.json.get('uid')
+        stream_uid = request.json.get('stream_uid')
         data = {"stream_uid": stream_uid, "url": url}
-        resp = requests.post(f"{FLOW_BASE_URL}/api/bind", json=data)
+        resp = requests.post(f"{FLOW_BASE_URL}/api/bind", data=data)
         if resp.status_code == 200:
             return jsonify(resp.json()), 200
         else:
