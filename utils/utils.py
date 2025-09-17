@@ -1,4 +1,5 @@
 import cv2
+import time
 import numpy as np
 from datetime import datetime
 from PIL import Image
@@ -14,6 +15,33 @@ from comtypes import client
 from colorama import init, Fore, Style
 
 init(autoreset=True)
+
+
+def clean_old_files(path: str, day: int):
+    """
+    清理 path 下修改时间距今超过 day 天的文件
+    :param path: 文件夹路径
+    :param day: 天数阈值
+    :return: 被删除文件的路径列表
+    """
+    if not os.path.exists(path):
+        return []
+
+    now = time.time()
+    cutoff = now - day * 86400  # 转换为秒
+    removed_files = []
+
+    for root, dirs, files in os.walk(path):
+        for filename in files:
+            file_path = os.path.join(root, filename)
+            try:
+                if os.path.getmtime(file_path) < cutoff:
+                    os.remove(file_path)
+                    removed_files.append(file_path)
+            except Exception:
+                pass  # 出错时忽略
+
+    return removed_files
 
 def log_multiline(level: str, *messages):
     """多行日志打印，第一行带时间戳，其余行缩进对齐"""
