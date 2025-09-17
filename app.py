@@ -5,7 +5,7 @@ import json
 import os
 from datetime import datetime
 from utils.stream_utils import get_video_size
-from utils.utils import draw_fence_on_frame, points_to_abs_points
+from utils.utils import draw_fence_on_frame, points_to_abs_points, clean_old_files, log
 import numpy as np
 import cv2
 from config import FLOW_BASE_URL
@@ -42,6 +42,10 @@ IMAGE_DIR = os.path.join(os.getcwd(), 'images')  # 绝对路径更安全
 VIDEO_DIR = os.path.join(os.getcwd(), 'videos')  # 绝对路径更安全
 PORT = config['port']
 
+for path in [IMAGE_DIR, VIDEO_DIR]:
+    cleared_path = clean_old_files(path, 7)
+    if len(cleared_path) > 0:
+        log("INFO", f"清理了 {path} 中 {len(cleared_path)} 个过期文件")
 
 # -------- 前端路由 --------
 @app.route('/', defaults={'path': ''})
