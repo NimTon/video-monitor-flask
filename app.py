@@ -748,6 +748,4 @@ if __name__ == '__main__':
     flask_thread.start()
 
     # 启动异步清理任务
-    loop = asyncio.get_event_loop()
-    loop.create_task(clean_task([VIDEO_DIR, IMAGE_DIR]))
-    loop.run_forever()
+    asyncio.run(clean_task([VIDEO_DIR, IMAGE_DIR]))
