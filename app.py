@@ -1,6 +1,8 @@
 # 导入Flask框架及相关模块
 import threading
 from flask import Flask, request, jsonify, send_from_directory
+import queue
+from utils import clean_old_files
 # 从video_monitor.video_stream模块导入VideoStreamThread类
 from video_monitor.video_stream import VideoStreamThread
 # 从storage模块导入三个管理类
@@ -12,6 +14,8 @@ import os
 import json
 from datetime import datetime
 
+# 全局任务队列
+alert_task_queue = queue.Queue()
 # 设置前端静态文件目录
 FRONTEND_DIST = os.path.join(os.path.dirname(__file__), "frontend", "dist")
 # 创建Flask应用实例
@@ -41,6 +45,11 @@ ZLMediaKit_url = config['zlmk_url']  # 虚拟机
 IMAGE_DIR = os.path.join(os.getcwd(), 'images')  # 绝对路径更安全
 # 视频存放路径
 VIDEO_DIR = os.path.join(os.getcwd(), 'videos')  # 绝对路径更安全
+
+for path in [IMAGE_DIR, VIDEO_DIR]:
+    cleared_path = clean_old_files(path, 7)
+    if len(cleared_path) > 0:
+        print(f"清理了 {path} 中 {len(cleared_path)} 个过期文件")
 
 
 # -------- 前端路由 --------
@@ -203,6 +212,25 @@ def list_fences(stream_id):
     return jsonify(fences)
 
 
+
+def alert_worker():
+    """消费者线程：逐个处理报警任务"""
+    while True:
+        try:
+            sid, fence_result, frames = alert_task_queue.get()
+            if sid is None:  # 退出信号
+                break
+            dispatch_alert_multi_frames(sid, fence_result, frames)
+        except Exception as e:
+            print(f"报警处理异常: {e}")
+        finally:
+            alert_task_queue.task_done()
+
+
+# 启动消费者线程
+worker_thread = threading.Thread(target=alert_worker, daemon=True)
+worker_thread.start()
+
 # -------- 视频流线程控制接口 --------
 @app.route('/api/streams/<stream_id>/start', methods=['POST'])
 def start_stream(stream_id):
@@ -259,15 +287,23 @@ def start_stream(stream_id):
         return jsonify({"message": "请先设置至少一个有效的电子围栏（至少3个点）"}), 400
 
     # 定义结果回调函数
+    # def result_callback(sid, results, frames):
+    #     for r in results:
+    #         print(name, r, len(frames))
+    #         if r.get("changed"):
+    #             threading.Thread(
+    #                 target=dispatch_alert_multi_frames,
+    #                 args=(sid, r, frames),
+    #                 daemon=True
+    #             ).start()
+    # result_callback：只投递任务，不直接调用
+
     def result_callback(sid, results, frames):
         for r in results:
-            print(name, r, len(frames))
             if r.get("changed"):
-                threading.Thread(
-                    target=dispatch_alert_multi_frames,
-                    args=(sid, r, frames),
-                    daemon=True
-                ).start()
+                # 投递到队列
+                alert_task_queue.put((sid, r, frames))
+                print(f"📥 已加入报警队列: {sid}, fence={r.get('fence_id')}, 帧数={len(frames)}")
 
     # 创建并启动视频流线程
     thread = VideoStreamThread(
