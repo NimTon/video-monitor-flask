@@ -8,6 +8,35 @@ from PIL import Image
 import io
 import base64  # Base64编码库
 from pypinyin import lazy_pinyin
+import time
+
+
+def clean_old_files(path: str, day: int):
+    """
+    清理 path 下修改时间距今超过 day 天的文件（不删除目录）
+    :param path: 文件夹路径
+    :param day: 天数阈值
+    :return: 被删除文件的路径列表
+    """
+    if not os.path.exists(path):
+        return []
+
+    now = time.time()
+    cutoff = now - day * 86400  # 秒
+    removed_files = []
+
+    for root, dirs, files in os.walk(path):
+        for filename in files:
+            file_path = os.path.join(root, filename)
+            try:
+                if os.path.isfile(file_path) and os.path.getmtime(file_path) < cutoff:
+                    os.remove(file_path)
+                    removed_files.append(file_path)
+            except Exception:
+                pass  # 忽略出错的文件
+
+    return removed_files
+
 
 # 在报警分发时，给frame加上红色围栏标记
 def draw_fence_on_frame(frame, fence_points):
@@ -178,6 +207,7 @@ def resize_to_720p(frame):
     target_w = int(w * scale)
     resized = cv2.resize(frame, (target_w, target_h), interpolation=cv2.INTER_AREA)
     return resized
+
 
 def chinese_to_pinyin(text):
     """把中文字符转为拼音，其它字符保持不变"""
