@@ -7,11 +7,14 @@ with open('config.json', encoding='utf-8') as f:
     config = json.load(f)
 SAY_IMAGES_URL = config['local_ai_images_url']
 SAY_VIDEO_URL = config['local_ai_video_url']
-with open('prompts.json', encoding='utf-8') as f:
-    prompts = json.load(f)
-prompt = prompts['normal']
 
-def call_local_ai_model(image_paths=None, video_path=None, prompt=prompt):
+
+def call_local_ai_model(image_paths=None, video_path=None, prompt=None):
+    if not prompt:
+        with open('prompts.json', encoding='utf-8') as f:
+            prompts = json.load(f)
+        prompt = prompts['normal']
+
     files = []
     opened_files = []
     url = None
