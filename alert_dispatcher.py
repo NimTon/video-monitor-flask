@@ -223,17 +223,18 @@ def dispatch_alert_multi_frames(stream_id, fence_result, frames):
     ai_report = None
     # base64_images = [cv2_frame_to_base64(f) for f in frames]  # frames_to_return 是 BGR numpy数组列表
     # ai_report = call_qwen_via_client(base64_images)  # 通义千问大模型
-    # ai_report = call_local_ai_model(image_paths=image_paths)  # 本地大模型（图片）
-    ai_report = call_local_ai_model(video_path=video_path)  # 本地大模型（视频）
-
+    ai_report = call_local_ai_model(image_paths=image_paths)  # 本地大模型（图片）
+    # ai_report = call_local_ai_model(video_path=video_path)  # 本地大模型（视频）
     if not ai_report:
         print('AI识别失效')
-    elif ai_report['status'] == "正常":
-        # 如果正常，不触发报警，释放帧内存
-        print(f"stream_name:{stream_name} fence_id:{fence_id} 一切正常")
         del frames
         return  # 不触发报警，结束函数
-
+    if isinstance(ai_report, dict):
+        if ai_report.get('status') == "正常":
+            # 如果正常，不触发报警，释放帧内存
+            print('一切正常')
+            del frames
+            return  # 不触发报警，结束函数
     # 存入message.json
     message_manager.add_message(stream_uid=stream_id, fence_uid=fence_id, stream_name=stream_name,
                                 change_ratio=f"{ratio:.2f}", ai_report=str(ai_report), image_before_url=image_urls[0],
@@ -282,6 +283,7 @@ def dispatch_alert(stream_id, fence_result, frames, warehouse, dev):
     stream = storage.get_stream(stream_id)  # 获取流信息
     templates = alert_storage.get_alert_templates()  # 获取报警模板
     if not stream:  # 流不存在则返回
+        print(f"{stream_id}不存在")
         return
 
     stream_name = stream.get("name", stream_id)  # 获取流名称
@@ -311,19 +313,19 @@ def dispatch_alert(stream_id, fence_result, frames, warehouse, dev):
     ai_report = None
     # base64_images = [cv2_frame_to_base64(f) for f in frames]  # frames_to_return 是 BGR numpy数组列表
     # ai_report = call_qwen_via_client(base64_images)  # 通义千问大模型
-    # ai_report = call_local_ai_model(image_paths=image_paths)  # 本地大模型（图片）
-    ai_report = call_local_ai_model(video_path=video_path)  # 本地大模型（视频）
+    ai_report = call_local_ai_model(image_paths=image_paths)  # 本地大模型（图片）
+    # ai_report = call_local_ai_model(video_path=video_path)  # 本地大模型（视频）
 
     if not ai_report:
         print('AI识别失效')
         del frames
         return  # 不触发报警，结束函数
-    elif ai_report['status'] == "正常":
-        # 如果正常，不触发报警，释放帧内存
-        print('一切正常')
-        del frames
-        return  # 不触发报警，结束函数
-
+    if isinstance(ai_report, dict):
+        if ai_report.get('status') == "正常":
+            # 如果正常，不触发报警，释放帧内存
+            print('一切正常')
+            del frames
+            return  # 不触发报警，结束函数
     # 存入message.json
     message_manager.add_message(stream_uid=stream_id, fence_uid=fence_id, stream_name=stream_name,
                                 change_ratio=f"{ratio:.2f}", ai_report=str(ai_report), image_before_url=image_urls[0],
