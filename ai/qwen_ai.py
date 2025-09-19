@@ -37,7 +37,7 @@ def extract_json_dict_from_ai_reply(text: str):
         return ast.literal_eval(json_str)
     except Exception as e:
         print("解析失败:", e)
-        return None
+        return text
 
 
 # 使用OpenAI客户端调用通义千问API
