@@ -165,7 +165,7 @@ class AutoReportScheduler:
             individual_summaries.append(f"{stream_name} (UID={stream_uid}): {ai_summary}")
             # 发送邮箱
             word_dir = os.path.join("reports_word", yesterday)  # 按日期建目录
-            Path(word_dir).mkdir(exist_ok=True)
+            os.makedirs(word_dir, exist_ok=True)
             docx_file = save_report_to_docx(
                 content=ai_summary,
                 save_dir=word_dir,
@@ -216,7 +216,6 @@ class AutoReportScheduler:
             log("SUCCESS", f"{yesterday} 所有监控的总摘要已生成。")
             word_dir = os.path.join("reports_word", yesterday)
             pdf_file = None
-            Path(word_dir).mkdir(exist_ok=True)
             docx_file = save_report_to_docx(
                 content=overall_summary,
                 save_dir=word_dir,

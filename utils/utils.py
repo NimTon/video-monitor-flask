@@ -1,4 +1,5 @@
 import cv2
+import time
 import numpy as np
 from datetime import datetime
 from PIL import Image
@@ -12,8 +13,75 @@ import os
 import base64
 from comtypes import client
 from colorama import init, Fore, Style
+import asyncio
 
 init(autoreset=True)
+
+
+async def clean_task(paths, interval=24*3600, days=7):
+    """
+    异步定时清理任务
+    - 启动时立即执行一次
+    - 之后每隔 interval 秒执行一次
+    """
+    while True:
+        for path in paths:
+            cleared_path = clean_old_files(path, days)
+            if cleared_path:
+                log("INFO", f"清理了 {path} 中 {len(cleared_path)} 个过期文件")
+        # 首次执行完直接等待 interval 秒，再执行下一轮
+        await asyncio.sleep(interval)
+
+
+
+def clean_old_files(path: str, day: int):
+    """
+    清理 path 下修改时间距今超过 day 天的文件（不删除目录）
+    :param path: 文件夹路径
+    :param day: 天数阈值
+    :return: 被删除文件的路径列表
+    """
+    if not os.path.exists(path):
+        return []
+
+    now = time.time()
+    cutoff = now - day * 86400  # 秒
+    removed_files = []
+
+    for root, dirs, files in os.walk(path):
+        for filename in files:
+            file_path = os.path.join(root, filename)
+            try:
+                if os.path.isfile(file_path) and os.path.getmtime(file_path) < cutoff:
+                    os.remove(file_path)
+                    removed_files.append(file_path)
+            except Exception:
+                pass  # 忽略出错的文件
+
+    return removed_files
+
+
+def log_multiline(level: str, *messages):
+    """多行日志打印，第一行带时间戳，其余行缩进对齐"""
+    color_map = {
+        "INFO": LogColors.INFO,
+        "WARNING": LogColors.WARNING,
+        "FAIL": LogColors.FAIL,
+        "SUCCESS": LogColors.SUCCESS
+    }
+    color = color_map.get(level, LogColors.INFO)
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    WHITE = "\033[97m"
+    RESET = LogColors.RESET
+    prefix_len = len(timestamp) + 1 + len(f"[{level}] ")  # 时间戳 + 空格 + 标签
+    indent = " " * prefix_len
+    for i, msg in enumerate(messages):
+        lines = str(msg).split("\n")
+        for j, line in enumerate(lines):
+            if i == 0 and j == 0:
+                print(f"{WHITE}{timestamp}{RESET} {color}[{level}]{RESET} {line}")
+            else:
+                print(f"{indent}{line}")
 
 
 def to_png_bytes(img: np.ndarray) -> bytes:
@@ -50,6 +118,7 @@ from typing import List, Tuple
 import numpy as np
 import cv2
 
+
 def relative_to_pixel_fence(url: str, relative_fence_points: List[List[float]]) -> Tuple[np.ndarray, List[Tuple[int, int]]]:
     """
     将归一化 fence_points 转换为像素坐标
@@ -77,7 +146,6 @@ def relative_to_pixel_fence(url: str, relative_fence_points: List[List[float]]) 
     ]
 
     return frame, pixel_points
-
 
 
 def docx_to_pdf(docx_path: str, pdf_path: str = None) -> str:
