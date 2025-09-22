@@ -738,7 +738,7 @@ def get_messages_by_fence(fence_uid):
 
 def run_flask():
     """独立线程运行 Flask"""
-    app.run(host=HOST, port=PORT)
+    app.run(host="0.0.0.0", port=PORT)
 
 
 # 主程序入口
