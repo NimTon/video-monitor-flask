@@ -7,6 +7,7 @@ from emergency.config import (
     URL_GET_LIVE_URL,
     URL_QUERY_AND_PUSH_ASSETS,
     ZK_TOKEN,
+    API_KEY,
     MACHINE_CODES,
 )
 
@@ -22,8 +23,7 @@ class ZhongkaiAPIError(Exception):
 class ZhongkaiAPI:
     def __init__(self):
         self.headers = {
-            "F-VIDEO-AI-TOKEN": ZK_TOKEN,
-            "Content-Type": "application/json"
+            "F-VIDEO-AI-TOKEN": ZK_TOKEN
         }
         self.url_get_devices = URL_GET_DEVICES
         self.url_get_live_url = URL_GET_LIVE_URL
@@ -93,13 +93,15 @@ class ZhongkaiAPI:
             scene_code: str
     ) -> Dict[str, Any]:
         """获取仓库资产和围栏信息并推送实时视频流"""
-        payload = {
+        payload = [{
             "hjDeviceNo": hj_device_no,
             "hjServiceNo": hj_service_no,
             "videoPlayUrl": video_play_url,
             "sceneCode": scene_code
-        }
-        resp = requests.post(self.url_query_and_push_assets, headers=self.headers, json=payload).json()
+        }]
+        headers = self.headers.copy()
+        headers["apikey"] = API_KEY
+        resp = requests.post(self.url_query_and_push_assets, headers=headers, json=payload).json()
         if "code" in resp and resp.get("code") != 200:  # 第三接口返回格式和前面不一样
             raise ZhongkaiAPIError("获取资产和围栏信息失败", resp)
         return resp
