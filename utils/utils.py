@@ -18,7 +18,7 @@ import asyncio
 init(autoreset=True)
 
 
-async def clean_task(paths, interval=24*3600, days=7):
+async def clean_task(paths, interval=24 * 3600, days=7):
     """
     异步定时清理任务
     - 启动时立即执行一次
@@ -31,7 +31,6 @@ async def clean_task(paths, interval=24*3600, days=7):
                 log("INFO", f"清理了 {path} 中 {len(cleared_path)} 个过期文件")
         # 首次执行完直接等待 interval 秒，再执行下一轮
         await asyncio.sleep(interval)
-
 
 
 def clean_old_files(path: str, day: int):
@@ -119,31 +118,19 @@ import numpy as np
 import cv2
 
 
-def relative_to_pixel_fence(url: str, relative_fence_points: List[List[float]]) -> Tuple[np.ndarray, List[Tuple[int, int]]]:
-    """
-    将归一化 fence_points 转换为像素坐标
-
-    Args:
-        url: 视频流 URL
-        relative_fence_points: [[x_rel, y_rel], ...] 归一化坐标，x_rel,y_rel ∈ [0,1]
-
-    Returns:
-        frame: 视频帧 np.ndarray
-        pixel_points: [(x_pixel, y_pixel), ...] 像素坐标
-    """
+def relative_to_pixel_fence(url: str, relative_fence_points: List[dict]) -> Tuple[np.ndarray, List[Tuple[int, int]]]:
     frame = capture_frame_from_url(url)  # 自己定义的抓帧函数
     if frame is None or frame.size == 0:
         raise ValueError(f"无法从 {url} 获取有效帧")
 
     h, w = frame.shape[:2]
-
-    pixel_points = [
-        (
-            max(0, min(int(x_rel * w), w - 1)),
-            max(0, min(int(y_rel * h), h - 1))
-        )
-        for x_rel, y_rel in relative_fence_points
-    ]
+    pixel_points = []
+    for p in relative_fence_points:
+        x_rel = float(p.get("x", 0))
+        y_rel = float(p.get("y", 0))
+        x_pixel = max(0, min(int(x_rel * w), w - 1))
+        y_pixel = max(0, min(int(y_rel * h), h - 1))
+        pixel_points.append((x_pixel, y_pixel))
 
     return frame, pixel_points
 
