@@ -56,17 +56,18 @@ def get_streams_worker():
                         }, timeout=5)
                         resp.raise_for_status()
                         url = resp.json().get("data").get("stream_url")
+                        print(resp.json().get("data"))
                         log("SUCCESS", f"[EMERGENCY STREAM] 新增视频流: {device_name} (UID={stream_uid})")
                     else:
-                        sm.update_stream(stream_uid, stream_url=live_url)
                         resp = requests.patch(f"{BASE_URL}/api/source-streams", json={
                             "source_stream_url": live_url,
                             "stream_uid": stream_uid
                         }, timeout=5)
                         resp.raise_for_status()
                         url = resp.json().get("data").get("hls_url")
+                        url = f'{FLOW_BASE_URL}/{url}'
+                        sm.update_stream(stream_uid, stream_url=url)
                         log("SUCCESS", f"[EMERGENCY STREAM] 更新视频流: {device_name} (UID={stream_uid})")
-                    log("SUCCESS", f"[EMERGENCY STREAM] 获取资产与围栏信息成功: {device_name} (UID={stream_uid})")
 
                     # 调用中凯资产与围栏信息接口
                     url = f'{FLOW_BASE_URL}/{url}'.replace("no_wm", "wm")
@@ -78,6 +79,9 @@ def get_streams_worker():
                     )
 
                     # 3. 遍历围栏
+                    if asset_info.get("rspCode") != '00000000':
+                        log("FAIL", f"[EMERGENCY STREAM] 获取资产与围栏信息失败: {device_name} (UID={stream_uid}), RESPONSE={asset_info}")
+                        continue
                     for pos in asset_info.get('data'):
                         fence_uid = pos["fenceId"]
                         fence_points = json.loads(pos["locationPoint"])
