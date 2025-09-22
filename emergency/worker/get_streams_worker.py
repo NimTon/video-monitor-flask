@@ -77,22 +77,28 @@ def get_streams_worker():
 
                     # 3. 遍历围栏
                     for pos in asset_info.get('data'):
-                        print(json.dumps(pos, indent=2, ensure_ascii=False))
                         fence_uid = pos["fenceId"]
                         fence_points = json.loads(pos["locationPoint"])
-                        fence_info = [f'商品名称: {pos["assetDetail"][0]["assetList"][0]["commodityList"][0]["commodityName"]}',
-                                      f'资产编码: {pos["assetDetail"][0]["assetList"][0]["commodityList"][0]["commodityCode"]}',
-                                      f'客户名称: {pos["assetDetail"]["assetList"][0]["ownerEntityName"]}']
+                        if pos["assetDetail"]:
+                            fence_info = [f'商品名称: {pos["assetDetail"][0]["assetList"][0]["commodityList"][0]["commodityName"]}',
+                                          f'资产编码: {pos["assetDetail"][0]["assetList"][0]["commodityList"][0]["commodityCode"]}',
+                                          f'客户名称: {pos["assetDetail"][0]["assetList"][0]["ownerEntityName"]}']
+                        else:
+                            fence_info = [f'仓库名称: {pos["whName"]}',
+                                          f'仓库编号: {pos["whCode"]}']
                         # 4. 更新本地围栏状态
-                        bg_frame, pixel_fence_points = relative_to_pixel_fence(url, fence_points)
-                        fence_points = [{'x': point[0], 'y': point[1]} for point in fence_points]
+                        try:
+                            bg_frame, pixel_fence_points = relative_to_pixel_fence(live_url, fence_points)
+                        except Exception as e:
+                            log("FAIL", f"[EMERGENCY FENCE] 获取视频流失败：{device_name} (UID={stream_uid}, FENCE_UID={fence_uid}), ERROR={e}")
+                            continue
                         changed = sm.update_fence_by_fence_uid(stream_uid, fence_uid, fence_points, fence_info)
                         if changed:
                             log("INFO", f"[EMERGENCY FENCE] 检测到围栏变化: {device_name} (UID={stream_uid}, FENCE_UID={fence_uid}), 生成新水印")
                             # 5. 生成透明水印
                             watermark_img = wu.draw_fence_with_text(bg_frame, pixel_fence_points, fence_info,
                                                                     font_path="C:/Windows/Fonts/msyh.ttc",
-                                                                    font_size=24, line_spacing=1.2)
+                                                                    font_size=12, line_spacing=1.2)
                             # 转 PNG 字节流
                             png_bytes = to_png_bytes(watermark_img)
                             # 上传水印到视频流
@@ -104,7 +110,6 @@ def get_streams_worker():
                             )
                             resp.raise_for_status()
                             log("SUCCESS", f"[EMERGENCY WATERMARK] 上传水印成功: {device_name} (UID={stream_uid}, FENCE_UID={fence_uid})")
-                            exit()
                 except requests.RequestException as e:
                     log("FAIL", f"[EMERGENCY STREAM] 管理视频流失败: {device_name} (UID={stream_uid}) ERROR={e}")
                 sm.set_stream_group(stream_uid, warehouse_code)
