@@ -98,7 +98,7 @@ def get_streams_worker():
                             # 5. 生成透明水印
                             watermark_img = wu.draw_fence_with_text(bg_frame, pixel_fence_points, fence_info,
                                                                     font_path="C:/Windows/Fonts/msyh.ttc",
-                                                                    font_size=12, line_spacing=1.2)
+                                                                    font_size=24, line_spacing=1.2)
                             # 转 PNG 字节流
                             png_bytes = to_png_bytes(watermark_img)
                             # 上传水印到视频流

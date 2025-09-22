@@ -14,6 +14,7 @@ import base64
 from comtypes import client
 from colorama import init, Fore, Style
 import asyncio
+from typing import List, Tuple
 
 init(autoreset=True)
 
@@ -113,26 +114,55 @@ def capture_frame_from_url(url: str) -> np.ndarray:
     return frame
 
 
-from typing import List, Tuple
-import numpy as np
-import cv2
+def relative_to_pixel_fence(
+        url: str,
+        relative_fence_points: List[dict],
+        target_height: int = None
+) -> Tuple[np.ndarray, List[Tuple[int, int]]]:
+    """
+    将归一化 fence_points 转换为像素坐标，可选择缩放到固定高度保持宽高比
 
+    Args:
+        url: 视频流 URL
+        relative_fence_points: [{"x": x_rel, "y": y_rel}, ...] 归一化坐标
+        target_height: 输出帧高度，可选。不传则返回原始帧
 
-def relative_to_pixel_fence(url: str, relative_fence_points: List[dict]) -> Tuple[np.ndarray, List[Tuple[int, int]]]:
-    frame = capture_frame_from_url(url)  # 自己定义的抓帧函数
+    Returns:
+        frame: 视频帧 np.ndarray
+        pixel_points: [(x_pixel, y_pixel), ...] 对应像素坐标
+    """
+    frame = capture_frame_from_url(url)
     if frame is None or frame.size == 0:
         raise ValueError(f"无法从 {url} 获取有效帧")
 
-    h, w = frame.shape[:2]
+    orig_h, orig_w = frame.shape[:2]
+
+    if target_height is not None:
+        # 缩放比例
+        scale = target_height / orig_h
+        new_w = int(orig_w * scale)
+        new_h = target_height
+        frame_resized = cv2.resize(frame, (new_w, new_h), interpolation=cv2.INTER_AREA)
+        w, h = new_w, new_h
+        frame_out = frame_resized
+    else:
+        w, h = orig_w, orig_h
+        frame_out = frame
+
+    # 生成像素坐标
     pixel_points = []
     for p in relative_fence_points:
-        x_rel = float(p.get("x", 0))
-        y_rel = float(p.get("y", 0))
+        try:
+            x_rel = float(p.get("x", 0))
+            y_rel = float(p.get("y", 0))
+        except (ValueError, TypeError):
+            x_rel, y_rel = 0, 0
+
         x_pixel = max(0, min(int(x_rel * w), w - 1))
         y_pixel = max(0, min(int(y_rel * h), h - 1))
         pixel_points.append((x_pixel, y_pixel))
 
-    return frame, pixel_points
+    return frame_out, pixel_points
 
 
 def docx_to_pdf(docx_path: str, pdf_path: str = None) -> str:

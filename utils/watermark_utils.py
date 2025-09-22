@@ -32,23 +32,33 @@ def get_contrast_color_from_background(bg_frame, points, threshold=130):
         return (255, 255, 255)  # 淡灰
 
 
-def draw_fence_with_text(bg_frame, fence_points, text_list, font_path=None, font_size=24, line_spacing=1.2):
+def draw_fence_with_text(bg_frame, fence_points, text_list, font_path=None, font_size=24, line_spacing=1.2, base_height=1080):
     """
     在图像上绘制围栏和多行文字，生成透明底图
     文字颜色根据背景亮度自动选择黑/白
     支持 BGR / BGRA 图像
+    绘制参数根据背景图高度按比例缩放
     参数：
     - bg_frame: np.ndarray, 背景图像，用于颜色对比
     - fence_points: list of (x, y) 围栏顶点
     - text_list: list of str，每行文字
     - font_path: str, 字体文件路径（None使用默认）
-    - font_size: int, 字号
+    - font_size: int, 基于 base_height 的字体大小
     - line_spacing: float, 行距倍数
+    - base_height: int, 基准高度（默认 1080p）
     """
 
     if not fence_points or len(fence_points) < 3:
-        # 返回空透明图
         return np.zeros((*bg_frame.shape[:2], 4), dtype=np.uint8)
+
+    # -----------------------------
+    # 缩放比例
+    scale = bg_frame.shape[0] / base_height
+
+    # 绘制参数按比例缩放
+    scaled_font_size = max(1, int(font_size * scale))
+    line_thickness = max(1, int(2 * scale))        # 原 2
+    point_radius = max(1, int(4 * scale))          # 原 4
 
     # -----------------------------
     # 创建透明底图
@@ -60,34 +70,29 @@ def draw_fence_with_text(bg_frame, fence_points, text_list, font_path=None, font
     color = get_contrast_color_from_background(bg_frame, fence_points)
 
     overlay = np.zeros_like(frame, dtype=np.uint8)
-    # 绘制多边形线条
-    cv2.polylines(overlay, [pts], isClosed=True, color=(*color, 255), thickness=2, lineType=cv2.LINE_AA)
+    cv2.polylines(overlay, [pts], isClosed=True, color=(*color, 255),
+                  thickness=line_thickness, lineType=cv2.LINE_AA)
 
-    # 绘制顶点圆点
     for (x, y) in fence_points:
-        cv2.circle(overlay, (x, y), radius=4, color=(*color, 255), thickness=-1, lineType=cv2.LINE_AA)
+        cv2.circle(overlay, (x, y), radius=point_radius, color=(*color, 255), thickness=-1, lineType=cv2.LINE_AA)
 
     mask = overlay[:, :, 3] > 0
     frame[mask] = overlay[mask]
 
     # -----------------------------
-    # 2. 在围栏中心绘制文字
+    # 2. 绘制文字
     pil_img = Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGRA2RGBA))
     draw = ImageDraw.Draw(pil_img)
 
-    # 字体
-    font = ImageFont.truetype(font_path, font_size) if font_path else ImageFont.load_default()
+    font = ImageFont.truetype(font_path, scaled_font_size) if font_path else ImageFont.load_default()
 
-    # 围栏中心
     xs, ys = zip(*fence_points)
     center_x = int(sum(xs) / len(xs))
     center_y = int(sum(ys) / len(ys))
 
-    # 每行高度
     line_heights = [font.getbbox(line)[3] - font.getbbox(line)[1] for line in text_list]
     total_height = int(sum(line_heights) * line_spacing)
 
-    # 绘制文字
     y0 = center_y - total_height // 2
     for i, line in enumerate(text_list):
         bbox = font.getbbox(line)
@@ -96,7 +101,6 @@ def draw_fence_with_text(bg_frame, fence_points, text_list, font_path=None, font
         y = y0 + int(sum(line_heights[:i]) * line_spacing)
         draw.text((x, y), line, font=font, fill=color[::-1])
 
-    # 转回 OpenCV
     frame = cv2.cvtColor(np.array(pil_img), cv2.COLOR_RGBA2BGRA)
     return frame
 
