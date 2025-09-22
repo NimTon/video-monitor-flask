@@ -14,4 +14,5 @@ QWEN_URL = "https://dashscope.aliyuncs.com/compatible-mode/v1"
 
 DB_PATH = "video_db.sqlite"
 
-FLOW_BASE_URL = "http://127.0.0.1:5001"
+FLOW_BASE_URL = "http://1.94.137.200:5001"
+FLOW_LOCAL_URL = "http://127.0.0.1:5001"
