@@ -64,7 +64,7 @@ def get_streams_worker():
                         }, timeout=5)
                         resp.raise_for_status()
                         url = resp.json().get("data").get("hls_url")
-                        url = f'{FLOW_BASE_URL}/{url}'
+                        url = f'{FLOW_LOCAL_URL}/{url}'
                         sm.update_stream(stream_uid, stream_url=url)
                         log("SUCCESS", f"[EMERGENCY STREAM] 更新视频流: {device_name} (UID={stream_uid})")
 
@@ -97,24 +97,24 @@ def get_streams_worker():
                         except Exception as e:
                             log("FAIL", f"[EMERGENCY FENCE] 获取视频流失败：{device_name} (UID={stream_uid}, FENCE_UID={fence_uid}), ERROR={e}")
                             continue
-                        changed = sm.update_fence_by_fence_uid(stream_uid, fence_uid, fence_points, fence_info)
-                        if changed:
-                            log("INFO", f"[EMERGENCY FENCE] 检测到围栏变化: {device_name} (UID={stream_uid}, FENCE_UID={fence_uid}), 生成新水印")
-                            # 5. 生成透明水印
-                            watermark_img = wu.draw_fence_with_text(bg_frame, pixel_fence_points, fence_info,
-                                                                    font_path="C:/Windows/Fonts/msyh.ttc",
-                                                                    font_size=24, line_spacing=1.2)
-                            # 转 PNG 字节流
-                            png_bytes = to_png_bytes(watermark_img)
-                            # 上传水印到视频流
-                            resp = requests.patch(
-                                f"{FLOW_LOCAL_URL}/api/fence/water_mark",
-                                files={"file": ("fence.png", png_bytes, "image/png")},
-                                data={"stream_uid": stream_uid, "fence_uid": fence_uid},
-                                timeout=5
-                            )
-                            resp.raise_for_status()
-                            log("SUCCESS", f"[EMERGENCY WATERMARK] 上传水印成功: {device_name} (UID={stream_uid}, FENCE_UID={fence_uid})")
+                        # changed = sm.update_fence_by_fence_uid(stream_uid, fence_uid, fence_points, fence_info)
+                        # if changed:
+                        # log("INFO", f"[EMERGENCY FENCE] 检测到围栏变化: {device_name} (UID={stream_uid}, FENCE_UID={fence_uid}), 生成新水印")
+                        # 5. 生成透明水印
+                        watermark_img = wu.draw_fence_with_text(bg_frame, pixel_fence_points, fence_info,
+                                                                font_path="C:/Windows/Fonts/msyh.ttc",
+                                                                font_size=24, line_spacing=1.2)
+                        # 转 PNG 字节流
+                        png_bytes = to_png_bytes(watermark_img)
+                        # 上传水印到视频流
+                        resp = requests.patch(
+                            f"{FLOW_LOCAL_URL}/api/fence/water_mark",
+                            files={"file": ("fence.png", png_bytes, "image/png")},
+                            data={"stream_uid": stream_uid, "fence_uid": fence_uid},
+                            timeout=5
+                        )
+                        resp.raise_for_status()
+                        log("SUCCESS", f"[EMERGENCY WATERMARK] 上传水印成功: {device_name} (UID={stream_uid}, FENCE_UID={fence_uid})")
                 except requests.RequestException as e:
                     log("FAIL", f"[EMERGENCY STREAM] 管理视频流失败: {device_name} (UID={stream_uid}) ERROR={e}")
                 sm.set_stream_group(stream_uid, warehouse_code)
