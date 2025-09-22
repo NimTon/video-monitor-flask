@@ -56,7 +56,6 @@ def get_streams_worker():
                         }, timeout=5)
                         resp.raise_for_status()
                         url = resp.json().get("data").get("stream_url")
-                        print(resp.json().get("data"))
                         log("SUCCESS", f"[EMERGENCY STREAM] 新增视频流: {device_name} (UID={stream_uid})")
                     else:
                         resp = requests.patch(f"{BASE_URL}/api/source-streams", json={
