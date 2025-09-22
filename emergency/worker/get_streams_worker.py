@@ -5,7 +5,7 @@ from emergency.utils.api_utils import zk_api
 from emergency.config import MACHINE_CODES
 from storage import sm
 import requests
-from config import BASE_URL, FLOW_BASE_URL
+from config import BASE_URL, FLOW_BASE_URL, FLOW_LOCAL_URL
 
 
 def get_streams_worker():
@@ -105,7 +105,7 @@ def get_streams_worker():
                             png_bytes = to_png_bytes(watermark_img)
                             # 上传水印到视频流
                             resp = requests.patch(
-                                f"{FLOW_BASE_URL}/api/fence/water_mark",
+                                f"{FLOW_LOCAL_URL}/api/fence/water_mark",
                                 files={"file": ("fence.png", png_bytes, "image/png")},
                                 data={"stream_uid": stream_uid, "fence_uid": fence_uid},
                                 timeout=5

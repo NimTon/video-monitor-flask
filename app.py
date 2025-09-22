@@ -8,7 +8,7 @@ from utils.stream_utils import get_video_size
 from utils.utils import draw_fence_on_frame, points_to_abs_points, clean_old_files, log, clean_task
 import numpy as np
 import cv2
-from config import FLOW_BASE_URL, HOST, PORT
+from config import FLOW_LOCAL_URL, HOST, PORT
 import traceback
 import asyncio
 import threading
@@ -74,7 +74,7 @@ def serve_video(filename):
 def welcome():
     try:
         # 调用下游 welcome 接口
-        resp = requests.get(f"{FLOW_BASE_URL}/api/welcome", timeout=3)
+        resp = requests.get(f"{FLOW_LOCAL_URL}/api/welcome", timeout=3)
         resp.raise_for_status()  # 如果状态码不是 200，抛出异常
     except requests.RequestException as e:
         return jsonify({
@@ -110,12 +110,12 @@ def create_stream():
         if source_stream_url:
             # 转流逻辑，例如调用下游 bind 接口
             response = requests.post(
-                f"{FLOW_BASE_URL}/api/bind",
+                f"{FLOW_LOCAL_URL}/api/bind",
                 data={"stream_uid": stream_uid, "url": source_stream_url}
             )
             response.raise_for_status()
             hls_data = response.json().get("data", {})
-            stream_url = f"{FLOW_BASE_URL}/{hls_data.get('hls_url')}"
+            stream_url = f"{FLOW_LOCAL_URL}/{hls_data.get('hls_url')}"
             if not stream_url:
                 return jsonify({"message": "下游服务未返回 HLS 地址"}), 500
 
@@ -175,7 +175,7 @@ def delete_stream(stream_uid):
         return jsonify({"message": "未找到对应的视频流"}), 404
     # 删除关联的转流线程
     try:
-        resp = requests.delete(f"{FLOW_BASE_URL}/api/unbind/{stream_uid}")
+        resp = requests.delete(f"{FLOW_LOCAL_URL}/api/unbind/{stream_uid}")
         if resp.status_code != 200:
             return jsonify({"message": f"解绑失败: {resp.text}"}), 500
     except Exception as e:
@@ -215,7 +215,7 @@ def add_fence(stream_id):
 
     # 调用第二个接口（保存水印）
     requests.patch(
-        f"{FLOW_BASE_URL}/api/water_mark",
+        f"{FLOW_LOCAL_URL}/api/water_mark",
         files={"file": ("fence.png", png_bytes, "image/png")},
         data={"stream_uid": stream_id}
     )
@@ -263,13 +263,13 @@ def delete_fence(stream_id, fence_id):
 
             # 调用第二个接口（保存水印）
             requests.patch(
-                f"{FLOW_BASE_URL}/api/water_mark",
+                f"{FLOW_LOCAL_URL}/api/water_mark",
                 files={"file": ("fence.png", png_bytes, "image/png")},
                 data={"stream_uid": stream_id}
             )
         else:
             requests.delete(
-                f"{FLOW_BASE_URL}/api/water_mark",
+                f"{FLOW_LOCAL_URL}/api/water_mark",
                 json={"stream_uid": stream_id}
             )
         return jsonify({"message": "围栏已删除"})
@@ -503,7 +503,7 @@ def list_streams_of_recipient(recipient_uid):
 @app.route('/api/source-streams', methods=['GET'])
 def list_source_streams():
     try:
-        resp = requests.get(f"{FLOW_BASE_URL}/api/list")
+        resp = requests.get(f"{FLOW_LOCAL_URL}/api/list")
         resp.raise_for_status()  # 非 200 会抛异常
         data = resp.json().get("data")  # 获取 Flow 返回的 data 字段
         streams = []
@@ -513,7 +513,7 @@ def list_source_streams():
                 "stream_name": stream_info.get('name'),
                 "stream_uid": stream_uid,
                 "url": info.get("url"),
-                "hls": f'{FLOW_BASE_URL}/{info.get("hls_wm")}',
+                "hls": f'{FLOW_LOCAL_URL}/{info.get("hls_wm")}',
                 "status": info.get("status")
             })
         return jsonify(streams), 200
@@ -539,7 +539,7 @@ def add_source_stream():
         files = {}
         if watermark_path:
             files['file'] = open(watermark_path, 'rb')
-        resp = requests.post(f"{FLOW_BASE_URL}/api/bind", data=data, files=files)
+        resp = requests.post(f"{FLOW_LOCAL_URL}/api/bind", data=data, files=files)
         if resp.status_code == 200:
             return jsonify(resp.json()), 200
         else:
@@ -558,7 +558,7 @@ def update_source_stream():
         url = request.json.get('source_stream_url')
         stream_uid = request.json.get('stream_uid')
         data = {"stream_uid": stream_uid, "url": url}
-        resp = requests.post(f"{FLOW_BASE_URL}/api/bind", data=data)
+        resp = requests.post(f"{FLOW_LOCAL_URL}/api/bind", data=data)
         if resp.status_code == 200:
             return jsonify(resp.json()), 200
         else:
@@ -574,7 +574,7 @@ def update_source_stream():
 @app.route('/api/source-streams/<uid>/start', methods=['POST'])
 def start_source_stream(uid):
     try:
-        resp = requests.post(f"{FLOW_BASE_URL}/api/start/{uid}")
+        resp = requests.post(f"{FLOW_LOCAL_URL}/api/start/{uid}")
         if resp.status_code == 200:
             return jsonify(resp.json()), 200
         else:
@@ -590,7 +590,7 @@ def start_source_stream(uid):
 @app.route('/api/source-streams/<uid>/stop', methods=['POST'])
 def stop_source_stream(uid):
     try:
-        resp = requests.post(f"{FLOW_BASE_URL}/api/stop/{uid}")
+        resp = requests.post(f"{FLOW_LOCAL_URL}/api/stop/{uid}")
         if resp.status_code == 200:
             return jsonify(resp.json()), 200
         else:
@@ -606,7 +606,7 @@ def stop_source_stream(uid):
 @app.route('/api/source-streams/<uid>', methods=['GET'])
 def get_source_stream(uid):
     try:
-        resp = requests.get(f"{FLOW_BASE_URL}/api/list")
+        resp = requests.get(f"{FLOW_LOCAL_URL}/api/list")
         resp.raise_for_status()
         data = resp.json().get('data', {})
         if uid in data:
