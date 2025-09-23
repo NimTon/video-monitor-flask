@@ -6,6 +6,8 @@ from emergency.config import (
     URL_UPLOAD_FILE,
     URL_GET_LIVE_URL,
     URL_QUERY_AND_PUSH_ASSETS,
+    URL_UPLOAD_BYTE_FILE,
+    URL_PATROL_RECORD,
     ZK_TOKEN,
     API_KEY,
     X_Data_Source
@@ -32,6 +34,8 @@ class ZhongkaiAPI:
         self.url_upload_file = URL_UPLOAD_FILE
         self.url_event_up = URL_EVENT_UP
         self.url_query_and_push_assets = URL_QUERY_AND_PUSH_ASSETS
+        self.url_upload_byte_file = URL_UPLOAD_BYTE_FILE
+        self.url_patrol_record = URL_PATROL_RECORD
 
     def get_devices(self, machine_code: str) -> Dict[str, Any]:
         """根据机器编号获取仓库库栋列表"""
@@ -105,6 +109,58 @@ class ZhongkaiAPI:
         if "code" in resp and resp.get("code") != 200:  # 第三接口返回格式和前面不一样
             raise ZhongkaiAPIError("获取资产和围栏信息失败", resp)
         return resp
+
+    def upload_byte_file_with_apikey(self, file_path: str) -> str:
+        """文件上传接口（multipart/form-data），返回文件唯一标识ID"""
+        with open(file_path, "rb") as f:
+            content_bytes = f.read()
+        files = {
+            "fileName": file_path.split("/")[-1],  # 只传文件名
+            "fileContent": content_bytes
+        }
+        print("headers", self.headers)
+        print("payload", files)
+        resp = requests.post(self.url_upload_byte_file, headers=self.headers, files=files).json()
+        if resp.get("rspCode") != "0000":
+            raise ZhongkaiAPIError("文件上传失败", resp)
+        return resp["data"]["id"]
+
+    def patrol_record(
+            self,
+            wh_code: str,
+            wh_name: str,
+            patrol_person: str,
+            patrol_date: str,
+            patrol_result: str,
+            report_id: Optional[int] = None,
+            scene_code: Optional[str] = None,
+            loan_no: Optional[str] = None,
+            asset_detail: Optional[str] = None,
+            video_files: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """巡库记录上报接口"""
+        payload = {
+            "whCode": wh_code,
+            "whName": wh_name,
+            "patrolPerson": patrol_person,
+            "patrolDate": patrol_date,
+            "partrolResult": patrol_result
+        }
+        if report_id:
+            payload["reportId"] = report_id
+        if scene_code:
+            payload["sceneCode"] = scene_code
+        if loan_no:
+            payload["loanNo"] = loan_no
+        if asset_detail:
+            payload["assetDetail"] = asset_detail
+        if video_files:
+            payload["videoFiles"] = video_files
+
+        resp = requests.post(self.url_patrol_record, headers=self.headers, json=payload).json()
+        if resp.get("rspCode") != "0000":
+            raise ZhongkaiAPIError("巡库记录上报失败", resp)
+        return resp["data"]
 
 
 zk_api = ZhongkaiAPI()
