@@ -85,9 +85,17 @@ def get_streams_worker():
                         fence_uid = pos["fenceId"]
                         fence_points = json.loads(pos["locationPoint"])
                         if pos["assetDetail"]:
-                            fence_info = [f'商品名称: {pos["assetDetail"][0]["assetList"][0]["commodityList"][0]["commodityName"]}',
+                            fence_info = [
+                                          f'客户名称: {pos["assetDetail"][0]["assetList"][0]["ownerEntityName"]}',
+                                          f'仓库名称: {pos["whName"]}',
+                                          f'仓库编码: {pos["whCode"]}',
+                                          f'货架编号: {pos["assetDetail"][0]["positionCode"]}',
+                                          f'商品名称: {pos["assetDetail"][0]["assetList"][0]["commodityList"][0]["commodityName"]}',
+                                          f'商品数量: {pos["assetDetail"][0]["assetList"][0]["commodityList"][0]["quantity"]}',
+                                          f'计量单位: {pos["assetDetail"][0]["assetList"][0]["commodityList"][0]["unit"]}',
                                           f'资产编码: {pos["assetDetail"][0]["assetList"][0]["commodityList"][0]["commodityCode"]}',
-                                          f'客户名称: {pos["assetDetail"][0]["assetList"][0]["ownerEntityName"]}']
+                                          f'融资编码: {pos["loanNo"]}',
+                                         ]
                         else:
                             fence_info = [f'仓库名称: {pos["whName"]}',
                                           f'仓库编号: {pos["whCode"]}']
