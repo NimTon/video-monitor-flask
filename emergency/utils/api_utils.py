@@ -1,5 +1,7 @@
 from typing import Dict, Any, Optional, List
 import requests
+import base64
+
 from emergency.config import (
     URL_EVENT_UP,
     URL_GET_DEVICES,
@@ -111,17 +113,25 @@ class ZhongkaiAPI:
         return resp
 
     def upload_byte_file_with_apikey(self, file_path: str) -> str:
-        """文件上传接口（multipart/form-data），返回文件唯一标识ID"""
+        """文件上传接口（使用Base64编码），返回文件唯一标识ID"""
         with open(file_path, "rb") as f:
-            content_bytes = f.read()
-        files = {
+            # 读取文件内容并编码为Base64字符串
+            content_base64 = base64.b64encode(f.read()).decode('utf-8')
+
+        # 构建请求数据
+        payload = {
             "fileName": file_path.split("/")[-1],  # 只传文件名
-            "fileContent": content_bytes
+            "fileContent": content_base64  # Base64编码的字符串
         }
+
         print("headers", self.headers)
-        print("payload", files)
-        resp = requests.post(self.url_upload_byte_file, headers=self.headers, files=files).json()
-        if resp.get("rspCode") != "0000":
+        # print("payload keys:", payload.keys())  # 只打印键名避免输出大量Base64数据
+        print("payload", payload)
+
+        # 发送POST请求（注意：这里使用json参数而不是files）
+        resp = requests.post(self.url_upload_byte_file, headers=self.headers, json=payload).json()
+
+        if resp.get("rspCode") != "00000000":
             raise ZhongkaiAPIError("文件上传失败", resp)
         return resp["data"]["id"]
 
