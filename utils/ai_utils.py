@@ -3,12 +3,10 @@ import json
 import os
 import requests
 from openai import OpenAI
+from config import LOCAL_AI_VIDEO_URL, LOCAL_AI_IMAGES_URL, LOCAL_AI_TEXT_URL
 
 with open('config.json', encoding='utf-8') as f:
     config = json.load(f)
-SAY_IMAGES_URL = config['local_ai_images_url']
-SAY_VIDEO_URL = config['local_ai_video_url']
-SAY_MSG_URL = config['local_ai_text_url']
 api_key = config['qwen_api_key']
 base_url = config['qwen_url']
 with open('prompts.json', encoding='utf-8') as f:
@@ -83,7 +81,7 @@ def call_local_ai_model(ai_prompt=None, image_paths=None, video_path=None, json_
     if image_paths and video_path:
         raise ValueError("不能同时传入图片和视频")
     elif image_paths:
-        url = SAY_IMAGES_URL
+        url = LOCAL_AI_IMAGES_URL
         for path in image_paths:
             if not os.path.exists(path):
                 raise FileNotFoundError(f"文件不存在: {path}")
@@ -93,7 +91,7 @@ def call_local_ai_model(ai_prompt=None, image_paths=None, video_path=None, json_
             opened_files.append(f)
             files.append(("files", (os.path.basename(path), f, mime)))
     elif video_path:
-        url = SAY_VIDEO_URL
+        url = LOCAL_AI_VIDEO_URL
         if not os.path.exists(video_path):
             raise FileNotFoundError(f"视频文件不存在: {video_path}")
         ext = os.path.splitext(video_path)[1].lower()
@@ -102,7 +100,7 @@ def call_local_ai_model(ai_prompt=None, image_paths=None, video_path=None, json_
         opened_files.append(f)
         files.append(("files", (os.path.basename(video_path), f, mime)))
     else:
-        url = SAY_MSG_URL  # 纯文本模式
+        url = LOCAL_AI_TEXT_URL  # 纯文本模式
 
     try:
         if files:
@@ -136,3 +134,4 @@ def call_local_ai_model(ai_prompt=None, image_paths=None, video_path=None, json_
     except Exception as e:
         # 统一抛出异常
         raise RuntimeError(f"调用本地模型接口异常: {e}") from e
+call_local_ai_model("你是谁")
