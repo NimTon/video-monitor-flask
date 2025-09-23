@@ -134,4 +134,3 @@ def call_local_ai_model(ai_prompt=None, image_paths=None, video_path=None, json_
     except Exception as e:
         # 统一抛出异常
         raise RuntimeError(f"调用本地模型接口异常: {e}") from e
-call_local_ai_model("你是谁")
