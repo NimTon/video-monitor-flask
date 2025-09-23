@@ -11,10 +11,11 @@ from docx.enum.text import WD_PARAGRAPH_ALIGNMENT
 from docx.shared import RGBColor
 import os
 import base64
-from comtypes import client
 from colorama import init, Fore, Style
 import asyncio
 from typing import List, Tuple
+import pythoncom
+from win32com import client
 
 init(autoreset=True)
 
@@ -173,7 +174,10 @@ def docx_to_pdf(docx_path: str, pdf_path: str = None) -> str:
         pdf_path = os.path.splitext(docx_path)[0] + ".pdf"
 
     try:
-        word = client.CreateObject('Word.Application')
+        # 初始化 COM
+        pythoncom.CoInitialize()
+
+        word = client.Dispatch('Word.Application')  # 或 CreateObject 也行
         word.Visible = False
         doc = word.Documents.Open(docx_path)
         doc.SaveAs(pdf_path, FileFormat=17)  # 17 表示 PDF 格式
@@ -182,6 +186,9 @@ def docx_to_pdf(docx_path: str, pdf_path: str = None) -> str:
         return pdf_path
     except Exception as e:
         raise RuntimeError(f"导出 PDF 失败: {e}")
+    finally:
+        # 释放 COM
+        pythoncom.CoUninitialize()
 
 
 def save_report_to_docx(content: str, save_dir: str, filename: str, title: str = None, images: list = None, image_captions: list = None):
