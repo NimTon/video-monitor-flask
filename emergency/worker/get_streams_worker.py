@@ -64,12 +64,12 @@ def get_streams_worker():
                         }, timeout=5)
                         resp.raise_for_status()
                         url = resp.json().get("data").get("hls_url")
-                        update_url = f'{FLOW_LOCAL_URL}/{url}'
-                        sm.update_stream(stream_uid, stream_url=update_url)
+                        url = f'{FLOW_LOCAL_URL}/{url}'
+                        sm.update_stream(stream_uid, stream_url=url)
                         log("SUCCESS", f"[EMERGENCY STREAM] 更新视频流: {device_name} (UID={stream_uid})")
 
                     # 调用中凯资产与围栏信息接口
-                    url = f'{FLOW_BASE_URL}/{url}'.replace("no_wm", "wm")
+                    url = url.replace("no_wm", "wm").replace(FLOW_LOCAL_URL, FLOW_BASE_URL)
                     asset_info = zk_api.query_and_push_assets(
                         hj_device_no=device_no,
                         hj_service_no=service_no,
