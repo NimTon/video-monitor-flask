@@ -108,7 +108,6 @@ def get_streams_worker():
                         fence_data = {camel_to_snake(pos_key): pos_value for pos_key, pos_value in pos.items()}
                         fence_data['scene_code'] = owner_code
                         changed = sm.update_fence_by_fence_uid(stream_uid, fence_uid, fence_points, fence_info, fence_data)
-                        exit()
                         # if changed:
                         # log("INFO", f"[EMERGENCY FENCE] 检测到围栏变化: {device_name} (UID={stream_uid}, FENCE_UID={fence_uid}), 生成新水印")
                         # 5. 生成透明水印
