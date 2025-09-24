@@ -3,13 +3,14 @@ import datetime
 import time
 import cv2  # 用于抓取视频帧
 import os
-from storage import StorageManager, ImageReportManager, RecipientsManager
+from storage import StorageManager, ImageReportManager, RecipientsManager, sm
 import schedule
 import json
 from utils.ai_utils import call_qwen_via_client, call_local_ai_model
-from utils.utils import log, image_path_to_base64, save_report_to_docx, resize_to_720p, points_to_abs_points, draw_fence_on_frame, docx_to_pdf
+from utils.utils import log, save_report_to_docx, resize_to_720p, points_to_abs_points, draw_fence_on_frame, docx_to_pdf
 from utils.alert_utils import send_email_alert
 from pathlib import Path
+from emergency.utils.api_utils import zk_api
 
 with open('config.json', encoding='utf-8') as f:
     config = json.load(f)
@@ -181,6 +182,34 @@ class AutoReportScheduler:
                     docx_file = os.path.abspath(docx_file)
                     pdf_file = docx_to_pdf(docx_file)
                     log("SUCCESS", f"视频流 {stream_name} (UID={stream_uid}) 的 PDF 报告已保存: {pdf_file}。")
+                    try:
+                        file_id = zk_api.upload_byte_file_with_apikey(pdf_file)
+                        log("SUCCESS", f"视频流 {stream_name} (UID={stream_uid}) 的 PDF 报告已上传，文件ID={file_id}")
+                        for fence in self.storage_mgr.list_fences(stream_uid):
+                            fence_uid = fence.get("id")
+                            wh_code = fence.get("fence_data").get("wh_code")
+                            wh_name = fence.get("fence_data").get("wh_name")
+                            loan_no = fence.get("fence_data").get("loan_no")
+                            scene_code = fence.get("fence_data").get("scene_code")
+                            asset_detail = fence.get("fence_data").get("asset_detail")
+                            patrol_resp = zk_api.patrol_record(
+                                wh_code=wh_code,
+                                wh_name=wh_name,
+                                patrol_person="AI",
+                                patrol_date=yesterday,
+                                patrol_result="",
+                                report_id=file_id,
+                                scene_code=scene_code,
+                                loan_no=loan_no,
+                                asset_detail=asset_detail,
+                                video_files=""
+                            )
+                            log("SUCCESS", f"视频流 {stream_name} (UID={stream_uid}, FENCE_UID={fence_uid}) 的巡库记录已上报: RESPONSE={patrol_resp}")
+                    except Exception as e:
+                        if fence_uid:
+                            log("SUCCESS", f"视频流 {stream_name} (UID={stream_uid}, FENCE_UID={fence_uid}) 的巡库记录上报失败: ERROR={e}")
+                        else:
+                            log("FAIL", f"视频流 {stream_name} (UID={stream_uid}) 巡库文件上传失败: ERROR={e}")
                 except Exception as e:
                     log("FAIL", f"视频流 {stream_name} (UID={stream_uid}) 的 PDF 报告导出失败: {e}")
             else:
@@ -228,6 +257,11 @@ class AutoReportScheduler:
                     docx_file = os.path.abspath(docx_file)
                     pdf_file = docx_to_pdf(docx_file)
                     log("SUCCESS", f"PDF 总摘要报告已保存: {pdf_file}。")
+                    try:
+                        file_id = zk_api.upload_byte_file_with_apikey(pdf_file)
+                        log("SUCCESS", f"PDF 总摘要报告已上传，文件ID={file_id}")
+                    except Exception as e:
+                        log("FAIL", f"PDF 总摘要报告上传失败: {e}")
                 except Exception as e:
                     log("FAIL", f"PDF 总摘要报告导出失败: {e}")
             else:
