@@ -16,8 +16,15 @@ import asyncio
 from typing import List, Tuple
 import pythoncom
 from win32com import client
+import re
 
 init(autoreset=True)
+
+
+def camel_to_snake(name: str) -> str:
+    """驼峰转下划线"""
+    s1 = re.sub('(.)([A-Z][a-z]+)', r'\1_\2', name)
+    return re.sub('([a-z0-9])([A-Z])', r'\1_\2', s1).lower()
 
 
 async def clean_task(paths, interval=24 * 3600, days=7):
