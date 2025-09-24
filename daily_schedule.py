@@ -158,7 +158,7 @@ class AutoReportScheduler:
                 imgs_base64 = [image_path_to_base64(i) for i in img_paths]
                 ai_summary_json = call_qwen_via_client(combined_prompt, imgs_base64, model='qwen-vl-max-latest', json_str=True)
                 status = ai_summary_json.get("status", "异常")
-                ai_summary = str(ai_summary_json)
+                ai_summary = ai_summary_json.get("content", "")
             except Exception as e:
                 log("FAIL", f"调用模型失败: {e}")
                 ai_summary = None
