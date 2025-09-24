@@ -154,7 +154,9 @@ class AutoReportScheduler:
             camera_information = f"报告日期：{yesterday}，图片日期：{list(zip(img_paths, image_captions))}，stream_uid：{stream_uid}，stream_name：{stream_name}"
             combined_prompt = camera_information + daily_prompt
             try:
-                ai_summary = call_local_ai_model(ai_prompt=combined_prompt, image_paths=img_paths, json_str=False)
+                ai_summary_json = call_local_ai_model(ai_prompt=combined_prompt, image_paths=img_paths, json_str=True)
+                status = ai_summary_json.get("status", "异常")
+                ai_summary = str(ai_summary_json)
                 # imgs_base64 = [image_path_to_base64(i) for i in img_paths]
                 # ai_summary = call_qwen_via_client(combined_prompt, imgs_base64, model='qwen-vl-max-latest', json_str=False)
             except Exception as e:
@@ -199,7 +201,7 @@ class AutoReportScheduler:
                                 wh_name=wh_name,
                                 patrol_person="AI",
                                 patrol_date=yesterday,
-                                patrol_result="",
+                                patrol_result=status,
                                 report_id=file_id,
                                 scene_code=scene_code,
                                 loan_no=loan_no,
