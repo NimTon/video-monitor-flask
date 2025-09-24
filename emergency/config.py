@@ -14,7 +14,7 @@ URL_EVENT_UP = "https://openapisit.zhongkaixingye.com/openapi/lot/ai/event/up"
 URL_QUERY_AND_PUSH_ASSETS = "http://103.25.65.102:9020/asset/assetDeviceRela/hj/queryRela"
 
 # 文件上传接口（正式环境，二进制流方式，支持 APIKEY）
-URL_UPLOAD_BYTE_FILE = "http://103.25.65.102:9020/sps/comm/file/uploadBase64FileWithApikey "
+URL_UPLOAD_BYTE_FILE = "http://103.25.65.102:9020/sps/comm/file/uploadBase64FileWithApikey"
 
 # 巡库记录上报接口（正式环境）
 URL_PATROL_RECORD = "http://103.25.65.102:9020/shareop/share-event/patrolRecord"
