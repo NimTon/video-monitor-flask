@@ -1,5 +1,5 @@
 import json
-from utils.utils import log, log_multiline, relative_to_pixel_fence, to_png_bytes
+from utils.utils import log, log_multiline, relative_to_pixel_fence, to_png_bytes, camel_to_snake
 from utils import watermark_utils as wu
 from emergency.utils.api_utils import zk_api
 from emergency.config import MACHINE_CODES
@@ -30,7 +30,7 @@ def get_streams_worker():
                 service_no = dev.get("serviceNo")
                 device_no = dev.get("deviceNo")
                 device_name = dev.get("deviceName")
-                stream_uid = f"{owner_code}-{device_no}-{service_no}"
+                stream_uid = f"{machine}-{owner_code}-{device_no}-{service_no}"
                 detecting = dev.get("isAi") == 'Y'
                 log("INFO", f"[EMERGENCY STREAM] 处理设备: {device_name} (UID={stream_uid})")
 
@@ -86,16 +86,16 @@ def get_streams_worker():
                         fence_points = json.loads(pos["locationPoint"])
                         if pos["assetDetail"]:
                             fence_info = [
-                                          f'客户名称: {pos["assetDetail"][0]["assetList"][0]["ownerEntityName"]}',
-                                          f'仓库名称: {pos["whName"]}',
-                                          f'仓库编码: {pos["whCode"]}',
-                                          f'货架编号: {pos["assetDetail"][0]["positionCode"]}',
-                                          f'商品名称: {pos["assetDetail"][0]["assetList"][0]["commodityList"][0]["commodityName"]}',
-                                          f'商品数量: {pos["assetDetail"][0]["assetList"][0]["commodityList"][0]["quantity"]}',
-                                          f'计量单位: {pos["assetDetail"][0]["assetList"][0]["commodityList"][0]["unit"]}',
-                                          f'资产编码: {pos["assetDetail"][0]["assetList"][0]["commodityList"][0]["commodityCode"]}',
-                                          f'融资编码: {pos["loanNo"]}',
-                                         ]
+                                f'客户名称: {pos["assetDetail"][0]["assetList"][0]["ownerEntityName"]}',
+                                f'仓库名称: {pos["whName"]}',
+                                f'仓库编码: {pos["whCode"]}',
+                                f'货架编号: {pos["assetDetail"][0]["positionCode"]}',
+                                f'商品名称: {pos["assetDetail"][0]["assetList"][0]["commodityList"][0]["commodityName"]}',
+                                f'商品数量: {pos["assetDetail"][0]["assetList"][0]["commodityList"][0]["quantity"]}',
+                                f'计量单位: {pos["assetDetail"][0]["assetList"][0]["commodityList"][0]["unit"]}',
+                                f'资产编码: {pos["assetDetail"][0]["assetList"][0]["commodityList"][0]["commodityCode"]}',
+                                f'融资编码: {pos["loanNo"]}',
+                            ]
                         else:
                             fence_info = [f'仓库名称: {pos["whName"]}',
                                           f'仓库编号: {pos["whCode"]}']
@@ -105,7 +105,10 @@ def get_streams_worker():
                         except Exception as e:
                             log("FAIL", f"[EMERGENCY FENCE] 获取视频流失败：{device_name} (UID={stream_uid}, FENCE_UID={fence_uid}), ERROR={e}")
                             continue
-                        # changed = sm.update_fence_by_fence_uid(stream_uid, fence_uid, fence_points, fence_info)
+                        fence_data = {camel_to_snake(pos_key): pos_value for pos_key, pos_value in pos.items()}
+                        fence_data['scene_code'] = owner_code
+                        changed = sm.update_fence_by_fence_uid(stream_uid, fence_uid, fence_points, fence_info, fence_data)
+                        exit()
                         # if changed:
                         # log("INFO", f"[EMERGENCY FENCE] 检测到围栏变化: {device_name} (UID={stream_uid}, FENCE_UID={fence_uid}), 生成新水印")
                         # 5. 生成透明水印
