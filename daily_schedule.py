@@ -155,10 +155,10 @@ class AutoReportScheduler:
             combined_prompt = camera_information + daily_prompt
             try:
                 ai_summary_json = call_local_ai_model(ai_prompt=combined_prompt, image_paths=img_paths, json_str=True)
+                # imgs_base64 = [image_path_to_base64(i) for i in img_paths]
+                # ai_summary_json = call_qwen_via_client(combined_prompt, imgs_base64, model='qwen-vl-max-latest', json_str=False)
                 status = ai_summary_json.get("status", "异常")
                 ai_summary = str(ai_summary_json)
-                # imgs_base64 = [image_path_to_base64(i) for i in img_paths]
-                # ai_summary = call_qwen_via_client(combined_prompt, imgs_base64, model='qwen-vl-max-latest', json_str=False)
             except Exception as e:
                 log("FAIL", f"调用模型失败: {e}")
                 ai_summary = None
