@@ -154,9 +154,9 @@ class AutoReportScheduler:
             camera_information = f"报告日期：{yesterday}，图片日期：{list(zip(img_paths, image_captions))}，stream_uid：{stream_uid}，stream_name：{stream_name}"
             combined_prompt = camera_information + daily_prompt
             try:
-                # ai_summary = call_local_ai_model(ai_prompt=combined_prompt, image_paths=img_paths, json_str=False)
-                imgs_base64 = [image_path_to_base64(i) for i in img_paths]
-                ai_summary = call_qwen_via_client(combined_prompt, imgs_base64, model='qwen-vl-max-latest', json_str=False)
+                ai_summary = call_local_ai_model(ai_prompt=combined_prompt, image_paths=img_paths, json_str=False)
+                # imgs_base64 = [image_path_to_base64(i) for i in img_paths]
+                # ai_summary = call_qwen_via_client(combined_prompt, imgs_base64, model='qwen-vl-max-latest', json_str=False)
             except Exception as e:
                 log("FAIL", f"调用模型失败: {e}")
                 ai_summary = None
@@ -182,9 +182,11 @@ class AutoReportScheduler:
                     docx_file = os.path.abspath(docx_file)
                     pdf_file = docx_to_pdf(docx_file)
                     log("SUCCESS", f"视频流 {stream_name} (UID={stream_uid}) 的 PDF 报告已保存: {pdf_file}。")
+                    fence_uid = ''
                     try:
+
                         file_id = zk_api.upload_byte_file_with_apikey(pdf_file)
-                        log("SUCCESS", f"视频流 {stream_name} (UID={stream_uid}) 的 PDF 报告已上传，文件ID={file_id}")
+                        log("SUCCESS", f"视频流 {stream_name} (UID={stream_uid}) 的 PDF 报告已上传，文件ID={file_id}。")
                         for fence in self.storage_mgr.list_fences(stream_uid):
                             fence_uid = fence.get("id")
                             wh_code = fence.get("fence_data").get("wh_code")
@@ -204,14 +206,14 @@ class AutoReportScheduler:
                                 asset_detail=asset_detail,
                                 video_files=""
                             )
-                            log("SUCCESS", f"视频流 {stream_name} (UID={stream_uid}, FENCE_UID={fence_uid}) 的巡库记录已上报: RESPONSE={patrol_resp}")
+                            log("SUCCESS", f"视频流 {stream_name} (UID={stream_uid}, FENCE_UID={fence_uid}) 的巡库记录已上报: RESPONSE={patrol_resp}。")
                     except Exception as e:
                         if fence_uid:
-                            log("SUCCESS", f"视频流 {stream_name} (UID={stream_uid}, FENCE_UID={fence_uid}) 的巡库记录上报失败: ERROR={e}")
+                            log("SUCCESS", f"视频流 {stream_name} (UID={stream_uid}, FENCE_UID={fence_uid}) 的巡库记录上报失败: ERROR={e}。")
                         else:
-                            log("FAIL", f"视频流 {stream_name} (UID={stream_uid}) 巡库文件上传失败: ERROR={e}")
+                            log("FAIL", f"视频流 {stream_name} (UID={stream_uid}) 巡库文件上传失败: ERROR={e}。")
                 except Exception as e:
-                    log("FAIL", f"视频流 {stream_name} (UID={stream_uid}) 的 PDF 报告导出失败: {e}")
+                    log("FAIL", f"视频流 {stream_name} (UID={stream_uid}) 的 PDF 报告导出失败: {e}。")
             else:
                 log("FAIL", f"视频流 {stream_name} (UID={stream_uid}) 的 Word 报告保存失败。")
             recipients = RecipientsManager().get_recipients_by_stream_id(stream_uid)
@@ -235,8 +237,8 @@ class AutoReportScheduler:
             today_information = f"报告日期：{yesterday}"
             combined_prompt = today_information + combined_prompt
             try:
-                # overall_summary = call_local_ai_model(ai_prompt=combined_prompt, json_str=False)
-                overall_summary = call_qwen_via_client(combined_prompt, model="qwen-plus", json_str=False)
+                overall_summary = call_local_ai_model(ai_prompt=combined_prompt, json_str=False)
+                # overall_summary = call_qwen_via_client(combined_prompt, model="qwen-plus", json_str=False)
             except Exception as e:
                 log("FAIL", f"调用本地模型生成总体总结失败: {e}")
                 overall_summary = None  # 或设置为默认提示，如 "识别失败"
