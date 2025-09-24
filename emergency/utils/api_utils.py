@@ -118,7 +118,7 @@ class ZhongkaiAPI:
             content_base64 = base64.b64encode(f.read()).decode('utf-8')
         payload = {
             "fileName": file_path.split("/")[-1],  # 只传文件名
-            "fileContent": content_base64  # Base64编码的字符串
+            "base64Content": content_base64  # Base64编码的字符串
         }
         resp = requests.post(self.url_upload_byte_file, headers=self.headers, json=payload).json()
         if resp.get("rspCode") != "00000000":
