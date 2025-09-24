@@ -154,9 +154,9 @@ class AutoReportScheduler:
             camera_information = f"报告日期：{yesterday}，图片日期：{list(zip(img_paths, image_captions))}，stream_uid：{stream_uid}，stream_name：{stream_name}"
             combined_prompt = camera_information + daily_prompt
             try:
-                ai_summary_json = call_local_ai_model(ai_prompt=combined_prompt, image_paths=img_paths, json_str=True)
-                # imgs_base64 = [image_path_to_base64(i) for i in img_paths]
-                # ai_summary_json = call_qwen_via_client(combined_prompt, imgs_base64, model='qwen-vl-max-latest', json_str=False)
+                # ai_summary_json = call_local_ai_model(ai_prompt=combined_prompt, image_paths=img_paths, json_str=True)
+                imgs_base64 = [image_path_to_base64(i) for i in img_paths]
+                ai_summary_json = call_qwen_via_client(combined_prompt, imgs_base64, model='qwen-vl-max-latest', json_str=True)
                 status = ai_summary_json.get("status", "异常")
                 ai_summary = str(ai_summary_json)
             except Exception as e:
@@ -239,8 +239,8 @@ class AutoReportScheduler:
             today_information = f"报告日期：{yesterday}"
             combined_prompt = today_information + combined_prompt
             try:
-                overall_summary = call_local_ai_model(ai_prompt=combined_prompt, json_str=False)
-                # overall_summary = call_qwen_via_client(combined_prompt, model="qwen-plus", json_str=False)
+                # overall_summary = call_local_ai_model(ai_prompt=combined_prompt, json_str=False)
+                overall_summary = call_qwen_via_client(combined_prompt, model="qwen-plus", json_str=False)
             except Exception as e:
                 log("FAIL", f"调用本地模型生成总体总结失败: {e}")
                 overall_summary = None  # 或设置为默认提示，如 "识别失败"
