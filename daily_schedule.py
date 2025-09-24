@@ -7,7 +7,7 @@ from storage import StorageManager, ImageReportManager, RecipientsManager, sm
 import schedule
 import json
 from utils.ai_utils import call_qwen_via_client, call_local_ai_model
-from utils.utils import log, save_report_to_docx, resize_to_720p, points_to_abs_points, draw_fence_on_frame, docx_to_pdf
+from utils.utils import log, image_path_to_base64, save_report_to_docx, resize_to_720p, points_to_abs_points, draw_fence_on_frame, docx_to_pdf
 from utils.alert_utils import send_email_alert
 from pathlib import Path
 from emergency.utils.api_utils import zk_api
@@ -154,9 +154,9 @@ class AutoReportScheduler:
             camera_information = f"报告日期：{yesterday}，图片日期：{list(zip(img_paths, image_captions))}，stream_uid：{stream_uid}，stream_name：{stream_name}"
             combined_prompt = camera_information + daily_prompt
             try:
-                ai_summary = call_local_ai_model(ai_prompt=combined_prompt, image_paths=img_paths, json_str=False)
-                # imgs_base64 = [image_path_to_base64(i) for i in img_paths]
-                # ai_summary = call_qwen_via_client(combined_prompt, imgs_base64, model='qwen-vl-max-latest', json_str=False)
+                # ai_summary = call_local_ai_model(ai_prompt=combined_prompt, image_paths=img_paths, json_str=False)
+                imgs_base64 = [image_path_to_base64(i) for i in img_paths]
+                ai_summary = call_qwen_via_client(combined_prompt, imgs_base64, model='qwen-vl-max-latest', json_str=False)
             except Exception as e:
                 log("FAIL", f"调用模型失败: {e}")
                 ai_summary = None
@@ -235,8 +235,8 @@ class AutoReportScheduler:
             today_information = f"报告日期：{yesterday}"
             combined_prompt = today_information + combined_prompt
             try:
-                overall_summary = call_local_ai_model(ai_prompt=combined_prompt, json_str=False)
-                # overall_summary = call_qwen_via_client(combined_prompt, model="qwen-plus", json_str=False)
+                # overall_summary = call_local_ai_model(ai_prompt=combined_prompt, json_str=False)
+                overall_summary = call_qwen_via_client(combined_prompt, model="qwen-plus", json_str=False)
             except Exception as e:
                 log("FAIL", f"调用本地模型生成总体总结失败: {e}")
                 overall_summary = None  # 或设置为默认提示，如 "识别失败"
