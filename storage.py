@@ -171,7 +171,7 @@ class StorageManager:
         self.save_all(data)
         return True
 
-    def update_fence_by_fence_uid(self, stream_uid, fence_id, points, fence_info) -> bool:
+    def update_fence_by_fence_uid(self, stream_uid, fence_id, points, fence_info, fence_data) -> bool:
         """更新单个围栏坐标点和信息，返回是否有变化"""
         data = self.load_all()
         sidx = self._find_stream_index(data, stream_uid)
@@ -180,7 +180,7 @@ class StorageManager:
 
         fidx = self._find_fence_index(data[sidx], fence_id)
         if fidx == -1:
-            fence = {"id": fence_id, "points": points, "fence_info": fence_info}
+            fence = {"id": fence_id, "points": points, "fence_info": fence_info, "fence_data": fence_data}
             data[sidx]["fences"].append(fence)
             self.save_all(data)
             return True  # 新增算作变化
@@ -193,6 +193,9 @@ class StorageManager:
             changed = True
         if fence.get("fence_info") != fence_info:
             fence["fence_info"] = fence_info
+            changed = True
+        if fence.get("fence_data") != fence_data:
+            fence["fence_data"] = fence_data
             changed = True
 
         if changed:
