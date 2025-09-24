@@ -156,9 +156,9 @@ class ZhongkaiAPI:
             payload["assetDetail"] = asset_detail
         if video_files:
             payload["videoFiles"] = video_files
-
+        print(payload)
         resp = requests.post(self.url_patrol_record, headers=self.headers, json=payload).json()
-        if resp.get("rspCode") != "0000":
+        if resp.get("rspCode") != "00000000":
             raise ZhongkaiAPIError("巡库记录上报失败", resp)
         return resp["data"]
 
