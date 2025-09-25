@@ -34,7 +34,7 @@ class AutoReportScheduler:
         # ------------------------
         os.makedirs("logs", exist_ok=True)
         now_str = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
-        self.log_file_path = f"/logs/daily_schedule-{now_str}.log"
+        self.log_file_path = f"logs/daily_schedule-{now_str}.log"
 
     def capture_stream_frame(self, stream_name, stream_url, stream_uid, max_retries=3, retry_delay=1):
         """抓取视频流当前帧，失败时最多尝试 max_retries 次"""
