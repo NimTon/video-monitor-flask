@@ -555,10 +555,10 @@ def add_source_stream():
 @app.route('/api/source-streams', methods=['PATCH'])
 def update_source_stream():
     try:
-        url = request.json.get('source_stream_url')
+        url = request.json.get('url')
         stream_uid = request.json.get('stream_uid')
         data = {"stream_uid": stream_uid, "url": url}
-        resp = requests.post(f"{FLOW_LOCAL_URL}/api/bind", data=data)
+        resp = requests.patch(f"{FLOW_LOCAL_URL}/api/url", data=data)
         if resp.status_code == 200:
             return jsonify(resp.json()), 200
         else:
