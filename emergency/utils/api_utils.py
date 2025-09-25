@@ -220,7 +220,7 @@ class ZhongkaiAPI:
         resp = requests.post(self.url_event_up, headers=self.headers, json=payload).json()
         if resp.get("rspCode") != "00000000":
             raise ZhongkaiAPIError("巡库记录上报失败", resp)
-        return resp["data"]
+        return resp["rspDesc"]
 
 
 zk_api = ZhongkaiAPI()
