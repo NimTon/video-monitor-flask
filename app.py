@@ -558,7 +558,7 @@ def update_source_stream():
         url = request.json.get('source_stream_url')
         stream_uid = request.json.get('stream_uid')
         data = {"stream_uid": stream_uid, "url": url}
-        resp = requests.patch(f"{FLOW_LOCAL_URL}/api/url", data=data)
+        resp = requests.patch(f"{FLOW_LOCAL_URL}/api/url", json=data)
         if resp.status_code == 200:
             return jsonify(resp.json()), 200
         else:
