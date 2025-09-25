@@ -70,6 +70,7 @@ def get_streams_worker():
 
                     # 调用中凯资产与围栏信息接口
                     url = url.replace("no_wm", "wm").replace(FLOW_LOCAL_URL, FLOW_BASE_URL)
+                    print(f"转流加水印替换后: {url}")
                     asset_info = zk_api.query_and_push_assets(
                         hj_device_no=device_no,
                         hj_service_no=service_no,
