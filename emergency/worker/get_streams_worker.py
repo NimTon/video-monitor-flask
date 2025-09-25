@@ -136,4 +136,12 @@ def get_streams_worker():
 
 
 if __name__ == "__main__":
-    get_streams_worker()
+    import time
+    INTERVAL_HOURS = 10
+    while True:
+        try:
+            get_streams_worker()
+        except Exception as e:
+            log("FAIL", f"[EMERGENCY STREAM] get_streams_worker 运行异常: {e}")
+        log("INFO", f"[EMERGENCY STREAM] 等待 {INTERVAL_HOURS} 小时后重新运行...")
+        time.sleep(INTERVAL_HOURS * 3600)
