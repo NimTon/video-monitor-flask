@@ -5,7 +5,6 @@ import base64
 from emergency.config import (
     URL_EVENT_UP,
     URL_GET_DEVICES,
-    URL_UPLOAD_FILE,
     URL_GET_LIVE_URL,
     URL_QUERY_AND_PUSH_ASSETS,
     URL_UPLOAD_BYTE_FILE,
