@@ -59,39 +59,39 @@ class ZhongkaiAPI:
             raise ZhongkaiAPIError("获取直播地址失败", resp)
         return resp["data"]
 
-    def upload_file(self, file_path: str) -> str:
-        """上传文件并返回文件编号"""
-        with open(file_path, 'rb') as f:
-            files = {"file": (file_path, f)}
-            resp = requests.post(self.url_upload_file, headers={"F-VIDEO-AI-TOKEN": ZK_TOKEN}, files=files).json()
-        if resp.get("rspCode") != "00000000":
-            raise ZhongkaiAPIError("文件上传失败", resp)
-        return resp["data"]
+    # def upload_file(self, file_path: str) -> str:
+    #     """上传文件并返回文件编号"""
+    #     with open(file_path, 'rb') as f:
+    #         files = {"file": (file_path, f)}
+    #         resp = requests.post(self.url_upload_file, headers={"F-VIDEO-AI-TOKEN": ZK_TOKEN}, files=files).json()
+    #     if resp.get("rspCode") != "00000000":
+    #         raise ZhongkaiAPIError("文件上传失败", resp)
+    #     return resp["data"]
 
-    def event_up(
-            self,
-            owner_code: str,
-            warehouse_code: str,
-            position_code: str,
-            duration: int,
-            event_type: str,
-            event_time: str,
-            devices: List[Dict[str, Any]]
-    ) -> bool:
-        """上报事件"""
-        payload = {
-            "ownerCode": owner_code,
-            "warehouseCode": warehouse_code,
-            "positionCode": position_code,
-            "duration": duration,
-            "eventType": event_type,
-            "eventTime": event_time,
-            "devices": devices
-        }
-        resp = requests.post(self.url_event_up, headers=self.headers, json=payload).json()
-        if resp.get("rspCode") != "00000000":
-            raise ZhongkaiAPIError("事件上报失败", resp)
-        return True
+    # def event_up(
+    #         self,
+    #         owner_code: str,
+    #         warehouse_code: str,
+    #         position_code: str,
+    #         duration: int,
+    #         event_type: str,
+    #         event_time: str,
+    #         devices: List[Dict[str, Any]]
+    # ) -> bool:
+    #     """上报事件"""
+    #     payload = {
+    #         "ownerCode": owner_code,
+    #         "warehouseCode": warehouse_code,
+    #         "positionCode": position_code,
+    #         "duration": duration,
+    #         "eventType": event_type,
+    #         "eventTime": event_time,
+    #         "devices": devices
+    #     }
+    #     resp = requests.post(self.url_event_up, headers=self.headers, json=payload).json()
+    #     if resp.get("rspCode") != "00000000":
+    #         raise ZhongkaiAPIError("事件上报失败", resp)
+    #     return True
 
     def query_and_push_assets(
             self,
@@ -160,6 +160,69 @@ class ZhongkaiAPI:
         if resp.get("rspCode") != "00000000":
             raise ZhongkaiAPIError("巡库记录上报失败", resp)
         return resp["data"]
+
+    def push_iot_event(
+            self,
+            hj_device_no: str,
+            hj_service_no: str,
+            event_type: str,
+            event_date: str,
+            event_msg: Optional[str] = None,
+            event_img_file_id: Optional[str] = None,
+            event_video_file_id: Optional[str] = None,
+            wh_code: Optional[str] = None,
+            wh_name: Optional[str] = None,
+            loan_no: Optional[str] = None,
+            asset_detail: Optional[str] = None
+    ) -> Dict[str, Any]:
+        """
+        推送物联网预警事件
+
+        参数：
+        - hj_device_no: hj设备编号（必填）
+        - hj_service_no: hj服务编号（必填）
+        - event_type: 事件类型（5-人员聚集，6-活动车辆，7-车货）（必填）
+        - event_date: 事件发生时间，yyyy-MM-dd（必填）
+        - event_msg: 事件消息（可选）
+        - event_img_file_id: 事件图片文件ID（可选）
+        - event_video_file_id: 事件影像文件ID（可选）
+        - wh_code: 仓库编码（可选）
+        - wh_name: 仓库名称（可选）
+        - loan_no: 融资编号（可选）
+        - asset_detail: 资产信息 JSON 字符串（可选）
+
+        返回：
+        - 接口返回 JSON 数据
+        """
+        payload = {
+            "hjDeviceNo": hj_device_no,
+            "hjServiceNo": hj_service_no,
+            "eventType": event_type,
+            "eventDate": event_date
+        }
+        if event_msg:
+            payload["eventMsg"] = event_msg
+        if event_img_file_id:
+            payload["eventImgFileId"] = event_img_file_id
+        if event_video_file_id:
+            payload["eventVideoFileId"] = event_video_file_id
+        if wh_code:
+            payload["whCode"] = wh_code
+        if wh_name:
+            payload["whName"] = wh_name
+        if loan_no:
+            payload["loanNo"] = loan_no
+        if asset_detail:
+            payload["assetDetail"] = asset_detail
+
+        resp = requests.post(
+            self.url_event_up,
+            json=payload
+        ).json()
+
+        if resp.get("rspCode") != "00000000":
+            raise ZhongkaiAPIError("物联网事件推送失败", resp)
+        return resp
 
 
 zk_api = ZhongkaiAPI()
