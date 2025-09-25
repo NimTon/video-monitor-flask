@@ -555,7 +555,7 @@ def add_source_stream():
 @app.route('/api/source-streams', methods=['PATCH'])
 def update_source_stream():
     try:
-        url = request.json.get('url')
+        url = request.json.get('source_stream_url')
         stream_uid = request.json.get('stream_uid')
         data = {"stream_uid": stream_uid, "url": url}
         resp = requests.patch(f"{FLOW_LOCAL_URL}/api/url", data=data)
