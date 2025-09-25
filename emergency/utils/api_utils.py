@@ -215,14 +215,10 @@ class ZhongkaiAPI:
         if asset_detail:
             payload["assetDetail"] = asset_detail
 
-        resp = requests.post(
-            self.url_event_up,
-            json=payload
-        ).json()
-
+        resp = requests.post(self.url_event_up, headers=self.headers, json=payload).json()
         if resp.get("rspCode") != "00000000":
-            raise ZhongkaiAPIError("物联网事件推送失败", resp)
-        return resp
+            raise ZhongkaiAPIError("巡库记录上报失败", resp)
+        return resp["data"]
 
 
 zk_api = ZhongkaiAPI()
