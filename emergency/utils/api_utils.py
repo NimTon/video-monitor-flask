@@ -5,6 +5,8 @@ import base64
 from emergency.config import (
     URL_EVENT_UP,
     URL_GET_DEVICES,
+    URL_UPLOAD_FILE,
+    URL_EVENT_UP_TEST,
     URL_GET_LIVE_URL,
     URL_QUERY_AND_PUSH_ASSETS,
     URL_UPLOAD_BYTE_FILE,
@@ -33,6 +35,7 @@ class ZhongkaiAPI:
         self.url_get_devices = URL_GET_DEVICES
         self.url_get_live_url = URL_GET_LIVE_URL
         self.url_upload_file = URL_UPLOAD_FILE
+        self.url_event_up_test = URL_EVENT_UP_TEST
         self.url_event_up = URL_EVENT_UP
         self.url_query_and_push_assets = URL_QUERY_AND_PUSH_ASSETS
         self.url_upload_byte_file = URL_UPLOAD_BYTE_FILE
@@ -87,7 +90,7 @@ class ZhongkaiAPI:
     #         "eventTime": event_time,
     #         "devices": devices
     #     }
-    #     resp = requests.post(self.url_event_up, headers=self.headers, json=payload).json()
+    #     resp = requests.post(self.url_event_up_test, headers=self.headers, json=payload).json()
     #     if resp.get("rspCode") != "00000000":
     #         raise ZhongkaiAPIError("事件上报失败", resp)
     #     return True
