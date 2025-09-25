@@ -52,7 +52,7 @@ class AutoReportScheduler:
             else:
                 cap.release()
                 frame = None
-            log("WARN", f"[尝试 {attempt}/{max_retries}] 抓取视频流失败: {stream_name} (UID={stream_uid}), URL={stream_url}。", log_path=self.log_file_path)
+            log("WARNING", f"[尝试 {attempt}/{max_retries}] 抓取视频流失败: {stream_name} (UID={stream_uid}), URL={stream_url}。", log_path=self.log_file_path)
             time.sleep(retry_delay)
         else:
             log("FAIL", f"抓取视频流三次尝试均失败: {stream_name} (UID={stream_uid}), URL={stream_url}。", log_path=self.log_file_path)
@@ -94,7 +94,7 @@ class AutoReportScheduler:
             for idx, img in enumerate(images):
                 if img["timestamp"].startswith(frame_hour.zfill(2)):
                     if img["image_path"]:
-                        log("WARN",
+                        log("WARNING",
                             f"{stream_name} ({stream_uid}) 在 {img['timestamp']} 已存在 image_path={img['image_path']}，将被替换为 {frame_data['image_path']}。",
                             log_path=self.log_file_path)
                     images[idx] = frame_data
@@ -117,7 +117,7 @@ class AutoReportScheduler:
     def capture_all_streams(self):
         streams = self.storage_mgr.list_streams()
         if not streams:
-            log("WARN", "没有视频流可抓取。", log_path=self.log_file_path)
+            log("WARNING", "没有视频流可抓取。", log_path=self.log_file_path)
             return
         log("INFO", f"开始抓取视频流，总数: {len(streams)}。", log_path=self.log_file_path)
         all_success = True
@@ -145,15 +145,15 @@ class AutoReportScheduler:
             stream_name = stream.get("name", stream_uid)
             day_report = self.report_mgr.get_report(stream_uid, yesterday)
             if not day_report:
-                log("WARN", f"视频流 {stream_name} (UID={stream_uid}) 缺少 {yesterday} 的报告，跳过。", log_path=self.log_file_path)
+                log("WARNING", f"视频流 {stream_name} (UID={stream_uid}) 缺少 {yesterday} 的报告，跳过。", log_path=self.log_file_path)
                 continue
             images = day_report.get("images", [])
             img_count = len([img for img in images if img.get("image_path")])
             if img_count < 1:
-                log("WARN", f"视频流 {stream_name} (UID={stream_uid}) 的 {yesterday} 报告不足 1 张，跳过。", log_path=self.log_file_path)
+                log("WARNING", f"视频流 {stream_name} (UID={stream_uid}) 的 {yesterday} 报告不足 1 张，跳过。", log_path=self.log_file_path)
                 continue
             elif 1 <= img_count < 24:
-                log("WARN", f"视频流 {stream_name} (UID={stream_uid}) 的 {yesterday} 报告不足 24 张（那天 {img_count} 张）。", log_path=self.log_file_path)
+                log("WARNING", f"视频流 {stream_name} (UID={stream_uid}) 的 {yesterday} 报告不足 24 张（那天 {img_count} 张）。", log_path=self.log_file_path)
             img_paths = [img.get("image_path") for img in images if img.get("image_path")]
             image_captions = [img.get("timestamp") for img in images if img.get("image_path")]
             camera_information = f"报告日期：{yesterday}，图片日期：{list(zip(img_paths, image_captions))}，stream_uid：{stream_uid}，stream_name：{stream_name}"
