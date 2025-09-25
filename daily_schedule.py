@@ -32,7 +32,7 @@ class AutoReportScheduler:
         # ------------------------
         # 日志文件路径
         # ------------------------
-        os.makedirs("/logs", exist_ok=True)
+        os.makedirs("logs", exist_ok=True)
         now_str = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
         self.log_file_path = f"/logs/daily_schedule-{now_str}.log"
 
@@ -192,7 +192,6 @@ class AutoReportScheduler:
                     log("SUCCESS", f"视频流 {stream_name} (UID={stream_uid}) 的 PDF 报告已保存: {pdf_file}。", log_path=self.log_file_path)
                     fence_uid = ''
                     try:
-
                         file_id = zk_api.upload_byte_file_with_apikey(pdf_file)
                         log("SUCCESS", f"视频流 {stream_name} (UID={stream_uid}) 的 PDF 报告已上传，文件ID={file_id}。", log_path=self.log_file_path)
                         for fence in self.storage_mgr.list_fences(stream_uid):
@@ -306,10 +305,10 @@ if __name__ == "__main__":
     log("INFO", "调度器已启动。")
 
     # 手动测试抓图
-    # report_scheduler.capture_all_streams()
+    report_scheduler.capture_all_streams()
 
     # 手动测试 AI 总结
-    report_scheduler.daily_ai_summary()
+    # report_scheduler.daily_ai_summary()
 
     # schedule 需要不断循环运行才能触发任务
     while True:
