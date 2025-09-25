@@ -5,10 +5,10 @@ URL_GET_DEVICES = "https://openapi.zhongkaixingye.com/openapi/lot/ai/devices"
 URL_GET_LIVE_URL = "https://openapi.zhongkaixingye.com/openapi/lot/ai/video/url"
 
 # 文件上传接口（测试环境）
-# URL_UPLOAD_FILE = "https://openapisit.zhongkaixingye.com/openapi/lot/ai/file/upload"
+URL_UPLOAD_FILE = "https://openapisit.zhongkaixingye.com/openapi/lot/ai/file/upload"
 
 # 事件上报接口（测试环境）
-# URL_EVENT_UP = "https://openapisit.zhongkaixingye.com/openapi/lot/ai/event/up"
+URL_EVENT_UP_TEST = "https://openapisit.zhongkaixingye.com/openapi/lot/ai/event/up"
 
 # 事件上报接口（正式环境）
 URL_EVENT_UP = "http://103.25.65.102:9020/asset/iotDeviceEvent/hj/cameraEvent/create"
