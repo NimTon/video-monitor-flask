@@ -20,7 +20,7 @@ def test_get_live_url():
 def test_upload_byte_file_with_apikey():
     print("==== 测试 upload_byte_file_with_apikey ====")
     try:
-        file_id = zk_api.upload_byte_file_with_apikey("test_file.txt")  # 替换成本地文件
+        file_id = zk_api.upload_byte_file_with_apikey("test_file.pdf")
         print("upload_byte_file_with_apikey 成功:", file_id)
     except ZhongkaiAPIError as e:
         print("upload_byte_file_with_apikey 失败:", e, getattr(e, "response", None))
@@ -67,7 +67,6 @@ def test_push_iot_event():
 
 
 if __name__ == "__main__":
-    # 你可以单独注释掉不需要测试的函数
     test_get_devices()
     test_get_live_url()
     test_upload_byte_file_with_apikey()
