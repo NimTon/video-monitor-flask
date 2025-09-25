@@ -28,7 +28,12 @@ def test_upload_byte_file_with_apikey():
 def test_query_and_push_assets():
     print("==== 测试 query_and_push_assets ====")
     try:
-        assets = zk_api.query_and_push_assets("DEV001", "SERVICE_001", "http://example.com/live", "SCENE001")
+        assets = zk_api.query_and_push_assets(
+            hj_device_no="DEV001",
+            hj_service_no="SERVICE_001",
+            video_play_url="http://example.com/live",
+            scene_code="SCENE001"
+        )
         print("query_and_push_assets 成功:", assets)
     except ZhongkaiAPIError as e:
         print("query_and_push_assets 失败:", e, getattr(e, "response", None))
@@ -41,7 +46,12 @@ def test_patrol_record():
             wh_name="北京仓库",
             patrol_person="张三",
             patrol_date=datetime.date.today().strftime("%Y-%m-%d"),
-            patrol_result="正常"
+            patrol_result="正常",
+            report_id=123,
+            scene_code="SCENE001",
+            loan_no="LOAN20240919001",
+            asset_detail='[{"assetNo":"AST001","commodityList":[{"commodityCode":"CMD001","comodityName":"钢材"}]}]',
+            video_files="video_123456"
         )
         print("patrol_record 成功:", patrol)
     except ZhongkaiAPIError as e:
@@ -56,10 +66,12 @@ def test_push_iot_event():
             event_type="5",
             event_date=datetime.date.today().strftime("%Y-%m-%d"),
             event_msg="测试事件",
-            event_img_file_id=None,
-            event_video_file_id=None,
+            event_img_file_id="img_123456",
+            event_video_file_id="video_123456",
             wh_code="WH001",
-            wh_name="北京仓库"
+            wh_name="北京仓库",
+            loan_no="LOAN20240919001",
+            asset_detail='[{"assetNo":"AST001","commodityList":[{"commodityCode":"CMD001","comodityName":"钢材"}]}]'
         )
         print("push_iot_event 成功:", iot_event)
     except ZhongkaiAPIError as e:
