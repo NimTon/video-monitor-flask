@@ -63,7 +63,7 @@ def get_streams_worker():
                             "stream_uid": stream_uid
                         }, timeout=5)
                         resp.raise_for_status()
-                        url = resp.json().get("data").get("hls_url")
+                        url = resp.json().get("data").get("url")
                         url = f'{FLOW_LOCAL_URL}/{url}'
                         sm.update_stream(stream_uid, stream_url=url)
                         log("SUCCESS", f"[EMERGENCY STREAM] 更新视频流: {device_name} (UID={stream_uid})")
