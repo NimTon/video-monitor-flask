@@ -32,9 +32,11 @@ class AutoReportScheduler:
         # ------------------------
         # 日志文件路径
         # ------------------------
-        os.makedirs("logs", exist_ok=True)
-        now_str = datetime.datetime.now().strftime("%Y%m%d-%H%M%S")
-        self.log_file_path = f"logs/daily_schedule-{now_str}.log"
+        now = datetime.datetime.now()
+        date_str = now.strftime("%Y-%m-%d_%H-%M-%S")  # YYYY-MM-DD_HH-MM-SS
+        log_dir = os.path.join("logs", date_str)
+        os.makedirs(log_dir, exist_ok=True)
+        self.log_file_path = os.path.join(log_dir, "daily_schedule.log")
 
     def capture_stream_frame(self, stream_name, stream_url, stream_uid, max_retries=3, retry_delay=1):
         """抓取视频流当前帧，失败时最多尝试 max_retries 次"""
@@ -301,11 +303,11 @@ if __name__ == "__main__":
     report_scheduler = AutoReportScheduler(storage_mgr, report_mgr, save_dir="images/daily", base_url=base_url)
 
     # 启动定时任务
-    # report_scheduler.start_scheduler()
+    report_scheduler.start_scheduler()
     log("INFO", "调度器已启动。")
 
     # 手动测试抓图
-    report_scheduler.capture_all_streams()
+    # report_scheduler.capture_all_streams()
 
     # 手动测试 AI 总结
     # report_scheduler.daily_ai_summary()
