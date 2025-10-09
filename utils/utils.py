@@ -69,29 +69,6 @@ def clean_old_files(path: str, day: int):
     return removed_files
 
 
-def log_multiline(level: str, *messages):
-    """多行日志打印，第一行带时间戳，其余行缩进对齐"""
-    color_map = {
-        "INFO": LogColors.INFO,
-        "WARNING": LogColors.WARNING,
-        "FAIL": LogColors.FAIL,
-        "SUCCESS": LogColors.SUCCESS
-    }
-    color = color_map.get(level, LogColors.INFO)
-    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    WHITE = "\033[97m"
-    RESET = LogColors.RESET
-    prefix_len = len(timestamp) + 1 + len(f"[{level}] ")  # 时间戳 + 空格 + 标签
-    indent = " " * prefix_len
-    for i, msg in enumerate(messages):
-        lines = str(msg).split("\n")
-        for j, line in enumerate(lines):
-            if i == 0 and j == 0:
-                print(f"{WHITE}{timestamp}{RESET} {color}[{level}]{RESET} {line}")
-            else:
-                print(f"{indent}{line}")
-
-
 def to_png_bytes(img: np.ndarray) -> bytes:
     """
     将 OpenCV 图像编码为 PNG 字节流
