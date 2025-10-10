@@ -1,4 +1,6 @@
 import json
+import random
+
 from utils.utils import log, log_multiline, relative_to_pixel_fence, to_png_bytes, camel_to_snake
 from utils import watermark_utils as wu
 from emergency.utils.api_utils import zk_api
@@ -112,9 +114,15 @@ def get_streams_worker():
                         # if changed:
                         # log("INFO", f"[EMERGENCY FENCE] 检测到围栏变化: {device_name} (UID={stream_uid}, FENCE_UID={fence_uid}), 生成新水印")
                         # 5. 生成透明水印
-                        watermark_img = wu.generate_fence_layer_blur_binary(bg_frame, pixel_fence_points, fence_info,
-                                                                font_path="C:/Windows/Fonts/msyhl.ttc",
-                                                                font_size=16, line_spacing=1.2)
+                        random_color = (
+                            random.randint(0, 255),  # B
+                            random.randint(0, 255),  # G
+                            random.randint(0, 255)  # R
+                        )
+                        watermark_img = wu.draw_fence_with_text_fixed_color(bg_frame, pixel_fence_points, fence_info,
+                                                                            color=random_color,
+                                                                            font_path="C:/Windows/Fonts/msyh.ttc",
+                                                                            font_size=36, line_spacing=1.2)
                         # 转 PNG 字节流
                         png_bytes = to_png_bytes(watermark_img)
                         # 上传水印到视频流
@@ -138,6 +146,7 @@ def get_streams_worker():
 
 if __name__ == "__main__":
     import time
+
     INTERVAL_HOURS = 10
     while True:
         try:
