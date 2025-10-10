@@ -112,7 +112,7 @@ def get_streams_worker():
                         # if changed:
                         # log("INFO", f"[EMERGENCY FENCE] 检测到围栏变化: {device_name} (UID={stream_uid}, FENCE_UID={fence_uid}), 生成新水印")
                         # 5. 生成透明水印
-                        watermark_img = wu.draw_fence_with_text(bg_frame, pixel_fence_points, fence_info,
+                        watermark_img = wu.generate_fence_layer_blur(bg_frame, pixel_fence_points, fence_info,
                                                                 font_path="C:/Windows/Fonts/msyh.ttc",
                                                                 font_size=24, line_spacing=1.2)
                         # 转 PNG 字节流
