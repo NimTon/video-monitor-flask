@@ -105,10 +105,14 @@ def draw_fence_with_text(bg_frame, fence_points, text_list, font_path=None, font
     return frame
 
 
-def generate_fence_layer_blur(bg_frame, fence_points, text_list, font_path=None, font_size=24, line_spacing=1.2, blur_ksize=5):
+def generate_fence_layer_blur_binary(bg_frame, fence_points, text_list, font_path=None, font_size=24, line_spacing=1.2, blur_ksize=5, thresh=128):
     """
     生成透明底的围栏/文字图层。
-    内容颜色取背景反转灰度，并先对背景进行高斯模糊。
+    先对背景二值化，再进行高斯模糊。
+    内容颜色取背景反转灰度。
+
+    参数:
+        thresh: 二值化阈值 (0~255)
     """
     h, w = bg_frame.shape[:2]
 
@@ -116,14 +120,18 @@ def generate_fence_layer_blur(bg_frame, fence_points, text_list, font_path=None,
     blur_ksize = max(1, blur_ksize)
     if blur_ksize % 2 == 0:
         blur_ksize += 1
-
-    # 限制核大小不能超过图像尺寸（否则会报另一个错误）
     blur_ksize = min(blur_ksize, min(h, w) | 1)  # 确保为奇数
 
-    # 1. 背景高斯模糊
-    blurred_bg = cv2.GaussianBlur(bg_frame, (blur_ksize, blur_ksize), 0)
+    # 1. 转灰度
+    gray = cv2.cvtColor(bg_frame, cv2.COLOR_BGR2GRAY)
 
-    # 2. 黑底遮罩
+    # 2. 二值化
+    _, binary = cv2.threshold(gray, thresh, 255, cv2.THRESH_BINARY)
+
+    # 3. 高斯模糊
+    blurred_bg = cv2.GaussianBlur(binary, (blur_ksize, blur_ksize), 0)
+
+    # 4. 黑底遮罩
     mask = np.zeros((h, w), dtype=np.uint8)
 
     # 绘制围栏
@@ -146,17 +154,14 @@ def generate_fence_layer_blur(bg_frame, fence_points, text_list, font_path=None,
     for i, line in enumerate(text_list):
         bbox = font.getbbox(line)
         w_line = bbox[2] - bbox[0]
-        x = center_x - w_line // 2
         y = y0 + int(sum(line_heights[:i]) * line_spacing)
+        x = center_x - w_line // 2
         draw.text((x, y), line, font=font, fill=255)
 
     mask = np.array(pil_mask)
 
-    # 3. 高斯模糊后的灰度图并反转
-    gray_blur = cv2.cvtColor(blurred_bg, cv2.COLOR_BGR2GRAY)
-    inverted = 255 - gray_blur
-
-    # 4. 生成透明图层（BGRA）
+    # 5. 生成透明图层（BGRA），反转二值化背景作为颜色
+    inverted = 255 - blurred_bg
     layer = np.zeros((h, w, 4), dtype=np.uint8)
     layer[mask > 0, 0] = inverted[mask > 0]  # B
     layer[mask > 0, 1] = inverted[mask > 0]  # G
