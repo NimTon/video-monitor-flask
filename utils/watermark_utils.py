@@ -57,8 +57,8 @@ def draw_fence_with_text(bg_frame, fence_points, text_list, font_path=None, font
 
     # 绘制参数按比例缩放
     scaled_font_size = max(1, int(font_size * scale))
-    line_thickness = max(1, int(2 * scale))        # 原 2
-    point_radius = max(1, int(4 * scale))          # 原 4
+    line_thickness = max(1, int(2 * scale))  # 原 2
+    point_radius = max(1, int(4 * scale))  # 原 4
 
     # -----------------------------
     # 创建透明底图
@@ -94,6 +94,72 @@ def draw_fence_with_text(bg_frame, fence_points, text_list, font_path=None, font
     total_height = int(sum(line_heights) * line_spacing)
 
     y0 = center_y - total_height // 2
+    for i, line in enumerate(text_list):
+        bbox = font.getbbox(line)
+        w, h = bbox[2] - bbox[0], bbox[3] - bbox[1]
+        x = center_x - w // 2
+        y = y0 + int(sum(line_heights[:i]) * line_spacing)
+        draw.text((x, y), line, font=font, fill=color[::-1])
+
+    frame = cv2.cvtColor(np.array(pil_img), cv2.COLOR_RGBA2BGRA)
+    return frame
+
+
+import cv2
+import numpy as np
+from PIL import Image, ImageDraw, ImageFont
+
+
+def draw_fence_with_text_fixed_color(
+        bg_frame, fence_points, text_list, color=(0, 0, 255),
+        font_path=None, font_size=24, line_spacing=1.2, base_height=1080
+):
+    """
+    在图像上绘制围栏和多行文字，固定颜色
+    参数：
+    - bg_frame: np.ndarray, 背景图像
+    - fence_points: list of (x, y) 围栏顶点
+    - text_list: list of str，每行文字
+    - color: tuple, BGR颜色
+    - font_path: str, 字体路径
+    - font_size: int, 基于 base_height 的字体大小
+    - line_spacing: float, 行距倍数
+    - base_height: int, 基准高度
+    """
+    if not fence_points or len(fence_points) < 3:
+        return np.zeros((*bg_frame.shape[:2], 4), dtype=np.uint8)
+
+    scale = bg_frame.shape[0] / base_height
+    scaled_font_size = max(1, int(font_size * scale))
+    line_thickness = max(1, int(2 * scale))
+    point_radius = max(1, int(4 * scale))
+
+    # 创建透明底图
+    frame = np.zeros((*bg_frame.shape[:2], 4), dtype=np.uint8)
+
+    # 绘制围栏
+    pts = np.array(fence_points, np.int32).reshape((-1, 1, 2))
+    overlay = np.zeros_like(frame, dtype=np.uint8)
+    cv2.polylines(overlay, [pts], isClosed=True, color=(*color, 255),
+                  thickness=line_thickness, lineType=cv2.LINE_AA)
+    for (x, y) in fence_points:
+        cv2.circle(overlay, (x, y), radius=point_radius, color=(*color, 255), thickness=-1, lineType=cv2.LINE_AA)
+    mask = overlay[:, :, 3] > 0
+    frame[mask] = overlay[mask]
+
+    # 绘制文字
+    pil_img = Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGRA2RGBA))
+    draw = ImageDraw.Draw(pil_img)
+    font = ImageFont.truetype(font_path, scaled_font_size) if font_path else ImageFont.load_default()
+
+    xs, ys = zip(*fence_points)
+    center_x = int(sum(xs) / len(xs))
+    center_y = int(sum(ys) / len(ys))
+
+    line_heights = [font.getbbox(line)[3] - font.getbbox(line)[1] for line in text_list]
+    total_height = int(sum(line_heights) * line_spacing)
+    y0 = center_y - total_height // 2
+
     for i, line in enumerate(text_list):
         bbox = font.getbbox(line)
         w, h = bbox[2] - bbox[0], bbox[3] - bbox[1]
