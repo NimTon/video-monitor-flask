@@ -105,7 +105,7 @@ def draw_fence_with_text(bg_frame, fence_points, text_list, font_path=None, font
     return frame
 
 
-def generate_fence_layer_blur(bg_frame, fence_points, text_list, font_path=None, font_size=24, line_spacing=1.2, blur_ksize=500):
+def generate_fence_layer_blur(bg_frame, fence_points, text_list, font_path=None, font_size=24, line_spacing=1.2, blur_ksize=5):
     """
     生成透明底的围栏/文字图层。
     内容颜色取背景反转灰度，并先对背景进行高斯模糊。
