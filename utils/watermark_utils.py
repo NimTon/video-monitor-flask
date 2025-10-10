@@ -112,6 +112,14 @@ def generate_fence_layer_blur(bg_frame, fence_points, text_list, font_path=None,
     """
     h, w = bg_frame.shape[:2]
 
+    # 自动修正 blur_ksize 为奇数且合理大小
+    blur_ksize = max(1, blur_ksize)
+    if blur_ksize % 2 == 0:
+        blur_ksize += 1
+
+    # 限制核大小不能超过图像尺寸（否则会报另一个错误）
+    blur_ksize = min(blur_ksize, min(h, w) | 1)  # 确保为奇数
+
     # 1. 背景高斯模糊
     blurred_bg = cv2.GaussianBlur(bg_frame, (blur_ksize, blur_ksize), 0)
 
