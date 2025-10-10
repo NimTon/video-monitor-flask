@@ -123,7 +123,7 @@ def get_streams_worker():
                             (255, 255, 0),  # 青
                             (255, 255, 255)  # 白
                         ]
-                        watermark_img = wu.draw_fence_with_text_fixed_color(bg_frame, pixel_fence_points, fence_info,
+                        watermark_img = wu.draw_fence_with_text_fixed_color_adaptive_centroid(bg_frame, pixel_fence_points, fence_info,
                                                                             color=COLOR_PALETTE[i],
                                                                             font_path="C:/Windows/Fonts/msyh.ttc",
                                                                             font_size=30, line_spacing=1.2)
