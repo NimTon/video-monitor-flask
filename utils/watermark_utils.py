@@ -105,9 +105,163 @@ def draw_fence_with_text(bg_frame, fence_points, text_list, font_path=None, font
     return frame
 
 
-import cv2
-import numpy as np
-from PIL import Image, ImageDraw, ImageFont
+def polygon_centroid(points):
+    """
+    多边形质心计算，points: list of (x, y)
+    """
+    pts = np.array(points, dtype=np.float32)
+    x = pts[:, 0]
+    y = pts[:, 1]
+    a = 0
+    cx = 0
+    cy = 0
+    n = len(points)
+    for i in range(n):
+        j = (i + 1) % n
+        cross = x[i] * y[j] - x[j] * y[i]
+        a += cross
+        cx += (x[i] + x[j]) * cross
+        cy += (y[i] + y[j]) * cross
+    a *= 0.5
+    if a == 0:
+        return int(np.mean(x)), int(np.mean(y))
+    cx /= (6 * a)
+    cy /= (6 * a)
+    return int(cx), int(cy)
+
+
+def draw_fence_with_text_fixed_color_adaptive_centroid(
+        bg_frame, fence_points, text_list, color=(0, 255, 0),
+        font_path=None, font_size=24, line_spacing=1.2, base_height=1080
+):
+    if not fence_points or len(fence_points) < 3:
+        return np.zeros((*bg_frame.shape[:2], 4), dtype=np.uint8)
+
+    scale = bg_frame.shape[0] / base_height
+    scaled_font_size = max(1, int(font_size * scale))
+    line_thickness = max(1, int(2 * scale))
+    point_radius = max(1, int(4 * scale))
+
+    frame = np.zeros((*bg_frame.shape[:2], 4), dtype=np.uint8)
+
+    # 绘制围栏
+    pts = np.array(fence_points, np.int32).reshape((-1, 1, 2))
+    overlay = np.zeros_like(frame, dtype=np.uint8)
+    cv2.polylines(overlay, [pts], isClosed=True, color=(*color, 255),
+                  thickness=line_thickness, lineType=cv2.LINE_AA)
+    for (x, y) in fence_points:
+        cv2.circle(overlay, (x, y), radius=point_radius, color=(*color, 255), thickness=-1, lineType=cv2.LINE_AA)
+    mask = overlay[:, :, 3] > 0
+    frame[mask] = overlay[mask]
+
+    # -----------------------------
+    # 绘制文字
+    pil_img = Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGRA2RGBA))
+    draw = ImageDraw.Draw(pil_img)
+    font_size_try = scaled_font_size
+
+    # 围栏范围
+    xs, ys = zip(*fence_points)
+    min_x, max_x = min(xs), max(xs)
+    min_y, max_y = min(ys), max(ys)
+    fence_width = max_x - min_x
+    fence_height = max_y - min_y
+
+    # 尝试自适应字体大小
+    while font_size_try > 1:
+        font = ImageFont.truetype(font_path, font_size_try) if font_path else ImageFont.load_default()
+        max_line_width = max([font.getbbox(line)[2] - font.getbbox(line)[0] for line in text_list])
+        total_height = int(sum([font.getbbox(line)[3] - font.getbbox(line)[1] for line in text_list]) * line_spacing)
+        if max_line_width <= fence_width * 0.95 and total_height <= fence_height * 0.95:
+            break
+        font_size_try -= 1
+
+    # 使用多边形质心作为文字中心
+    center_x, center_y = polygon_centroid(fence_points)
+    line_heights = [font.getbbox(line)[3] - font.getbbox(line)[1] for line in text_list]
+    total_height = int(sum(line_heights) * line_spacing)
+    y0 = center_y - total_height // 2
+
+    for i, line in enumerate(text_list):
+        bbox = font.getbbox(line)
+        w, h = bbox[2] - bbox[0], bbox[3] - bbox[1]
+        x = center_x - w // 2
+        y = y0 + int(sum(line_heights[:i]) * line_spacing)
+        draw.text((x, y), line, font=font, fill=color[::-1])
+
+    frame = cv2.cvtColor(np.array(pil_img), cv2.COLOR_RGBA2BGRA)
+    return frame
+
+
+def draw_fence_with_text_fit(
+        bg_frame, fence_points, text_list, color=(0, 255, 0),
+        font_path=None, font_size=24, line_spacing=1.2, base_height=1080
+):
+    """
+    在图像上绘制围栏和多行文字，文字自动缩小以适应围栏
+    """
+    if not fence_points or len(fence_points) < 3:
+        return np.zeros((*bg_frame.shape[:2], 4), dtype=np.uint8)
+
+    scale = bg_frame.shape[0] / base_height
+    max_font_size = max(1, int(font_size * scale))
+    line_thickness = max(1, int(2 * scale))
+    point_radius = max(1, int(4 * scale))
+
+    # 创建透明底图
+    frame = np.zeros((*bg_frame.shape[:2], 4), dtype=np.uint8)
+
+    # 绘制围栏
+    pts = np.array(fence_points, np.int32).reshape((-1, 1, 2))
+    overlay = np.zeros_like(frame, dtype=np.uint8)
+    cv2.polylines(overlay, [pts], isClosed=True, color=(*color, 255),
+                  thickness=line_thickness, lineType=cv2.LINE_AA)
+    for (x, y) in fence_points:
+        cv2.circle(overlay, (x, y), radius=point_radius, color=(*color, 255), thickness=-1, lineType=cv2.LINE_AA)
+    mask = overlay[:, :, 3] > 0
+    frame[mask] = overlay[mask]
+
+    # 计算围栏边界
+    xs, ys = zip(*fence_points)
+    min_x, max_x = min(xs), max(xs)
+    min_y, max_y = min(ys), max(ys)
+    fence_width = max_x - min_x
+    fence_height = max_y - min_y
+
+    # 创建 PIL 图像绘制文字
+    pil_img = Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGRA2RGBA))
+    draw = ImageDraw.Draw(pil_img)
+    font_size_try = max_font_size
+    font = ImageFont.truetype(font_path, font_size_try) if font_path else ImageFont.load_default()
+
+    # 尝试缩小字体以适应围栏
+    while True:
+        line_sizes = [font.getbbox(line)[2] - font.getbbox(line)[0] for line in text_list]
+        line_heights = [font.getbbox(line)[3] - font.getbbox(line)[1] for line in text_list]
+        total_height = int(sum(line_heights) * line_spacing)
+        max_line_width = max(line_sizes)
+
+        if max_line_width <= fence_width * 0.9 and total_height <= fence_height * 0.9:
+            break
+        font_size_try = max(1, font_size_try - 1)
+        if font_path:
+            font = ImageFont.truetype(font_path, font_size_try)
+        else:
+            font = ImageFont.load_default()
+        if font_size_try == 1:
+            break
+
+    # 居中绘制文字
+    y0 = min_y + (fence_height - total_height) // 2
+    for i, line in enumerate(text_list):
+        bbox = font.getbbox(line)
+        w, h = bbox[2] - bbox[0], bbox[3] - bbox[1]
+        x = min_x + (fence_width - w) // 2
+        y = y0 + int(sum(line_heights[:i]) * line_spacing)
+        draw.text((x, y), line, font=font, fill=color[::-1])
+
+    frame = cv2.cvtColor(np.array(pil_img), cv2.COLOR_RGBA2BGRA)
+    return frame
 
 
 def draw_fence_with_text_fixed_color(
@@ -283,8 +437,7 @@ def test_draw_fence_with_text_interactive():
     text_list = ["测试区域", "请勿靠近", "Hello World"]
 
     # 3. 绘制最终图像
-    from watermark_utils import draw_fence_with_text  # 引入你原来的函数
-    result_frame = draw_fence_with_text(
+    result_frame = draw_fence_with_text_fit(
         bg_frame,
         clicked_points,
         text_list,
