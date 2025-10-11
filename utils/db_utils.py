@@ -150,6 +150,31 @@ class DBHelper:
             return [dict(row) for row in cur.fetchall()]
 
     # ------------------ 异常检测表操作 ------------------
+    def get_changed_and_pending_export_frames_by_stream_fence(self, stream_uid, fence_uid=None):
+        with self.get_conn() as conn:
+            cur = conn.cursor()
+
+            # 构建基础 SQL
+            sql = """
+                  SELECT *
+                  FROM fence_detections
+                  WHERE stream_uid = ?
+                    AND (changed = '1' AND exported = '0')
+                  """
+            params = [stream_uid]
+
+            # 可选的 fence_uid 条件
+            if fence_uid is not None:
+                sql += " AND fence_uid = ?"
+                params.append(fence_uid)
+
+            # 按时间排序，方便后续合并处理
+            sql += " ORDER BY timestamp ASC;"
+
+            cur.execute(sql, params)
+            return [dict(row) for row in cur.fetchall()]
+
+
     def get_detected_frames_by_stream_fence_and_time(self, stream_uid, start_ts, end_ts, fence_uid=None):
         with self.get_conn() as conn:
             cur = conn.cursor()
@@ -442,7 +467,7 @@ class DBHelper:
         """
         with self.get_conn() as conn:
             cur = conn.cursor()
-            query = "SELECT * FROM fence_detections WHERE changed=1 AND ai_checked=0"
+            query = "SELECT * FROM fence_detections WHERE changed=1 AND ai_checked=0 AND alert_video_path IS NOT NULL"
             params = []
             if group_uid:
                 query += " AND group_uid=?"
