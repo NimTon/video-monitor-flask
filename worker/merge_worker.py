@@ -3,7 +3,7 @@ import cv2
 import pandas as pd
 from utils.db_utils import db
 from utils.stream_utils import get_stream_change_dict, fuse_streams_by_position
-from utils.utils import log, save_frames_as_video, save_key_frames
+from utils.utils import log, save_frames_as_video, save_key_frames, get_first_changed_row
 from storage import sm
 from config import BASE_URL
 
@@ -11,56 +11,26 @@ from config import BASE_URL
 # ------------------ 编组合成视频模块 ------------------
 async def merge_worker():
     while True:
-        groups = sm.list_groups()
-        log("INFO", f"[MERGE] 当前存在的组: {list(groups.keys())}")
-        for group_uid in groups.keys():
-            log("INFO", f"[MERGE] 处理组: {group_uid}")
-            frame_data = pd.DataFrame(db.get_pending_exports(group_uid=group_uid))
-            log("INFO", f"[MERGE] 获取到的检测数据帧数: {len(frame_data)}")
-            group_streams_data = {}
-            for _, row in frame_data.iterrows():
-                stream_uid = row["stream_uid"]
-                frame_id = row["frame_id"]
-                detect_frame = row.to_dict()
-                group_streams_data.setdefault(stream_uid, {})
-                group_streams_data[stream_uid].setdefault(frame_id, [])
-                group_streams_data[stream_uid][frame_id].append(detect_frame)
-            if len(group_streams_data) == 0:
-                log("INFO", f"[MERGE] 组 {group_uid} 的流数据为空，等待下一轮检测")
-                await asyncio.sleep(10)
-                continue
-            total_frames = max(len(frames) for frames in group_streams_data.values())
-            log("INFO", f"[MERGE] 组 {group_uid} 的流数据组装完成，单视频流帧数量: {total_frames}")
-            streams_bool = get_stream_change_dict(group_streams_data)
-            fuse_bool, status = fuse_streams_by_position(streams_bool)
-            if status == "completed":
-                log("INFO", f"[MERGE] 组 {group_uid} 的流数据录制结束，准备处理帧数据")
-            elif status == "recording":
-                log("INFO", f"[MERGE] 组 {group_uid} 的流数据录制中，等待检测正常后再处理")
-                await asyncio.sleep(10)
-                continue
-            elif status == "waiting":
-                log("INFO", f"[MERGE] 组 {group_uid} 的流数据尚未开始录制，等待检测异常出现")
-                await asyncio.sleep(10)
-                continue
-            for stream_uid in group_streams_data.keys():
-                stream_name = sm.get_stream(stream_uid).get("name")
-                fence_uids = [fence['id'] for fence in sm.get_stream(stream_uid).get('fences')]
-                for fence_uid in fence_uids:
-                    detect_fence_frame = frame_data[frame_data['fence_uid'] == fence_uid].copy()
-                    detect_fence_frame['timestamp'] = pd.to_datetime(detect_fence_frame['timestamp'])
-                    detect_changed_fence_frame = detect_fence_frame[detect_fence_frame['changed'] == 1]
-                    if len(detect_changed_fence_frame) == 0:
-                        log("INFO", f"[MERGE] 组 {group_uid} 的流 {stream_name} (UID={stream_uid}, FENCE_UID={fence_uid}) 未检测到异常，跳过")
-                        continue
-                    first_changed_row = detect_changed_fence_frame.iloc[0]
-                    end_ts = first_changed_row['timestamp']
+        streams = sm.list_streams()
+        for stream in streams:
+            stream_uid = stream["uid"]
+            stream_name = stream.get("name")
+            fence_uids = [fence['id'] for fence in stream.get('fences')]
+            for fence_uid in fence_uids:
+                detect_fence_frame = pd.DataFrame(db.get_changed_and_pending_export_frames_by_stream_fence(stream_uid, fence_uid)).copy()
+                if len(detect_fence_frame) == 0:
+                    log("INFO", f"[MERGE] 流 {stream_name} (UID={stream_uid}, FENCE_UID={fence_uid}) 未检测到异常，跳过")
+                    continue
+                detect_fence_frame['timestamp'] = pd.to_datetime(detect_fence_frame['timestamp'])
+                first_changed_row = get_first_changed_row(detect_fence_frame)
+                for _, first_row in first_changed_row.iterrows():
+                    end_ts = first_row['timestamp']
                     start_ts = end_ts - pd.Timedelta(seconds=10)
                     export_detected_frames = pd.DataFrame(db.get_detected_frames_by_stream_fence_and_time(stream_uid, start_ts, end_ts, fence_uid=fence_uid))
                     if len(export_detected_frames) < 10:
-                        log("INFO", f"[MERGE] 组 {group_uid} 的流 {stream_name} (UID={stream_uid}, FENCE_UID={fence_uid}) 的回放帧不足 10 张(现有 {len(export_detected_frames)} 张)，跳过")
+                        log("INFO", f"[MERGE] 流 {stream_name} (UID={stream_uid}, FENCE_UID={fence_uid}) 的回放帧不足 10 张(现有 {len(export_detected_frames)} 张)，跳过")
                         continue
-                    log("INFO", f"[MERGE] stream {stream_uid} 需要导出的帧数量: {len(list(export_detected_frames))}")
+                    log("INFO", f"[MERGE] stream {stream_uid} 需要导出的帧数量: {len(export_detected_frames)}")
                     video_frames = []
                     for idx, row in export_detected_frames.iterrows():
                         frame_path = row['frame_path']
@@ -74,11 +44,11 @@ async def merge_worker():
                     video_url, video_path = save_frames_as_video(stream_uid, fence_uid, video_frames, fps=1)
                     image_urls, image_paths = save_key_frames(stream_uid, fence_uid, video_frames, base_url=BASE_URL)
                     log("SUCCESS", f"[MERGE] 视频生成完成: {video_path}")
-                    db.mark_as_exported(frame_data['id'].tolist())
-                    db.update_media_paths(frame_data['id'].tolist()[0],
+                    db.update_media_paths(detect_fence_frame['id'].tolist()[0],
                                           before_image_path=image_paths[0],
                                           after_image_path=image_paths[1],
                                           alert_video_path=video_path)
+                db.mark_as_exported(detect_fence_frame['id'].tolist())
         await asyncio.sleep(10)
 
 
