@@ -2,6 +2,8 @@ import sqlite3
 from contextlib import contextmanager
 from config import DB_PATH
 
+MAX_SQL_VARS = 900
+
 
 class DBHelper:
     def __init__(self, db_path=DB_PATH):
@@ -303,23 +305,27 @@ class DBHelper:
     def mark_as_exported(self, detection_ids):
         with self.get_conn() as conn:
             cur = conn.cursor()
-            cur.execute(f"""
-                UPDATE fence_detections
-                SET exported=1
-                WHERE id IN ({','.join('?' for _ in detection_ids)})
-            """, detection_ids)
+            for i in range(0, len(detection_ids), MAX_SQL_VARS):
+                batch = detection_ids[i:i + MAX_SQL_VARS]
+                cur.execute(f"""
+                    UPDATE fence_detections
+                    SET exported=1
+                    WHERE id IN ({','.join('?' for _ in batch)})
+                """, batch)
             conn.commit()
 
     def mark_as_group_exported(self, detection_ids, event_uid, group_event_uid):
         with self.get_conn() as conn:
             cur = conn.cursor()
-            cur.execute(f"""
-        UPDATE fence_detections
-        SET group_exported=1,
-            event_uid=?,
-            group_event_uid=?
-        WHERE id IN ({','.join('?' for _ in detection_ids)})
-        """, [event_uid, group_event_uid] + detection_ids)
+            for i in range(0, len(detection_ids), MAX_SQL_VARS):
+                batch = detection_ids[i:i + MAX_SQL_VARS]
+                cur.execute(f"""
+                    UPDATE fence_detections
+                    SET group_exported=1,
+                        event_uid=?,
+                        group_event_uid=?
+                    WHERE id IN ({','.join('?' for _ in batch)})
+                """, [event_uid, group_event_uid] + batch)
             conn.commit()
             return event_uid, group_event_uid
 
@@ -403,11 +409,13 @@ class DBHelper:
         """将指定检测记录标记为已报警"""
         with self.get_conn() as conn:
             cur = conn.cursor()
-            cur.execute(f"""
-            UPDATE fence_detections
-            SET alerted=1
-            WHERE id IN ({','.join('?' for _ in detection_ids)})
-            """, detection_ids)
+            for i in range(0, len(detection_ids), MAX_SQL_VARS):
+                batch = detection_ids[i:i + MAX_SQL_VARS]
+                cur.execute(f"""
+                    UPDATE fence_detections
+                    SET alerted=1
+                    WHERE id IN ({','.join('?' for _ in batch)})
+                """, batch)
             conn.commit()
 
     def get_pending_alerts(self, group_uid=None):
