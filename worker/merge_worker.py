@@ -58,7 +58,7 @@ async def merge_worker():
                     start_ts = end_ts - pd.Timedelta(seconds=10)
                     export_detected_frames = pd.DataFrame(db.get_detected_frames_by_stream_fence_and_time(stream_uid, start_ts, end_ts, fence_uid=fence_uid))
                     if len(export_detected_frames) < 10:
-                        log("INFO", f"[MERGE] 组 {group_uid} 的流 {stream_name} (UID={stream_uid}, FENCE_UID={fence_uid}) 的回放帧不足 10 张(现有 {export_detected_frames} 张)，跳过")
+                        log("INFO", f"[MERGE] 组 {group_uid} 的流 {stream_name} (UID={stream_uid}, FENCE_UID={fence_uid}) 的回放帧不足 10 张(现有 {len(export_detected_frames)} 张)，跳过")
                         continue
                     log("INFO", f"[MERGE] stream {stream_uid} 需要导出的帧数量: {len(list(export_detected_frames))}")
                     video_frames = []
