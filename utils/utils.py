@@ -17,8 +17,32 @@ from typing import List, Tuple, Optional
 import pythoncom
 from win32com import client
 import re
+import pandas as pd
 
 init(autoreset=True)
+
+
+def get_first_changed_row(df):
+    """
+    按 timestamp 每 10 秒间隔取第一行。
+    要求 df 中有列 'timestamp'（datetime 类型）。
+    """
+    if df.empty or 'timestamp' not in df.columns:
+        raise ValueError("输入数据缺少 timestamp 列")
+
+    # 确保时间列是 datetime 类型
+    df = df.copy()
+    df['timestamp'] = pd.to_datetime(df['timestamp'])
+    df = df.sort_values('timestamp')
+
+    # 计算分组标签（每 10 秒一个分组）
+    df['time_group'] = (df['timestamp'].astype('int64') // 10_000_000_000)  # 每 10 秒一组
+    # 取每组第一条
+    result = df.groupby('time_group', as_index=False).first()
+
+    # 去掉辅助列
+    result = result.drop(columns=['time_group'])
+    return result
 
 
 def camel_to_snake(name: str) -> str:
@@ -175,7 +199,8 @@ def docx_to_pdf(docx_path: str, pdf_path: str = None) -> str:
         pythoncom.CoUninitialize()
 
 
-def save_report_to_docx(content: str, save_dir: str, filename: str, title: str = None, images: list = None, image_captions: list = None):
+def save_report_to_docx(content: str, save_dir: str, filename: str, title: str = None, images: list = None,
+                        image_captions: list = None):
     """
     保存报告到 Word 文件（docx），带中文/英文字体设置、标题、正文、图片及描述。
     :param content: 正文内容
@@ -406,7 +431,7 @@ def save_frames_as_video(stream_id, fence_id, frames, video_root='./videos', bas
         return None, None
 
     height, width = frames[0].shape[:2]
-    fourcc = cv2.VideoWriter_fourcc(*'avc1')
+    fourcc = cv2.VideoWriter_fourcc(*'mp4v')
     video_filename = f"{stream_id}/{stream_id}_{fence_id}_{now_time_str}.mp4"
     video_path = f"{video_root}/{video_filename}"
 
