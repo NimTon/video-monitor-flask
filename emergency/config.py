@@ -1,5 +1,6 @@
 # 获取设备列表接口地址
-URL_GET_DEVICES = "https://openapi.zhongkaixingye.com/openapi/lot/ai/devices"
+URL_GET_DEVICES = "https://openapi.zhongkaixingye.com/openapi/lot/ai/devices" #生产环境
+# URL_GET_DEVICES = "https://openapisit.zhongkaixingye.com/openapi/lot/ai/devices" # 测试环境
 
 # 获取视频直播流地址接口
 URL_GET_LIVE_URL = "https://openapi.zhongkaixingye.com/openapi/lot/ai/video/url"
