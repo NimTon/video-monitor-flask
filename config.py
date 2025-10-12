@@ -1,3 +1,5 @@
+import json
+
 HOST = "127.0.0.1"
 PORT = 5000
 BASE_URL = f"http://{HOST}:{PORT}"
@@ -16,3 +18,6 @@ DB_PATH = "video_db.sqlite"
 
 FLOW_BASE_URL = "http://1.94.137.200:5001"
 FLOW_LOCAL_URL = "http://127.0.0.1:5001"
+
+with open('prompts.json', encoding='utf-8') as f:
+    PROMPTS = json.load(f)
