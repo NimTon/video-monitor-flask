@@ -254,10 +254,7 @@ class DBHelper:
             detection_id,
             ai_checked=1,
             ai_status=None,
-            ai_result=None,
-            before_image_path=None,
-            after_image_path=None,
-            alert_video_path=None
+            ai_result=None
     ):
         """
         更新指定检测记录的 AI 识别结果
@@ -265,9 +262,6 @@ class DBHelper:
         :param ai_checked: 是否已 AI 识别，默认 1
         :param ai_status: AI 判断状态，1=异常, 0=正常, -1=失败
         :param ai_result: AI 识别结果（文本）
-        :param before_image_path: 前一帧图像路径
-        :param after_image_path: 后一帧图像路径
-        :param alert_video_path: 回溯视频路径
         """
         with self.get_conn() as conn:
             cur = conn.cursor()
@@ -275,20 +269,14 @@ class DBHelper:
                         UPDATE fence_detections
                         SET ai_checked=?,
                             ai_result=?,
-                            ai_status=?,
-                            before_image_path=?,
-                            after_image_path=?,
-                            alert_video_path=?
+                            ai_status=?
                         WHERE id = ?;
                         """, (
-                int(ai_checked),
-                ai_result,
-                int(ai_status) if ai_status is not None else None,
-                before_image_path,
-                after_image_path,
-                alert_video_path,
-                detection_id
-            ))
+                            int(ai_checked),
+                            ai_result,
+                            int(ai_status) if ai_status is not None else None,
+                            detection_id
+                        ))
             conn.commit()
             return cur.rowcount  # 返回更新的行数
 
@@ -451,7 +439,7 @@ class DBHelper:
         """
         with self.get_conn() as conn:
             cur = conn.cursor()
-            query = "SELECT * FROM fence_detections WHERE changed=1 AND alerted=0"
+            query = "SELECT * FROM fence_detections WHERE ai_status=1 AND alerted=0"
             params = []
             if group_uid:
                 query += " AND group_uid=?"
