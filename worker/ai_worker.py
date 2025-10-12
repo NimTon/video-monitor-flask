@@ -6,7 +6,7 @@ from utils.ai_utils import call_local_ai_model, call_qwen_via_client
 from utils.utils import log, save_frames_as_video, save_key_frames
 import pandas as pd
 import cv2
-from config import BASE_URL
+from config import BASE_URL, PROMPTS
 
 
 async def ai_worker():
@@ -22,7 +22,7 @@ async def ai_worker():
             stream_name = sm.get_stream(stream_uid)['name']
             detection_id = row['id']
             try:
-                ai_result = call_local_ai_model(video_path=video_path) # 有需要再改为异步
+                ai_result = call_local_ai_model(ai_prompt=PROMPTS['normal'], video_path=video_path, json_str=True) # 有需要再改为异步
                 if not ai_result:
                     log("WARNING", f"[AI] {stream_name} AI识别返回空结果 DETECTION_ID={detection_id}")
                     ai_status = -1
@@ -37,11 +37,10 @@ async def ai_worker():
                 detection_id=detection_id,
                 ai_checked=1,
                 ai_status=ai_status,
-                ai_result=str(ai_result)
+                ai_result=str(ai_result['detail'])
             )
             log("INFO", f"[AI] {stream_name} 数据库更新完成 DETECTION_ID={detection_id}, AI_STATUS={ai_status}")
             await asyncio.sleep(1)
-
 
 async def run_ai_module():
     ai_task = asyncio.create_task(ai_worker())
