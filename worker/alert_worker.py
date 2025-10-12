@@ -65,7 +65,7 @@ async def alert_worker():
                     "fence_id": fence_uid,
                     "timestamp": timestamp,
                     "change_ratio": f"{change_ratio:.3f}",
-                    "ai_report": ai_result,
+                    "ai_result": ai_result,
                     "image_url": f"{before_image_url} {after_image_url}",
                     "video_url": alert_video_url
                 }
@@ -77,20 +77,21 @@ async def alert_worker():
                     await asyncio.sleep(1)
                     continue
 
-                # 触发报警 TODO 有需要再改为异步
+                # 触发报警 有需要再改为异步
                 attachments = [before_image_path, after_image_path, after_image_path]
                 alert_status = -1
                 for r in recipients:
                     contact = r.get("contact")
-                    try:
-                        for method_name, contact_value in contact.items():
-                            send_alert(method_name, contact_value, message, attachments)
-                            log("SUCCESS", f"[ALERT] {stream_name} (UID={stream_uid}, FENCE_UID={fence_uid}, DETECTION_ID={detection_id}, TIMESTAMP={timestamp}) 已向接收人 {r['name']} ({contact}) 发送 {method_name} 报警")
-                            alert_status = 1
-                    except Exception as e:
-                        log("FAIL", f"[ALERT] {stream_name} (UID={stream_uid}, FENCE_UID={fence_uid}, DETECTION_ID={detection_id}, TIMESTAMP={timestamp}) 向接收人 {r['name']} ({contact}) 发送报警失败: {e}")
-                        await asyncio.sleep(1)
-                        continue
+                    for method_name, contact_value in contact.items():
+                        if contact_value:
+                            try:
+                                send_alert(method_name, contact_value, message, attachments)
+                                log("SUCCESS", f"[ALERT] {stream_name} (UID={stream_uid}, FENCE_UID={fence_uid}, DETECTION_ID={detection_id}, TIMESTAMP={timestamp}) 已向接收人 {r['name']} ({contact}) 发送 {method_name} 报警")
+                                alert_status = 1
+                            except Exception as e:
+                                log("FAIL", f"[ALERT] {stream_name} (UID={stream_uid}, FENCE_UID={fence_uid}, DETECTION_ID={detection_id}, TIMESTAMP={timestamp}) 向接收人 {r['name']} ({contact}) 发送报警失败: {e}")
+                                await asyncio.sleep(1)
+                                continue
                 # 更新数据库
                 db.update_alerted(
                     detection_id=detection_id,
