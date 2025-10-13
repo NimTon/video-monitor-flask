@@ -94,5 +94,7 @@ def init_ffmpeg():
     os.remove(zip_path)
     shutil.rmtree("ffmpeg_tmp")
 
-    log("SUCCESS", f"ffmpeg 已解压到: {FFMPEG_EXE}")
-    return FFMPEG_EXE
+    log("SUCCESS", f"ffmpeg 已解压到: {FFMPEG_DIR}")
+    return FFMPEG_DIR
+
+init_ffmpeg()
