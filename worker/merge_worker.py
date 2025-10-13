@@ -7,7 +7,7 @@ from storage import sm
 from config import BASE_URL
 
 
-# ------------------ 编组合成视频模块 ------------------
+# ------------------ 单个合成视频模块 ------------------
 async def merge_worker():
     while True:
         streams = sm.list_streams()
