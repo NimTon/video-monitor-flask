@@ -1,5 +1,4 @@
 import asyncio
-import json
 import subprocess
 import cv2
 import os
@@ -7,11 +6,10 @@ from datetime import datetime
 import numpy as np
 from utils.db_utils import db
 from storage import StorageManager
-from utils.stream_utils import get_running_streams, FenceChangeDetector
+from utils.stream_utils import get_running_streams, FenceChangeDetector, get_stream_resolution
 from utils.utils import log, draw_fence_on_frame
-from utils.init_ffmpeg import init_ffmpeg
+from utils.init_ffmpeg import FFMPEG_DIR
 
-FFMPEG_DIR = init_ffmpeg()
 storage_manger = StorageManager()
 detector = FenceChangeDetector()
 detect_queues = {}
@@ -19,33 +17,6 @@ capture_path = "./tmp/capture"
 detect_path = "./tmp/detect"
 change_threshold = 0.2
 RESTART_INTERVAL = 3600  # 秒，每1小时重启一次
-
-
-def get_stream_resolution(url):
-    """
-    返回 (width, height)
-    """
-    cmd = [
-        f"{FFMPEG_DIR}/ffprobe.exe",
-        "-v", "error",
-        "-select_streams", "v:0",
-        "-show_entries", "stream=width,height",
-        "-of", "json",
-        url
-    ]
-    result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-    if result.returncode != 0:
-        print(f"ffprobe 错误: {result.stderr}")
-        return None, None
-
-    info = json.loads(result.stdout)
-    streams = info.get("streams", [])
-    if len(streams) == 0:
-        return None, None
-
-    width = streams[0].get("width")
-    height = streams[0].get("height")
-    return width, height
 
 
 # ------------------ 抓帧模块 ------------------
