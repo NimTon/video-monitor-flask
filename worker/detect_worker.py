@@ -1,13 +1,16 @@
 import asyncio
+import json
+import subprocess
 import cv2
 import os
 from datetime import datetime
 from utils.db_utils import db
 from storage import StorageManager
 from utils.stream_utils import get_running_streams, FenceChangeDetector
-from utils.utils import log, resize_to_720p, draw_fence_on_frame
-import time
+from utils.utils import log, draw_fence_on_frame
+from utils.init_ffmpeg import init_ffmpeg
 
+FFMPEG_PATH = init_ffmpeg()
 storage_manger = StorageManager()
 detector = FenceChangeDetector()
 detect_queues = {}
@@ -15,6 +18,33 @@ capture_path = "./tmp/capture"
 detect_path = "./tmp/detect"
 change_threshold = 0.2
 RESTART_INTERVAL = 3600  # 秒，每1小时重启一次
+
+
+def get_stream_resolution(url):
+    """
+    返回 (width, height)
+    """
+    cmd = [
+        "ffprobe",
+        "-v", "error",
+        "-select_streams", "v:0",
+        "-show_entries", "stream=width,height",
+        "-of", "json",
+        url
+    ]
+    result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    if result.returncode != 0:
+        print(f"ffprobe 错误: {result.stderr}")
+        return None, None
+
+    info = json.loads(result.stdout)
+    streams = info.get("streams", [])
+    if len(streams) == 0:
+        return None, None
+
+    width = streams[0].get("width")
+    height = streams[0].get("height")
+    return width, height
 
 
 # ------------------ 抓帧模块 ------------------
@@ -25,47 +55,63 @@ async def capture_stream(stream, queues):
     group_uid = stream.get("group_uid")
     url = stream.get("stream_url")
     fences = [f['id'] for f in stream.get("fences", [])]
+
     os.makedirs(capture_path, exist_ok=True)
     os.makedirs(detect_path, exist_ok=True)
-    cap = None
-    last_warning = 0  # 用于控制警告频率
+
     while True:
-        # 如果 cap 不存在或被关闭，尝试重新打开
-        if cap is None or not cap.isOpened():
-            cap = cv2.VideoCapture(url)
-            if not cap.isOpened():
-                now = time.time()
-                if now - last_warning > 5:  # 每 5 秒打印一次警告
-                    log("WARNING", f"[CAPTURE] 无法打开视频流: {stream_name} ({stream_uid}), 正在重试...")
-                    last_warning = now
-                await asyncio.sleep(2)
-                continue
-        ret, frame = cap.read()
-        if frame is None:
-            now = time.time()
-            if now - last_warning > 5:  # 每 5 秒打印一次空帧警告
-                log("WARNING", f"[CAPTURE] 读取到空帧: {stream_name} ({stream_uid})")
-                last_warning = now
-            await asyncio.sleep(1)
-            continue
-        frame = resize_to_720p(frame)
-        timestamp = datetime.now()
-        if ret:
-            frame_path = f"{capture_path}/{stream_uid}_{timestamp.strftime('%Y%m%d_%H%M%S')}.jpg"
-            success = cv2.imwrite(frame_path, frame)
-            if success:
+        try:
+            # ---------- 使用 ffmpeg 拉取 HLS 流 ----------
+            cmd = [
+                FFMPEG_PATH,
+                "-i", url,
+                "-loglevel", "quiet",
+                "-f", "image2pipe",
+                "-pix_fmt", "bgr24",
+                "-vcodec", "rawvideo", "-"
+            ]
+            pipe = subprocess.Popen(cmd, stdout=subprocess.PIPE, bufsize=10 ** 8)
+
+            # 使用 ffprobe 获取
+            width, height = get_stream_resolution(url)
+            if width is None or height is None:
+                width, height = 1280, 720  # 默认分辨率
+            frame_size = width * height * 3
+            last_warning = 0
+
+            while True:
+                raw_frame = pipe.stdout.read(frame_size)
+                if len(raw_frame) != frame_size:
+                    now = datetime.now().timestamp()
+                    if now - last_warning > 5:
+                        log("WARNING", f"[CAPTURE] {stream_name} ({stream_uid}) 读取帧长度不匹配，重试...")
+                        last_warning = now
+                    await asyncio.sleep(1)
+                    continue
+
+                timestamp = datetime.now()
+                frame_path = f"{capture_path}/{stream_uid}_{timestamp.strftime('%Y%m%d_%H%M%S_%f')}.raw"
+
+                # ---------- 保存原始帧数据 ----------
+                with open(frame_path, "wb") as f:
+                    f.write(raw_frame)
+
                 frame_id = db.insert_frame(stream_uid, group_uid, timestamp, frame_path)
-                log("SUCCESS", f"[CAPTURE] 抓取视频帧成功: {stream_name} ({stream_uid}), frame_id={frame_id}")
+                log("SUCCESS", f"[CAPTURE] {stream_name} ({stream_uid}) frame_id={frame_id}")
+
+                # ---------- 入队 ----------
                 for fence_id in fences:
-                    await queues[(stream_uid, fence_id)].put((detecting, stream_name, stream_uid, frame_id, group_uid, fence_id, frame_path, timestamp))
-            else:
-                log("FAIL", f"[CAPTURE] 抓取视频帧失败: {stream_name} ({stream_uid}), 保存路径={frame_path}")
-        else:
-            now = time.time()
-            if now - last_warning > 5:
-                log("WARNING", f"[CAPTURE] 读取视频帧失败: {stream_name} ({stream_uid})")
-                last_warning = now
-        await asyncio.sleep(1)
+                    await queues[(stream_uid, fence_id)].put((
+                        detecting, stream_name, stream_uid,
+                        frame_id, group_uid, fence_id,
+                        frame_path, timestamp
+                    ))
+
+                await asyncio.sleep(1)
+
+        except Exception as e:
+            log("ERROR", f"[CAPTURE] {stream_name} ({stream_uid}) 异常: {str(e)}")
+            await asyncio.sleep(5)
 
 
 # ------------------ 异常检测模块 ------------------
