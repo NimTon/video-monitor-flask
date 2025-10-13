@@ -1,9 +1,10 @@
+import json
+import subprocess
 from datetime import datetime
-
 import cv2
 import numpy as np
-
 from utils.utils import log
+from utils.init_ffmpeg import FFMPEG_DIR
 
 
 def get_fuse_bool_time_range(streams_frames, fuse_bool):
@@ -194,3 +195,31 @@ class FenceChangeDetector:
             cv2.waitKey(1)
 
         return changed, changed_area, change_ratio
+
+
+def get_stream_resolution(url):
+    """
+    返回 (width, height)
+    """
+    cmd = [
+        f"{FFMPEG_DIR}/ffprobe.exe",
+        "-v", "error",
+        "-select_streams", "v:0",
+        "-show_entries", "stream=width,height",
+        "-of", "json",
+        url
+    ]
+    result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    if result.returncode != 0:
+        raise RuntimeError(f"ffprobe 错误: {result.stderr}")
+
+    info = json.loads(result.stdout)
+    streams = info.get("streams", [])
+    if len(streams) == 0:
+        raise ValueError("无法获取视频流信息")
+
+    width = streams[0].get("width")
+    height = streams[0].get("height")
+    if width is None or height is None:
+        raise ValueError("无法获取视频分辨率信息")
+    return width, height
