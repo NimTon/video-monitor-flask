@@ -4,13 +4,14 @@ import subprocess
 import cv2
 import os
 from datetime import datetime
+import numpy as np
 from utils.db_utils import db
 from storage import StorageManager
 from utils.stream_utils import get_running_streams, FenceChangeDetector
 from utils.utils import log, draw_fence_on_frame
 from utils.init_ffmpeg import init_ffmpeg
 
-FFMPEG_PATH = init_ffmpeg()
+FFMPEG_DIR = init_ffmpeg()
 storage_manger = StorageManager()
 detector = FenceChangeDetector()
 detect_queues = {}
@@ -25,7 +26,7 @@ def get_stream_resolution(url):
     返回 (width, height)
     """
     cmd = [
-        "ffprobe",
+        f"{FFMPEG_DIR}/ffprobe.exe",
         "-v", "error",
         "-select_streams", "v:0",
         "-show_entries", "stream=width,height",
@@ -63,11 +64,12 @@ async def capture_stream(stream, queues):
         try:
             # ---------- 使用 ffmpeg 拉取 HLS 流 ----------
             cmd = [
-                FFMPEG_PATH,
+                f"{FFMPEG_DIR}/ffmpeg.exe",
                 "-i", url,
                 "-loglevel", "quiet",
                 "-f", "image2pipe",
                 "-pix_fmt", "bgr24",
+                "-vf", "fps=1",
                 "-vcodec", "rawvideo", "-"
             ]
             pipe = subprocess.Popen(cmd, stdout=subprocess.PIPE, bufsize=10 ** 8)
@@ -90,11 +92,11 @@ async def capture_stream(stream, queues):
                     continue
 
                 timestamp = datetime.now()
-                frame_path = f"{capture_path}/{stream_uid}_{timestamp.strftime('%Y%m%d_%H%M%S_%f')}.raw"
+                frame_path = f"{capture_path}/{stream_uid}_{timestamp.strftime('%Y%m%d_%H%M%S_%f')}.png"
 
                 # ---------- 保存原始帧数据 ----------
-                with open(frame_path, "wb") as f:
-                    f.write(raw_frame)
+                frame_array = np.frombuffer(raw_frame, dtype=np.uint8).reshape((height, width, 3))
+                cv2.imwrite(frame_path, frame_array)
 
                 frame_id = db.insert_frame(stream_uid, group_uid, timestamp, frame_path)
                 log("SUCCESS", f"[CAPTURE] {stream_name} ({stream_uid}) frame_id={frame_id}")
@@ -110,7 +112,7 @@ async def capture_stream(stream, queues):
                 await asyncio.sleep(1)
 
         except Exception as e:
-            log("ERROR", f"[CAPTURE] {stream_name} ({stream_uid}) 异常: {str(e)}")
+            log("FAIL", f"[CAPTURE] {stream_name} ({stream_uid}) 异常: {str(e)}")
             await asyncio.sleep(5)
 
 
