@@ -202,7 +202,7 @@ def get_stream_resolution(url):
     返回 (width, height)
     """
     cmd = [
-        f"{FFMPEG_DIR}/ffprobe.exe",
+        f"{FFMPEG_DIR}/bin/ffprobe.exe",
         "-v", "error",
         "-select_streams", "v:0",
         "-show_entries", "stream=width,height",

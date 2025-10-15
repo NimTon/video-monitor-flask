@@ -35,7 +35,7 @@ async def capture_stream(stream, queues):
         try:
             # ---------- 使用 ffmpeg 拉取 HLS 流 ----------
             cmd = [
-                f"{FFMPEG_DIR}/ffmpeg.exe",
+                f"{FFMPEG_DIR}/bin/ffmpeg.exe",
                 "-i", url,
                 "-loglevel", "quiet",
                 "-f", "image2pipe",
