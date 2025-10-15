@@ -16,7 +16,9 @@ QWEN_URL = "https://dashscope.aliyuncs.com/compatible-mode/v1"
 
 DB_PATH = "video_db.sqlite"
 
-FLOW_BASE_URL = "http://1.94.137.200:5001"
+# FLOW_BASE_URL = "http://1.94.137.200:5001"
+FLOW_BASE_URL = "https://jrlyy.fusionfintrade.com:39100"  #域名
+
 FLOW_LOCAL_URL = "http://127.0.0.1:5001"
 
 with open('prompts.json', encoding='utf-8') as f:
