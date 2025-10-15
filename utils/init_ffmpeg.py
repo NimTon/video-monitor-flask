@@ -95,6 +95,6 @@ def init_ffmpeg():
     shutil.rmtree("ffmpeg_tmp")
 
     log("SUCCESS", f"ffmpeg 已解压到: {FFMPEG_DIR}")
-    return FFMPEG_DIR
+    return os.path.join(FFMPEG_DIR, "bin")
 
 init_ffmpeg()
