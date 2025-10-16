@@ -6,7 +6,7 @@ from utils.utils import log
 from utils.alert_utils import send_alert
 from urllib.parse import urljoin
 import pandas as pd
-from config import BASE_URL
+from config import FLOW_BASE_URL
 
 
 async def alert_worker():
@@ -42,9 +42,9 @@ async def alert_worker():
                 before_image_path = alert.get("before_image_path")
                 after_image_path = alert.get("after_image_path")
                 alert_video_path = alert.get("alert_video_path")
-                before_image_url = urljoin(BASE_URL, before_image_path)
-                after_image_url = urljoin(BASE_URL, after_image_path)
-                alert_video_url = urljoin(BASE_URL, alert_video_path)
+                before_image_url = urljoin(FLOW_BASE_URL, before_image_path)
+                after_image_url = urljoin(FLOW_BASE_URL, after_image_path)
+                alert_video_url = urljoin(FLOW_BASE_URL, alert_video_path)
                 timestamp = datetime.fromisoformat(alert.get("timestamp"))
                 log("INFO", f"[ALERT] 处理 {stream_name} (UID={stream_uid}, FENCE_UID={fence_uid}, DETECTION_ID={detection_id}, TIMESTAMP={timestamp})")
 
