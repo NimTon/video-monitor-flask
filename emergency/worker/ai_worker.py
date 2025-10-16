@@ -4,8 +4,7 @@ from utils.db_utils import db
 from utils.ai_utils import call_local_ai_model, call_qwen_via_client
 from utils.utils import log
 import pandas as pd
-
-from emergency.config import PROMPT
+from config import BASE_URL, PROMPTS
 
 
 async def ai_worker():
@@ -26,7 +25,7 @@ async def ai_worker():
                 video_path = video.get('video_path')
                 log("INFO", f"[EMERGENCY AI] {stream_name} (UID={stream_uid}, GROUP_UID={group_uid}, TIMESTAMPE={timestamp}) 开始识别")
                 try:
-                    ai_result = call_local_ai_model(ai_prompt=PROMPT, video_path=video_path)  # TODO 有需要再改为异步
+                    ai_result = call_local_ai_model(ai_prompt=PROMPTS['normal'], video_path=video_path, json_str=True)
                     if not ai_result:
                         log("WARNING", f"[EMERGENCY AI] {stream_name} (UID={stream_uid}, GROUP_UID={group_uid}, TIMESTAMPE={timestamp}) AI识别返回空结果")
                         ai_status = -1
@@ -41,7 +40,7 @@ async def ai_worker():
                     video_id,
                     ai_checked=1,
                     ai_status=ai_status,
-                    ai_result=ai_result
+                    ai_result=str(ai_result['detail'])
                 )
                 log("INFO", f"[EMERGENCY AI] {stream_name} (UID={stream_uid}, GROUP_UID={group_uid}, TIMESTAMPE={timestamp}) 数据库更新完成, AI_STATUS={ai_status}")
                 await asyncio.sleep(1)
