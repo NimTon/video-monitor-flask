@@ -7,7 +7,8 @@ import numpy as np
 from utils.db_utils import db
 from storage import StorageManager
 from utils.stream_utils import get_running_streams, FenceChangeDetector, get_stream_resolution
-from utils.utils import log, draw_fence_on_frame
+from utils.utils import draw_fence_on_frame
+from utils.log_utils import log
 from utils.init_ffmpeg import FFMPEG_DIR
 
 storage_manger = StorageManager()

@@ -2,7 +2,7 @@ import asyncio
 from datetime import datetime
 from utils.db_utils import db
 from utils.ai_utils import call_local_ai_model, call_qwen_via_client
-from utils.utils import log
+from utils.log_utils import log
 import pandas as pd
 from config import BASE_URL, PROMPTS
 

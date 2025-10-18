@@ -13,7 +13,8 @@ from email.mime.application import MIMEApplication
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.utils import formataddr
-from utils.utils import md5, log
+from utils.utils import md5
+from utils.log_utils import log
 
 
 # 钉钉报警函数

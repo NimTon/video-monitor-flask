@@ -2,7 +2,8 @@ import asyncio
 import cv2
 import pandas as pd
 from utils.db_utils import db
-from utils.utils import log, save_frames_as_video, save_key_frames, get_first_changed_row
+from utils.utils import save_frames_as_video, save_key_frames, get_first_changed_row
+from utils.log_utils import log
 from storage import sm
 from config import BASE_URL
 

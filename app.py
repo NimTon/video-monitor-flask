@@ -5,7 +5,8 @@ import json
 import os
 from datetime import datetime
 from utils.stream_utils import get_video_size
-from utils.utils import draw_fence_on_frame, points_to_abs_points, clean_old_files, log, clean_task
+from utils.utils import draw_fence_on_frame, points_to_abs_points, clean_old_files, clean_task
+from utils.log_utils import log
 import numpy as np
 import cv2
 from config import FLOW_LOCAL_URL, HOST, PORT

@@ -7,7 +7,8 @@ from storage import StorageManager, ImageReportManager, RecipientsManager, sm
 import schedule
 import json
 from utils.ai_utils import call_qwen_via_client, call_local_ai_model
-from utils.utils import log, image_path_to_base64, save_report_to_docx, resize_to_720p, points_to_abs_points, draw_fence_on_frame, docx_to_pdf
+from utils.utils import image_path_to_base64, save_report_to_docx, resize_to_720p, points_to_abs_points, draw_fence_on_frame, docx_to_pdf
+from utils.log_utils import log
 from utils.alert_utils import send_email_alert
 from pathlib import Path
 from emergency.utils.api_utils import zk_api

@@ -3,7 +3,7 @@ import urllib.request
 import zipfile
 import shutil
 import time
-from utils.utils import log
+from utils.log_utils import log
 
 FFMPEG_DIR = os.path.join(os.getcwd(), "ffmpeg")
 FFMPEG_EXE = os.path.join(FFMPEG_DIR, "bin", "ffmpeg.exe")

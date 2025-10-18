@@ -11,13 +11,13 @@ from docx.enum.text import WD_PARAGRAPH_ALIGNMENT
 from docx.shared import RGBColor
 import os
 import base64
-from colorama import init, Fore, Style
 import asyncio
-from typing import List, Tuple, Optional
+from typing import List, Tuple
 import pythoncom
 from win32com import client
 import re
 import pandas as pd
+from utils.log_utils import log
 
 
 def get_first_changed_row(df):
@@ -274,69 +274,6 @@ def points_to_abs_points(frame, fences):
         abs_points = [(int(p['x'] * width), int(p['y'] * height)) for p in points]
         fence_points.append(abs_points)
     return fence_points
-
-
-from datetime import datetime
-from typing import Optional
-
-
-def log(level: str, message: str, log_path: Optional[str] = None):
-    """统一日志打印，带时间戳，可安全写入文件"""
-    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    formatted_message = f"{timestamp} [{level}] {message}"
-
-    # --- 控制台打印 ---
-    try:
-        print(formatted_message)
-    except Exception as e:
-        # 防止 stdout 被占用时崩溃
-        pass
-
-    # --- 写入日志文件 ---
-    if log_path:
-        try:
-            with open(log_path, "a", encoding="utf-8") as f:
-                f.write(formatted_message + "\n")
-        except Exception as e:
-            # 记录写入失败，但不打断主流程
-            try:
-                print(f"{timestamp} [WARN] 日志写入失败: {e}")
-            except Exception:
-                pass
-
-
-def log_multiline(level: str, *messages, log_path: Optional[str] = None):
-    """多行日志打印，第一行带时间戳，其余行缩进对齐，可安全写入文件"""
-    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    prefix_len = len(timestamp) + 1 + len(f"[{level}] ")  # 时间戳 + 空格 + 标签
-    indent = " " * prefix_len
-    log_lines_for_file = []
-
-    for i, msg in enumerate(messages):
-        lines = str(msg).split("\n")
-        for j, line in enumerate(lines):
-            if i == 0 and j == 0:
-                formatted_line = f"{timestamp} [{level}] {line}"
-            else:
-                formatted_line = f"{indent}{line}"
-            log_lines_for_file.append(formatted_line)
-
-            # 控制台打印（安全）
-            try:
-                print(formatted_line)
-            except Exception:
-                pass
-
-    # --- 写入日志文件 ---
-    if log_path:
-        try:
-            with open(log_path, "a", encoding="utf-8") as f:
-                f.write("\n".join(log_lines_for_file) + "\n")
-        except Exception as e:
-            try:
-                print(f"{timestamp} [WARN] 多行日志写入失败: {e}")
-            except Exception:
-                pass
 
 
 # 在报警分发时，给frame加上红色围栏标记

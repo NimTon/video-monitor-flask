@@ -1,6 +1,7 @@
 import json
 import random
-from utils.utils import log, log_multiline, relative_to_pixel_fence, to_png_bytes, camel_to_snake
+from utils.utils import relative_to_pixel_fence, to_png_bytes, camel_to_snake
+from utils.log_utils import log, log_multiline
 from utils import watermark_utils as wu
 from emergency.utils.api_utils import zk_api
 from emergency.config import MACHINE_CODES

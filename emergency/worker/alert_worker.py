@@ -2,7 +2,7 @@ import asyncio
 from datetime import datetime
 from utils.db_utils import db
 from storage import sm, rm, asm, mm
-from utils.utils import log
+from utils.log_utils import log
 from utils.alert_utils import send_alert
 from urllib.parse import urljoin
 import pandas as pd

@@ -6,7 +6,8 @@ import cv2
 import pandas as pd
 from utils.db_utils import db
 from utils.stream_utils import get_stream_change_dict, fuse_streams_by_position, get_fuse_bool_time_range
-from utils.utils import log, draw_fence_on_frame, save_frames_as_video
+from utils.utils import draw_fence_on_frame, save_frames_as_video
+from utils.log_utils import log
 from storage import sm
 
 merge_path = "./tmp/merge"

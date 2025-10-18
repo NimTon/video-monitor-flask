@@ -3,7 +3,7 @@ import subprocess
 from datetime import datetime
 import cv2
 import numpy as np
-from utils.utils import log
+from utils.log_utils import log
 from utils.init_ffmpeg import FFMPEG_DIR
 
 

@@ -3,7 +3,8 @@ from datetime import datetime, timedelta
 from utils.db_utils import db
 from storage import sm
 from utils.ai_utils import call_local_ai_model, call_qwen_via_client
-from utils.utils import log, save_frames_as_video, save_key_frames
+from utils.utils import save_frames_as_video, save_key_frames
+from utils.log_utils import log
 import pandas as pd
 import cv2
 from config import BASE_URL, PROMPTS
