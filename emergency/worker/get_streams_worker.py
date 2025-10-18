@@ -1,5 +1,6 @@
 import json
-import random
+import os
+from datetime import datetime
 from utils.utils import relative_to_pixel_fence, to_png_bytes, camel_to_snake
 from utils.log_utils import log, log_multiline
 from utils import watermark_utils as wu
@@ -9,9 +10,24 @@ from storage import sm
 import requests
 from config import BASE_URL, FLOW_BASE_URL, FLOW_LOCAL_URL
 
+JSON_DIR = './'
+
+
+def save_json_safe(filename: str, data: dict):
+    """安全写入 JSON 文件"""
+    path = os.path.join(JSON_DIR, filename)
+    try:
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+        log("SUCCESS", f"[JSON] 数据已保存: {path}")
+    except Exception as e:
+        log("FAIL", f"[JSON] 保存数据失败: {path}, ERROR={e}")
+
 
 def get_streams_worker():
-    """运行一轮获取设备、启动检测"""
+    """运行一轮获取设备、启动检测，同时保存 JSON"""
+    all_data = []
+
     for machine in MACHINE_CODES:
         log("INFO", f"[EMERGENCY STREAM] 获取机器 {machine} 的设备列表...")
         try:
@@ -19,19 +35,27 @@ def get_streams_worker():
         except Exception as e:
             log("FAIL", f"[EMERGENCY STREAM] 机器 {machine} 获取设备失败: {e}")
             continue
+
         log("INFO", f"[EMERGENCY STREAM] 机器 {machine} 获取到 {len(devices)} 个仓库")
         log_multiline("INFO", *devices)
+
         for warehouse in devices:
             warehouse_code = warehouse.get("warehouseCode")
             owner_code = warehouse.get("ownerCode")
             warehouse_devices = warehouse.get("devices", [])
             log("INFO", f"[EMERGENCY STREAM] 仓库 {warehouse_code} 设备数量: {len(warehouse_devices)}")
 
+            warehouse_data = {
+                "warehouse_code": warehouse_code,
+                "owner_code": owner_code,
+                "devices": []
+            }
+
             for dev in warehouse_devices:
-                lot_source = dev.get("lotSource")
+                device_name = dev.get("deviceName")
                 service_no = dev.get("serviceNo")
                 device_no = dev.get("deviceNo")
-                device_name = dev.get("deviceName")
+                lot_source = dev.get("lotSource")
                 stream_uid = f"{machine}-{owner_code}-{device_no}-{service_no}"
                 detecting = dev.get("isAi") == 'Y'
                 log("INFO", f"[EMERGENCY STREAM] 处理设备: {device_name} (UID={stream_uid})")
@@ -41,111 +65,129 @@ def get_streams_worker():
                     log("INFO", f"[EMERGENCY STREAM] 设备 {device_name} (UID={stream_uid}) 直播地址: {live_url}")
                 except Exception as e:
                     log("FAIL", f"[EMERGENCY STREAM] 获取设备 {device_name} (UID={stream_uid}) 直播地址失败: {e}")
-                    continue
+                    live_url = None
 
-                if not live_url:
-                    log("WARNING", f"[EMERGENCY STREAM] 设备 {device_name} (UID={stream_uid}) 没有可用直播地址")
-                    continue
+                device_data = {
+                    "device_name": device_name,
+                    "device_no": device_no,
+                    "service_no": service_no,
+                    "stream_uid": stream_uid,
+                    "detecting": detecting,
+                    "live_url": live_url,
+                    "fences": []
+                }
 
-                # 如果视频流不存在就添加，有则更新
-                stream = sm.get_stream(stream_uid)
-                try:
-                    if not stream:
-                        resp = requests.post(f"{BASE_URL}/api/streams", json={
-                            "source_stream_url": live_url,
-                            "name": device_name,
-                            "stream_uid": stream_uid
-                        }, timeout=5)
-                        resp.raise_for_status()
-                        url = resp.json().get("data").get("stream_url")
-                        log("SUCCESS", f"[EMERGENCY STREAM] 新增视频流: {device_name} (UID={stream_uid})")
-                    else:
-                        resp = requests.patch(f"{BASE_URL}/api/source-streams", json={
-                            "source_stream_url": live_url,
-                            "stream_uid": stream_uid
-                        }, timeout=5)
-                        resp.raise_for_status()
-                        url = resp.json().get("data").get("hls_url")
-                        url = f'{FLOW_LOCAL_URL}/{url}'
-                        sm.update_stream(stream_uid, stream_url=url)
-                        log("SUCCESS", f"[EMERGENCY STREAM] 更新视频流: {device_name} (UID={stream_uid})")
-
-                    # 调用中凯资产与围栏信息接口
-                    url = url.replace("no_wm", "wm").replace(FLOW_LOCAL_URL, FLOW_BASE_URL)
-                    log("INFO", f"[EMERGENCY STREAM] 推送视频流: {device_name} (UID={stream_uid}, URL={url})")
-                    asset_info = zk_api.query_and_push_assets(
-                        hj_device_no=device_no,
-                        hj_service_no=service_no,
-                        video_play_url=url,
-                        scene_code=owner_code
-                    )
-
-                    # 3. 遍历围栏
-                    if asset_info.get("rspCode") != '00000000':
-                        log("FAIL", f"[EMERGENCY STREAM] 获取资产与围栏信息失败: {device_name} (UID={stream_uid}), RESPONSE={asset_info}")
-                        continue
-                    for i, pos in enumerate(asset_info.get('data', [])):
-                        fence_uid = pos["fenceId"]
-                        fence_points = json.loads(pos["locationPoint"])
-                        if pos["assetDetail"]:
-                            fence_info = [
-                                f'客户名称: {pos["assetDetail"][0]["assetList"][0]["ownerEntityName"]}',
-                                f'仓库名称: {pos["whName"]}',
-                                f'仓库编码: {pos["whCode"]}',
-                                f'货架编号: {pos["assetDetail"][0]["positionCode"]}',
-                                f'商品名称: {pos["assetDetail"][0]["assetList"][0]["commodityList"][0]["commodityName"]}',
-                                f'商品数量: {pos["assetDetail"][0]["assetList"][0]["commodityList"][0]["quantity"]}',
-                                f'计量单位: {pos["assetDetail"][0]["assetList"][0]["commodityList"][0]["unit"]}',
-                                f'资产编码: {pos["assetDetail"][0]["assetList"][0]["commodityList"][0]["commodityCode"]}',
-                                f'融资编码: {pos["loanNo"]}',
-                            ]
+                if live_url:
+                    try:
+                        # 视频流管理
+                        stream = sm.get_stream(stream_uid)
+                        if not stream:
+                            resp = requests.post(f"{BASE_URL}/api/streams", json={
+                                "source_stream_url": live_url,
+                                "name": device_name,
+                                "stream_uid": stream_uid
+                            }, timeout=5)
+                            resp.raise_for_status()
+                            url = resp.json().get("data", {}).get("stream_url")
+                            log("SUCCESS", f"[EMERGENCY STREAM] 新增视频流: {device_name} (UID={stream_uid})")
                         else:
-                            fence_info = [f'仓库名称: {pos["whName"]}',
-                                          f'仓库编号: {pos["whCode"]}']
-                        # 4. 更新本地围栏状态
-                        try:
-                            bg_frame, pixel_fence_points = relative_to_pixel_fence(live_url, fence_points)
-                        except Exception as e:
-                            log("FAIL", f"[EMERGENCY FENCE] 获取视频流失败：{device_name} (UID={stream_uid}, FENCE_UID={fence_uid}), ERROR={e}")
-                            continue
-                        fence_data = {camel_to_snake(pos_key): pos_value for pos_key, pos_value in pos.items()}
-                        fence_data['scene_code'] = owner_code
-                        changed = sm.update_fence_by_fence_uid(stream_uid, fence_uid, fence_points, fence_info, fence_data)
-                        # if changed:
-                        # log("INFO", f"[EMERGENCY FENCE] 检测到围栏变化: {device_name} (UID={stream_uid}, FENCE_UID={fence_uid}), 生成新水印")
-                        # 5. 生成透明水印
-                        # 高对比度颜色列表 (BGR)
-                        COLOR_PALETTE = [
-                            (0, 0, 255),  # 红
-                            (0, 255, 0),  # 绿
-                            (255, 0, 0),  # 蓝
-                            (0, 255, 255),  # 黄
-                            (255, 0, 255),  # 紫
-                            (255, 255, 0),  # 青
-                            (255, 255, 255)  # 白
-                        ]
-                        watermark_img = wu.draw_fence_with_text_fixed_color_adaptive_centroid(bg_frame, pixel_fence_points, fence_info,
-                                                                            color=COLOR_PALETTE[i],
-                                                                            font_path="C:/Windows/Fonts/msyh.ttc",
-                                                                            font_size=30, line_spacing=1.2)
-                        # 转 PNG 字节流
-                        png_bytes = to_png_bytes(watermark_img)
-                        # 上传水印到视频流
-                        resp = requests.patch(
-                            f"{FLOW_LOCAL_URL}/api/fence/water_mark",
-                            files={"file": ("fence.png", png_bytes, "image/png")},
-                            data={"stream_uid": stream_uid, "fence_uid": fence_uid},
-                            timeout=5
-                        )
-                        resp.raise_for_status()
-                        log("SUCCESS", f"[EMERGENCY WATERMARK] 上传水印成功: {device_name} (UID={stream_uid}, FENCE_UID={fence_uid})")
-                except requests.RequestException as e:
-                    log("FAIL", f"[EMERGENCY STREAM] 管理视频流失败: {device_name} (UID={stream_uid}) ERROR={e}")
-                sm.set_stream_group(stream_uid, warehouse_code)
-                log("SUCCESS", f"[EMERGENCY STREAM] 设置视频流编组: {device_name} (UID={stream_uid}) -> GROUP_UID={warehouse_code}")
-                sm.set_detecting(stream_uid, detecting)
-                log("SUCCESS", f"[EMERGENCY STREAM] 设置视频流检测: {device_name} (UID={stream_uid}) -> DETECTING={detecting}")
+                            resp = requests.patch(f"{BASE_URL}/api/source-streams", json={
+                                "source_stream_url": live_url,
+                                "stream_uid": stream_uid
+                            }, timeout=5)
+                            resp.raise_for_status()
+                            url = resp.json().get("data", {}).get("hls_url")
+                            url = f'{FLOW_LOCAL_URL}/{url}'
+                            sm.update_stream(stream_uid, stream_url=url)
+                            log("SUCCESS", f"[EMERGENCY STREAM] 更新视频流: {device_name} (UID={stream_uid})")
 
+                        # 调用中凯资产与围栏信息接口
+                        url = url.replace("no_wm", "wm").replace(FLOW_LOCAL_URL, FLOW_BASE_URL)
+                        log("INFO", f"[EMERGENCY STREAM] 推送视频流: {device_name} (UID={stream_uid}, URL={url})")
+                        asset_info = zk_api.query_and_push_assets(
+                            hj_device_no=device_no,
+                            hj_service_no=service_no,
+                            video_play_url=url,
+                            scene_code=owner_code
+                        )
+
+                        if asset_info.get("rspCode") != '00000000':
+                            log("FAIL", f"[EMERGENCY STREAM] 获取资产与围栏信息失败: {device_name} (UID={stream_uid}), RESPONSE={asset_info}")
+                        else:
+                            for i, pos in enumerate(asset_info.get('data', [])):
+                                fence_uid = pos["fenceId"]
+                                fence_points = json.loads(pos["locationPoint"])
+                                fence_info_text = []
+                                if pos.get("assetDetail"):
+                                    fence_info_text = [
+                                        f'客户名称: {pos["assetDetail"][0]["assetList"][0]["ownerEntityName"]}',
+                                        f'仓库名称: {pos["whName"]}',
+                                        f'仓库编码: {pos["whCode"]}',
+                                        f'货架编号: {pos["assetDetail"][0]["positionCode"]}',
+                                        f'商品名称: {pos["assetDetail"][0]["assetList"][0]["commodityList"][0]["commodityName"]}',
+                                        f'商品数量: {pos["assetDetail"][0]["assetList"][0]["commodityList"][0]["quantity"]}',
+                                        f'计量单位: {pos["assetDetail"][0]["assetList"][0]["commodityList"][0]["unit"]}',
+                                        f'资产编码: {pos["assetDetail"][0]["assetList"][0]["commodityList"][0]["commodityCode"]}',
+                                        f'融资编码: {pos["loanNo"]}',
+                                    ]
+                                else:
+                                    fence_info_text = [
+                                        f'仓库名称: {pos["whName"]}',
+                                        f'仓库编号: {pos["whCode"]}'
+                                    ]
+
+                                # 更新本地围栏状态
+                                try:
+                                    bg_frame, pixel_fence_points = relative_to_pixel_fence(live_url, fence_points)
+                                except Exception as e:
+                                    log("FAIL", f"[EMERGENCY FENCE] 获取视频流失败：{device_name} (UID={stream_uid}, FENCE_UID={fence_uid}), ERROR={e}")
+                                    continue
+
+                                fence_data = {camel_to_snake(k): v for k, v in pos.items()}
+                                fence_data['scene_code'] = owner_code
+                                sm.update_fence_by_fence_uid(stream_uid, fence_uid, fence_points, fence_info_text, fence_data)
+
+                                # 生成水印
+                                COLOR_PALETTE = [(0, 0, 255), (0, 255, 0), (255, 0, 0), (0, 255, 255), (255, 0, 255), (255, 255, 0), (255, 255, 255)]
+                                watermark_img = wu.draw_fence_with_text_fixed_color_adaptive_centroid(
+                                    bg_frame, pixel_fence_points, fence_info_text,
+                                    color=COLOR_PALETTE[i % len(COLOR_PALETTE)],
+                                    font_path="C:/Windows/Fonts/msyh.ttc",
+                                    font_size=30, line_spacing=1.2
+                                )
+                                png_bytes = to_png_bytes(watermark_img)
+                                # 上传水印
+                                resp = requests.patch(
+                                    f"{FLOW_LOCAL_URL}/api/fence/water_mark",
+                                    files={"file": ("fence.png", png_bytes, "image/png")},
+                                    data={"stream_uid": stream_uid, "fence_uid": fence_uid},
+                                    timeout=5
+                                )
+                                resp.raise_for_status()
+                                log("SUCCESS", f"[EMERGENCY WATERMARK] 上传水印成功: {device_name} (UID={stream_uid}, FENCE_UID={fence_uid})")
+
+                                # JSON 保存围栏信息
+                                device_data["fences"].append({
+                                    "fence_uid": fence_uid,
+                                    "fence_points": fence_points,
+                                    "fence_info_text": fence_info_text
+                                })
+
+                    except requests.RequestException as e:
+                        log("FAIL", f"[EMERGENCY STREAM] 管理视频流失败: {device_name} (UID={stream_uid}) ERROR={e}")
+
+                    # 设置视频流编组和检测状态
+                    sm.set_stream_group(stream_uid, warehouse_code)
+                    sm.set_detecting(stream_uid, detecting)
+                    log("SUCCESS", f"[EMERGENCY STREAM] 设置视频流编组: {device_name} (UID={stream_uid}) -> GROUP_UID={warehouse_code}")
+                    log("SUCCESS", f"[EMERGENCY STREAM] 设置视频流检测: {device_name} (UID={stream_uid}) -> DETECTING={detecting}")
+
+                warehouse_data["devices"].append(device_data)
+
+            all_data.append(warehouse_data)
+
+    # 保存本轮数据到 JSON
+    save_json_safe(f"emergency.json", all_data)
     log("INFO", "[EMERGENCY STREAM] === 获取设备信息完成 ===")
 
 
