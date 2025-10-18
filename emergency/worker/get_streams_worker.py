@@ -1,6 +1,5 @@
 import json
 import os
-from datetime import datetime
 from utils.utils import relative_to_pixel_fence, to_png_bytes, camel_to_snake
 from utils.log_utils import log, log_multiline
 from utils import watermark_utils as wu
