@@ -43,6 +43,8 @@ ZLMediaKit_url = config['zlmk_url']  # 虚拟机
 IMAGE_DIR = os.path.join(os.getcwd(), 'images')  # 绝对路径更安全
 # 视频存放路径
 VIDEO_DIR = os.path.join(os.getcwd(), 'videos')  # 绝对路径更安全
+# 临时文件路径
+TEMP_DIR = os.path.join(os.getcwd(), 'temp')
 
 
 # -------- 前端路由 --------
@@ -742,6 +744,13 @@ def run_flask():
     app.run(host="0.0.0.0", port=PORT)
 
 
+async def clean_main():
+    # 启动两个异步清理任务（并行执行）
+    task1 = asyncio.create_task(clean_task([VIDEO_DIR, IMAGE_DIR], days=7))
+    task2 = asyncio.create_task(clean_task([TEMP_DIR], days=1))
+    await asyncio.gather(task1, task2)
+
+
 # 主程序入口
 if __name__ == '__main__':
     # 启动 Flask
@@ -749,4 +758,4 @@ if __name__ == '__main__':
     flask_thread.start()
 
     # 启动异步清理任务
-    asyncio.run(clean_task([VIDEO_DIR, IMAGE_DIR]))
+    asyncio.run(clean_main())
