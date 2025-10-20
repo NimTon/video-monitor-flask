@@ -25,7 +25,7 @@ def try_local_ai_fix_json(text: str):
         if response.status_code == 200:
             fixed_text = response.json().get("result", "")
             if fixed_text:
-                return json.loads(fixed_text)
+                return extract_json_dict_from_ai_reply(fixed_text, use_ai=False)
         raise ValueError(f"local_ai 修复失败: {response.text}")
     except Exception as e:
         raise RuntimeError(f"local_ai 格式化失败: {e}") from e
@@ -47,13 +47,13 @@ def try_qwen_ai_fix_json(text: str):
         )
         result = completion.choices[0].message.content
         if result:
-            return json.loads(result)
+            return extract_json_dict_from_ai_reply(result, use_ai=False)
         raise ValueError("qwen_ai 未返回内容")
     except Exception as e:
         raise RuntimeError(f"qwen_ai 格式化失败: {e}") from e
 
 
-def extract_json_dict_from_ai_reply(text: str):
+def extract_json_dict_from_ai_reply(text: str, use_ai=True):
     """
     从 AI 回复中提取 JSON 对象。
     支持多种情况：
@@ -70,6 +70,7 @@ def extract_json_dict_from_ai_reply(text: str):
     cleaned = text.strip()
 
     # 移除常见“标记语句”
+    cleaned = cleaned.replace("'", '"')
     cleaned = re.sub(r'^[\s\S]*?```json', '```json', cleaned, flags=re.I)  # 去掉前导废话
     cleaned = cleaned.replace("```", "").replace("json", "").replace("JSON", "").strip()
     cleaned = re.sub(r'^.*?(?=\{)', '', cleaned, flags=re.S)  # 丢弃JSON前的非花括号内容
@@ -94,28 +95,38 @@ def extract_json_dict_from_ai_reply(text: str):
     if not candidates:
         candidates = [cleaned]
 
-    # ----------- Step 3: 逐一尝试解析 JSON -----------
-    for c in sorted(candidates, key=len, reverse=True):  # 优先尝试较长的候选
-        try:
-            return json.loads(c)
-        except json.JSONDecodeError:
+    if use_ai:
+        # ----------- Step 3: 逐一尝试解析 JSON -----------
+        for c in sorted(candidates, key=len, reverse=True):  # 优先尝试较长的候选
             try:
-                return ast.literal_eval(c)
-            except Exception:
-                continue
+                return json.loads(c)
+            except json.JSONDecodeError:
+                try:
+                    return ast.literal_eval(c)
+                except Exception:
+                    continue
 
-    # ----------- Step 4: fallback — local_ai 修复 -----------
-    try:
-        return try_local_ai_fix_json(text)
-    except Exception as e:
-        pass
+        # ----------- Step 4: fallback — local_ai 修复 -----------
+        try:
+            return try_local_ai_fix_json(text)
+        except Exception as e:
+            pass
 
-    # ----------- Step 5: fallback — qwen_ai 修复 -----------
-    try:
-        return try_qwen_ai_fix_json(text)
-    except Exception as e:
-        raise ValueError(f"所有方法均解析失败，原始文本: {text}")
-
+        # ----------- Step 5: fallback — qwen_ai 修复 -----------
+        try:
+            return try_qwen_ai_fix_json(text)
+        except Exception as e:
+            raise ValueError(f"所有方法均解析失败，原始文本: {text}")
+    else:
+        # ----------- Step 3: 逐一尝试解析 JSON -----------
+        for c in sorted(candidates, key=len, reverse=True):  # 优先尝试较长的候选
+            try:
+                return json.loads(c)
+            except json.JSONDecodeError:
+                try:
+                    return ast.literal_eval(c)
+                except Exception:
+                    raise ValueError(f"所有方法均解析失败，原始文本: {text}")
 
 def call_qwen_via_client(p=prompt, imgs=None, model='qwen-vl-max-latest', json_str=True):
     client = OpenAI(api_key=api_key, base_url=base_url)
@@ -208,3 +219,7 @@ def call_local_ai_model(ai_prompt=None, image_paths=None, video_path=None, json_
 
     except Exception as e:
         raise RuntimeError(f"调用本地模型接口异常: {e}") from e
+
+print(extract_json_dict_from_ai_reply('''```json
+{'status':'报警','detail':{'changes':{'type':'人员异常','event_type':5,'description':'检测到异常人员聚集'}}}}}
+```'''))
