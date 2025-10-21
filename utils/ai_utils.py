@@ -219,7 +219,3 @@ def call_local_ai_model(ai_prompt=None, image_paths=None, video_path=None, json_
 
     except Exception as e:
         raise RuntimeError(f"调用本地模型接口异常: {e}") from e
-
-print(extract_json_dict_from_ai_reply('''```json
-{'status':'报警','detail':{'changes':{'type':'人员异常','event_type':5,'description':'检测到异常人员聚集'}}}}}
-```'''))
