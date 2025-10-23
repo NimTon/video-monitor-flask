@@ -728,6 +728,51 @@ class ImageReportManager:
         return self.update_report("ALL_STREAMS", date=date, report="", images=images)
 
 
+class DeviceDataManager:
+    """设备数据管理类：负责从JSON文件加载并根据stream_uid查找设备信息"""
+
+    def __init__(self, filepath='device_data.json'):
+        """初始化设备数据管理器"""
+        self.filepath = filepath
+        self.lock = threading.Lock()
+
+        # 若文件不存在则创建一个空的JSON结构
+        if not os.path.exists(filepath):
+            with open(filepath, 'w', encoding='utf-8') as f:
+                json.dump([], f, indent=2, ensure_ascii=False)
+
+    def load_all(self):
+        """加载所有仓库及设备信息"""
+        with self.lock:
+            with open(self.filepath, 'r', encoding='utf-8') as f:
+                return json.load(f)
+
+    def save_all(self, data):
+        """保存所有仓库及设备信息"""
+        with self.lock:
+            with open(self.filepath, 'w', encoding='utf-8') as f:
+                json.dump(data, f, indent=2, ensure_ascii=False)
+
+    def get_by_stream_uid(self, stream_uid):
+        """
+        根据 stream_uid 查找对应设备信息。
+        返回结构示例：
+        {
+            "warehouse_code": "ZKXYLK",
+            "owner_code": "91370000698086271U",
+            "device_name": "B库604门",
+            "device_no": "609239518",
+            "service_no": "10",
+            "stream_uid": "1-91370000698086271U-609239518-10",
+            "detecting": true,
+            "live_url": "...",
+            "fences": [...]
+        }
+        """
+        all_data = self.load_all()
+        return all_data.get(stream_uid)
+
+
 # ==== 辅助函数 ====
 def bind_stream_and_recipient(storage_mgr: StorageManager, recipients_mgr: RecipientsManager, stream_uid, recipient_uid):
     """双向绑定：视频流和接收人互相绑定"""
@@ -746,3 +791,4 @@ rm = RecipientsManager()
 asm = AlertStorageManager()
 mm = MessageManager()
 irm = ImageReportManager()
+ddm = DeviceDataManager()
