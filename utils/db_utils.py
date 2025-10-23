@@ -538,9 +538,9 @@ class DBHelper:
             rows = cur.fetchall()
             return [dict(row) for row in rows]
 
-    # ------------------ 获取尚未报警的视频数据 ------------------
+    # ------------------ 获取尚未报警且识别过的视频数据 ------------------
     def get_unalerted_videos(self, limit=None):
-        """查询尚未报警(alerted=0)的视频记录"""
+        """查询尚未报警(alerted=0, ai_checked=1)的视频记录"""
         with self.get_conn() as conn:
             cur = conn.cursor()
             sql = """
@@ -560,7 +560,7 @@ class DBHelper:
                          event_uid,
                          group_event_uid
                   FROM merged_videos
-                  WHERE alerted = 0
+                  WHERE alerted = 0 AND ai_checked = 1
                   ORDER BY timestamp ASC
                   """
             if limit:
@@ -577,6 +577,18 @@ class DBHelper:
             cur.execute("""
                         UPDATE merged_videos
                         SET exported = 1
+                        WHERE group_event_uid = ?;
+                        """, (group_event_uid,))
+            conn.commit()
+            return cur.rowcount > 0
+
+    def mark_video_as_alerted(self, group_event_uid):
+        """根据 group_event_uid 标记视频检测记录为已报警"""
+        with self.get_conn() as conn:
+            cur = conn.cursor()
+            cur.execute("""
+                        UPDATE merged_videos
+                        SET alerted = 1
                         WHERE group_event_uid = ?;
                         """, (group_event_uid,))
             conn.commit()
