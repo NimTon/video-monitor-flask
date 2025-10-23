@@ -1,7 +1,9 @@
 import asyncio
-from datetime import datetime
+import json
+from datetime import datetime, date
+from emergency.utils.api_utils import zk_api, ZhongkaiAPIError
 from utils.db_utils import db
-from storage import sm, rm, asm, mm
+from storage import sm, rm, asm, mm, ddm
 from utils.log_utils import log
 from utils.alert_utils import send_alert
 from urllib.parse import urljoin
@@ -19,38 +21,50 @@ async def alert_worker():
 
         grouped = pending_alerts.groupby('group_event_uid')
         for group_event_uid, group in grouped:
-            # 获取整体状态
-            for _, video in group.iterrows():
-                video_id = video.get("id")
-                stream_uid = video.get('stream_uid')
-                stream_name = video.get('stream_name')
-                group_uid = video.get('group_uid')
-                timestamp = datetime.fromisoformat(video.get('timestamp'))
-                video_path = video.get('video_path')
-                ai_status = video.get('ai_status')
-                ai_result = video.get('ai_result')
-                log("INFO", f"[EMERGENCY ALERT] {stream_name} (UID={stream_uid}, GROUP_UID={group_uid}), 待报警")
-
-            # 触发报警 TODO 有需要再改为异步
-            attachments = [before_image_path, after_image_path, after_image_path]
-            alert_status = -1
-            for r in recipients:
-                contact = r.get("contact")
-                try:
-                    for method_name, contact_value in contact.items():
-                        send_alert(method_name, contact_value, message, attachments)
-                        log("SUCCESS", f"[EMERGENCY ALERT] {stream_name} (UID={stream_uid}, FENCE_UID={fence_uid}, DETECTION_ID={detection_id}, TIMESTAMP={timestamp}) 已向接收人 {r['name']} ({contact}) 发送 {method_name} 报警")
-                        alert_status = 1
-                except Exception as e:
-                    log("FAIL", f"[EMERGENCY ALERT] {stream_name} (UID={stream_uid}, FENCE_UID={fence_uid}, DETECTION_ID={detection_id}, TIMESTAMP={timestamp}) 向接收人 {r['name']} ({contact}) 发送报警失败: {e}")
-                    await asyncio.sleep(1)
-                    continue
+            # 是否有异常内容
+            if group.ai_status.any():
+                # 获取整体状态
+                for _, video in group.iterrows():
+                    # 单个数据查询
+                    stream_uid = video.get('stream_uid')
+                    stream_name = video.get('stream_name')
+                    video_path = video.get('video_path')
+                    device_data = ddm.get_by_stream_uid(stream_uid)
+                    hj_device_no = device_data.get('hjDeviceNo')
+                    hj_service_no = device_data.get('hjServiceNo')
+                    ai_result = json.loads(video.get('ai_result'))
+                    event_type = ai_result.get('changes').get('event_type')
+                    wh_code = device_data.get('whCode')
+                    wh_name = device_data.get('whName')
+                    loan_no = device_data.get('loanNo')
+                    asset_detail = str(device_data.get('assetDetail'))
+                    log("INFO", f"[EMERGENCY ALERT] {stream_name} (UID={stream_uid}, GROUP_UID={group_event_uid}), 待报警")
+                    try:
+                        # 上传视频
+                        file_id = zk_api.upload_byte_file_with_apikey(video_path)
+                        print("patrol_record 成功:", file_id)
+                        # 调用API接口触发报警
+                        iot_event = zk_api.push_iot_event(
+                            hj_device_no=hj_device_no,
+                            hj_service_no=hj_service_no,
+                            event_type=event_type,
+                            event_date=date.today().strftime("%Y-%m-%d"),
+                            event_msg="异常事件",
+                            # event_img_file_id="",
+                            event_video_file_id=file_id,
+                            wh_code=wh_code,
+                            wh_name=wh_name,
+                            loan_no=loan_no,
+                            asset_detail=asset_detail
+                        )
+                        print("patrol_record 响应:", iot_event)
+                    except ZhongkaiAPIError as e:
+                        print("patrol_record 失败:", e, getattr(e, "response", None))
+                    log("SUCCESS", f"[EMERGENCY ALERT] {stream_name} (UID={stream_uid}, GROUP_UID={group_event_uid}), 推送完成")
+            else:
+                log("INFO", f"[EMERGENCY ALERT] GROUP_UID={group_event_uid}, 无异常内容")
             # 更新数据库
-            db.update_alerted(
-                detection_id=detection_id,
-                alerted=alert_status
-            )
-            log("SUCCESS", f"[EMERGENCY ALERT] {stream_name} (UID={stream_uid}, FENCE_UID={fence_uid}, DETECTION_ID={detection_id}, TIMESTAMP={timestamp}) 数据库更新完成")
+            db.mark_video_as_alerted(group_event_uid)
             await asyncio.sleep(1)
 
 async def run_alert_module():
