@@ -1,31 +1,17 @@
 import json
-import os
 from utils.utils import relative_to_pixel_fence, to_png_bytes, camel_to_snake
 from utils.log_utils import log, log_multiline
 from utils import watermark_utils as wu
 from emergency.utils.api_utils import zk_api
 from emergency.config import MACHINE_CODES
-from storage import sm
+from storage import sm, ddm
 import requests
 from config import BASE_URL, FLOW_BASE_URL, FLOW_LOCAL_URL
-
-JSON_DIR = './'
-
-
-def save_json_safe(filename: str, data: dict):
-    """安全写入 JSON 文件"""
-    path = os.path.join(JSON_DIR, filename)
-    try:
-        with open(path, "w", encoding="utf-8") as f:
-            json.dump(data, f, ensure_ascii=False, indent=2)
-        log("SUCCESS", f"[JSON] 数据已保存: {path}")
-    except Exception as e:
-        log("FAIL", f"[JSON] 保存数据失败: {path}, ERROR={e}")
 
 
 def get_streams_worker():
     """运行一轮获取设备、启动检测，同时保存 JSON"""
-    all_data = []
+    all_data = {}
 
     for machine in MACHINE_CODES:
         log("INFO", f"[EMERGENCY STREAM] 获取机器 {machine} 的设备列表...")
@@ -44,12 +30,6 @@ def get_streams_worker():
             warehouse_devices = warehouse.get("devices", [])
             log("INFO", f"[EMERGENCY STREAM] 仓库 {warehouse_code} 设备数量: {len(warehouse_devices)}")
 
-            warehouse_data = {
-                "warehouse_code": warehouse_code,
-                "owner_code": owner_code,
-                "devices": []
-            }
-
             for dev in warehouse_devices:
                 device_name = dev.get("deviceName")
                 service_no = dev.get("serviceNo")
@@ -65,16 +45,6 @@ def get_streams_worker():
                 except Exception as e:
                     log("FAIL", f"[EMERGENCY STREAM] 获取设备 {device_name} (UID={stream_uid}) 直播地址失败: {e}")
                     live_url = None
-
-                device_data = {
-                    "device_name": device_name,
-                    "device_no": device_no,
-                    "service_no": service_no,
-                    "stream_uid": stream_uid,
-                    "detecting": detecting,
-                    "live_url": live_url,
-                    "fences": []
-                }
 
                 if live_url:
                     try:
@@ -109,7 +79,7 @@ def get_streams_worker():
                             video_play_url=url,
                             scene_code=owner_code
                         )
-
+                        all_data[stream_uid] = asset_info['data']
                         if asset_info.get("rspCode") != '00000000':
                             log("FAIL", f"[EMERGENCY STREAM] 获取资产与围栏信息失败: {device_name} (UID={stream_uid}), RESPONSE={asset_info}")
                         else:
@@ -164,14 +134,6 @@ def get_streams_worker():
                                 )
                                 resp.raise_for_status()
                                 log("SUCCESS", f"[EMERGENCY WATERMARK] 上传水印成功: {device_name} (UID={stream_uid}, FENCE_UID={fence_uid})")
-
-                                # JSON 保存围栏信息
-                                device_data["fences"].append({
-                                    "fence_uid": fence_uid,
-                                    "fence_points": fence_points,
-                                    "fence_info_text": fence_info_text
-                                })
-
                     except requests.RequestException as e:
                         log("FAIL", f"[EMERGENCY STREAM] 管理视频流失败: {device_name} (UID={stream_uid}) ERROR={e}")
 
@@ -180,13 +142,8 @@ def get_streams_worker():
                     sm.set_detecting(stream_uid, detecting)
                     log("SUCCESS", f"[EMERGENCY STREAM] 设置视频流编组: {device_name} (UID={stream_uid}) -> GROUP_UID={warehouse_code}")
                     log("SUCCESS", f"[EMERGENCY STREAM] 设置视频流检测: {device_name} (UID={stream_uid}) -> DETECTING={detecting}")
-
-                warehouse_data["devices"].append(device_data)
-
-            all_data.append(warehouse_data)
-
     # 保存本轮数据到 JSON
-    save_json_safe(f"emergency.json", all_data)
+    ddm.save_all(all_data)
     log("INFO", "[EMERGENCY STREAM] === 获取设备信息完成 ===")
 
 
