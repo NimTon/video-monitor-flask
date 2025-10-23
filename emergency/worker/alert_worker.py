@@ -34,6 +34,7 @@ async def alert_worker():
                     hj_service_no = device_data.get('hjServiceNo')
                     ai_result = json.loads(video.get('ai_result'))
                     event_type = ai_result.get('changes').get('event_type')
+                    event_msg = ai_result.get('changes').get('description')
                     wh_code = device_data.get('whCode')
                     wh_name = device_data.get('whName')
                     loan_no = device_data.get('loanNo')
@@ -49,7 +50,7 @@ async def alert_worker():
                             hj_service_no=hj_service_no,
                             event_type=event_type,
                             event_date=date.today().strftime("%Y-%m-%d"),
-                            event_msg="异常事件",
+                            event_msg=event_msg,
                             # event_img_file_id="",
                             event_video_file_id=file_id,
                             wh_code=wh_code,
