@@ -1,11 +1,9 @@
 import json
 
-HOST = "127.0.0.1"
-PORT = 5000
-BASE_URL = f"http://{HOST}:{PORT}"
-
-ZLMK_SECRET = "RMys9486msj1NraRsncf0k0lpAMmLaHP"
-ZLMK_URL = "http://172.27.109.14/index/api"
+FLOW_URL = "https://jrlyy.fusionfintrade.com:39100"  # 华为云转流服务
+BASE_URL = "1.94.137.200:5000" # 华为云基础服务
+# FLOW_URL = ""  # 公司转流服务
+# BASE_URL = "" # 公司基础服务
 
 LOCAL_AI_IMAGES_URL = "http://103.25.65.102:15800/api/sayImages"
 LOCAL_AI_VIDEO_URL = "http://103.25.65.102:15800/api/sayVideo"
@@ -16,10 +14,6 @@ QWEN_URL = "https://dashscope.aliyuncs.com/compatible-mode/v1"
 
 DB_PATH = "video_db.sqlite"
 
-# FLOW_BASE_URL = "http://1.94.137.200:5001"
-FLOW_BASE_URL = "https://jrlyy.fusionfintrade.com:39100"  #域名
-
-FLOW_LOCAL_URL = "http://127.0.0.1:5001"
 
 with open('prompts.json', encoding='utf-8') as f:
     PROMPTS = json.load(f)
