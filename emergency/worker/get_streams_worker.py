@@ -6,7 +6,7 @@ from emergency.utils.api_utils import zk_api
 from emergency.config import MACHINE_CODES
 from storage import sm, ddm
 import requests
-from config import BASE_URL, FLOW_BASE_URL, FLOW_LOCAL_URL
+from config import BASE_URL, FLOW_URL
 
 
 def get_streams_worker():
@@ -66,12 +66,12 @@ def get_streams_worker():
                             }, timeout=5)
                             resp.raise_for_status()
                             url = resp.json().get("data", {}).get("hls_url")
-                            url = f'{FLOW_LOCAL_URL}/{url}'
+                            url = f'{FLOW_URL}/{url}'
                             sm.update_stream(stream_uid, stream_url=url)
                             log("SUCCESS", f"[EMERGENCY STREAM] 更新视频流: {device_name} (UID={stream_uid})")
 
                         # 调用中凯资产与围栏信息接口
-                        url = url.replace("no_wm", "wm").replace(FLOW_LOCAL_URL, FLOW_BASE_URL)
+                        url = url.replace("no_wm", "wm")
                         log("INFO", f"[EMERGENCY STREAM] 推送视频流: {device_name} (UID={stream_uid}, URL={url})")
                         asset_info = zk_api.query_and_push_assets(
                             hj_device_no=device_no,
@@ -127,7 +127,7 @@ def get_streams_worker():
                                 png_bytes = to_png_bytes(watermark_img)
                                 # 上传水印
                                 resp = requests.patch(
-                                    f"{FLOW_LOCAL_URL}/api/fence/water_mark",
+                                    f"{FLOW_URL}/api/fence/water_mark",
                                     files={"file": ("fence.png", png_bytes, "image/png")},
                                     data={"stream_uid": stream_uid, "fence_uid": fence_uid},
                                     timeout=5
