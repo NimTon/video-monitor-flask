@@ -1,6 +1,6 @@
 import json
 
-FLOW_URL = "https://jrlyy.fusionfintrade.com:39100"  # 华为云转流服务
+FLOW_URL = "1.94.137.200:5001"  # 华为云转流服务
 BASE_URL = "1.94.137.200:5000" # 华为云基础服务
 # FLOW_URL = ""  # 公司转流服务
 # BASE_URL = "" # 公司基础服务

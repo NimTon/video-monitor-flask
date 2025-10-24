@@ -72,6 +72,7 @@ def get_streams_worker():
 
                         # 调用中凯资产与围栏信息接口
                         url = url.replace("no_wm", "wm")
+                        url = "https://jrlyy.fusionfintrade.com:39100/" + url.split("/", 3)[-1]
                         log("INFO", f"[EMERGENCY STREAM] 推送视频流: {device_name} (UID={stream_uid}, URL={url})")
                         asset_info = zk_api.query_and_push_assets(
                             hj_device_no=device_no,
