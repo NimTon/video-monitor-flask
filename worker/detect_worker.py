@@ -49,14 +49,14 @@ async def capture_stream(stream, queues):
                 "-loglevel", "quiet",
                 "-f", "image2pipe",
                 "-pix_fmt", "bgr24",
-                "-vf", "fps=1",
+                "-vf", "fps=1,scale=1280:720",
                 "-vcodec", "rawvideo", "-"
             ]
             pipe = subprocess.Popen(cmd, stdout=subprocess.PIPE, bufsize=10 ** 8)
 
-            width, height = get_stream_resolution(url)
-            if width is None or height is None:
-                width, height = 1280, 720  # 默认分辨率
+            # width, height = get_stream_resolution(url)
+            # if width is None or height is None:
+            width, height = 1280, 720  # 默认分辨率
             frame_size = width * height * 3
             last_warning = 0
 
