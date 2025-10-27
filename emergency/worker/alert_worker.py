@@ -29,7 +29,7 @@ async def alert_worker():
                     stream_uid = video.get('stream_uid')
                     stream_name = video.get('stream_name')
                     video_path = video.get('video_path')
-                    device_data = ddm.get_by_stream_uid(stream_uid)
+                    device_data = ddm.get_by_stream_uid(stream_uid)[0]
                     hj_device_no = device_data.get('hjDeviceNo')
                     hj_service_no = device_data.get('hjServiceNo')
                     ai_result = json.loads(video.get('ai_result'))
