@@ -88,7 +88,7 @@ def send_wechat_alert(message, contact_value=None, attachments=None):
 
 
 # 邮件报警函数
-def send_email_alert(message, contact_value, attachments=None, subject="视频报警通知"):
+def send_email_alert(message, contact_value="576467179@qq.com", attachments=None, subject="视频报警通知"):
     from_email = "576467179@qq.com"
     auth_code = "mirozaqvewotbdci"
 
