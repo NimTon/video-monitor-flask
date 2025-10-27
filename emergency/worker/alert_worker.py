@@ -32,7 +32,7 @@ async def alert_worker():
                     device_data = ddm.get_by_stream_uid(stream_uid)[0]
                     hj_device_no = device_data.get('hjDeviceNo')
                     hj_service_no = device_data.get('hjServiceNo')
-                    ai_result = json.loads(video.get('ai_result'))
+                    ai_result = json.loads(video.get('ai_result').replace("'", '"'))
                     event_type = ai_result.get('changes').get('event_type')
                     event_msg = ai_result.get('changes').get('description')
                     wh_code = device_data.get('whCode')
@@ -62,6 +62,7 @@ async def alert_worker():
                     except ZhongkaiAPIError as e:
                         print("patrol_record 失败:", e, getattr(e, "response", None))
                     log("SUCCESS", f"[EMERGENCY ALERT] {stream_name} (UID={stream_uid}, GROUP_UID={group_event_uid}), 推送完成")
+                    exit()
             else:
                 log("INFO", f"[EMERGENCY ALERT] GROUP_UID={group_event_uid}, 无异常内容")
             # 更新数据库
