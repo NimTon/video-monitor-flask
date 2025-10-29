@@ -44,7 +44,7 @@ IMAGE_DIR = os.path.join(os.getcwd(), 'images')  # 绝对路径更安全
 # 视频存放路径
 VIDEO_DIR = os.path.join(os.getcwd(), 'videos')  # 绝对路径更安全
 # 临时文件路径
-TEMP_DIR = os.path.join(os.getcwd(), 'temp')
+TEMP_DIR = os.path.join(os.getcwd(), 'tmp')
 
 
 # -------- 前端路由 --------
