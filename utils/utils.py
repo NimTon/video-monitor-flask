@@ -56,6 +56,7 @@ async def clean_task(paths, interval=24 * 3600, days=7):
     - 之后每隔 interval 秒执行一次
     """
     while True:
+        log("INFO", f"开始清理旧文件, {', '.join(paths)}")
         for path in paths:
             cleared_path = clean_old_files(path, days)
             if cleared_path:
@@ -79,14 +80,19 @@ def clean_old_files(path: str, day: int):
     removed_files = []
 
     for root, dirs, files in os.walk(path):
+        log("INFO", f"检查目录 {root}")
         for filename in files:
             file_path = os.path.join(root, filename)
             try:
+                log("INFO", f"检查文件 {file_path}")
                 if os.path.isfile(file_path) and os.path.getmtime(file_path) < cutoff:
+                    log("INFO", f"删除文件 {file_path}")
                     os.remove(file_path)
                     removed_files.append(file_path)
+                else:
+                    log("INFO", f"文件 {file_path} 不满足条件")
             except Exception:
-                pass  # 忽略出错的文件
+                log("FAIL", f"清理文件 {file_path} 时出错")
 
     return removed_files
 
