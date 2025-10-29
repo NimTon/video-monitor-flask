@@ -278,7 +278,7 @@ class StorageManager:
         groups = {}
         for stream in data:
             gid = stream.get("group_uid")
-            sid = stream.get("stream_uid")
+            sid = stream.get("uid")
             if gid:
                 groups.setdefault(gid, []).append(sid)
         return groups

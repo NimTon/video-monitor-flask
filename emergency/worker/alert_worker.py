@@ -5,7 +5,7 @@ from emergency.utils.api_utils import zk_api, ZhongkaiAPIError
 from utils.db_utils import db
 from storage import sm, rm, asm, mm, ddm
 from utils.log_utils import log
-from utils.alert_utils import send_alert
+from utils.alert_utils import send_alert, send_email_alert
 from urllib.parse import urljoin
 import pandas as pd
 from config import BASE_URL
@@ -21,6 +21,7 @@ async def alert_worker():
 
         grouped = pending_alerts.groupby('group_event_uid')
         for group_event_uid, group in grouped:
+            group_uid = group.group_uid.unique()[0]
             # 是否有异常内容
             if group.ai_status.any():
                 # 获取整体状态
@@ -29,10 +30,10 @@ async def alert_worker():
                     stream_uid = video.get('stream_uid')
                     stream_name = video.get('stream_name')
                     video_path = video.get('video_path')
-                    device_data = ddm.get_by_stream_uid(stream_uid)
+                    device_data = ddm.get_by_stream_uid(stream_uid)[0]
                     hj_device_no = device_data.get('hjDeviceNo')
                     hj_service_no = device_data.get('hjServiceNo')
-                    ai_result = json.loads(video.get('ai_result'))
+                    ai_result = json.loads(video.get('ai_result').replace("'", '"'))
                     event_type = ai_result.get('changes').get('event_type')
                     event_msg = ai_result.get('changes').get('description')
                     wh_code = device_data.get('whCode')
@@ -62,6 +63,18 @@ async def alert_worker():
                     except ZhongkaiAPIError as e:
                         print("patrol_record 失败:", e, getattr(e, "response", None))
                     log("SUCCESS", f"[EMERGENCY ALERT] {stream_name} (UID={stream_uid}, GROUP_UID={group_event_uid}), 推送完成")
+                    # 发送邮件
+                    emal_conent = f"编组视频流 {stream_uid} 预警。\n" \
+                                   f"设备名称: {stream_name}\n" \
+                                   f"设备编号: {hj_device_no}\n" \
+                                   f"设备服务编号: {hj_service_no}\n" \
+                                   f"设备所在仓库: {wh_code} {wh_name}\n" \
+                                   f"设备所在贷款编号: {loan_no}\n" \
+                                  f"设备资产详情: {asset_detail}\n" \
+                                  f"设备异常内容: {event_msg}\n" \
+                                  f"设备异常视频: {urljoin(BASE_URL, video_path)}"
+                    send_email_alert(emal_conent, subject=f"编组视频流 {stream_uid} 预警。")
+                    log("SUCCESS", f"[EMERGENCY ALERT] {stream_name} (UID={stream_uid}, GROUP_UID={group_event_uid}), 邮件发送完成")
             else:
                 log("INFO", f"[EMERGENCY ALERT] GROUP_UID={group_event_uid}, 无异常内容")
             # 更新数据库
