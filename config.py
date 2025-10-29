@@ -19,6 +19,8 @@ QWEN_URL = "https://dashscope.aliyuncs.com/compatible-mode/v1"
 
 DB_PATH = "video_db.sqlite"
 
+FROM_EMAIL = "576467179@qq.com"
+
 AUTH_CODE = "eynbzlkuuwrqbbed"
 
 with open('prompts.json', encoding='utf-8') as f:
