@@ -33,9 +33,15 @@ async def alert_worker():
                     device_data = ddm.get_by_stream_uid(stream_uid)[0]
                     hj_device_no = device_data.get('hjDeviceNo')
                     hj_service_no = device_data.get('hjServiceNo')
-                    ai_result = json.loads(video.get('ai_result').replace("'", '"'))
-                    event_type = ai_result.get('changes').get('event_type')
-                    event_msg = ai_result.get('changes').get('description')
+                    try:
+                        ai_result_str = video.get('ai_result', '{}')
+                        ai_result = json.loads(ai_result_str.replace("'", '"'))
+                        event_type = ai_result.get('changes', {}).get('event_type', 'unknown')
+                        event_msg = ai_result.get('changes', {}).get('description', '无描述')
+                    except Exception as e:
+                        log("FAIL", f"[EMERGENCY ALERT] {stream_name} (UID={stream_uid}, GROUP_UID={group_event_uid}), 获取AI识别结果异常: {e}")
+                        event_type = 'unknown'
+                        event_msg = '无描述'
                     wh_code = device_data.get('whCode')
                     wh_name = device_data.get('whName')
                     loan_no = device_data.get('loanNo')
