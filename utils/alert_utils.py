@@ -132,3 +132,57 @@ def send_alert(method_name, contact_value, message, attachments=None):
         return send_email_alert(message, contact_value, attachments)
     else:
         raise ValueError(f"不支持的报警方式: {method_name}")
+
+
+class EmailAlert:
+    def __init__(self, from_email, auth_code, smtp_server="smtp.qq.com", smtp_port=465):
+        """
+        初始化邮件发送类，并登录邮箱
+        :param from_email: 发件人邮箱
+        :param auth_code: 邮箱授权码
+        :param smtp_server: SMTP服务器地址
+        :param smtp_port: SMTP服务器端口
+        """
+        self.from_email = from_email
+        self.auth_code = auth_code
+        self.smtp_server = smtp_server
+        self.smtp_port = smtp_port
+
+        try:
+            self.server = smtplib.SMTP_SSL(self.smtp_server, self.smtp_port)
+            self.server.login(self.from_email, self.auth_code)
+        except Exception as e:
+            raise RuntimeError(f"邮件服务器登录失败: {e}")
+
+    def send_email(self, message, to_email="576467179@qq.com", attachments=None, subject="视频报警通知"):
+        """
+        发送邮件
+        :param message: 邮件正文
+        :param to_email: 收件人邮箱
+        :param attachments: 附件列表
+        :param subject: 邮件主题
+        """
+        msg = MIMEMultipart()
+        msg['From'] = formataddr(("报警系统", self.from_email))
+        msg['To'] = to_email
+        msg['Subject'] = Header(subject, 'utf-8')
+        msg.attach(MIMEText(message.replace("\n", "<br>"), 'html', 'utf-8'))
+
+        # 添加附件
+        if attachments:
+            for file_path in attachments:
+                if file_path and os.path.exists(file_path):
+                    with open(file_path, 'rb') as f:
+                        part = MIMEApplication(f.read(), Name=os.path.basename(file_path))
+                        part['Content-Disposition'] = f'attachment; filename="{os.path.basename(file_path)}"'
+                        msg.attach(part)
+
+        try:
+            self.server.sendmail(self.from_email, [to_email], msg.as_string())
+            return True
+        except Exception as e:
+            raise RuntimeError(f"邮件发送失败: {to_email}, 错误: {e}")
+
+    def close(self):
+        """关闭SMTP连接"""
+        self.server.quit()
