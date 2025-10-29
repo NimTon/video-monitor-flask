@@ -53,12 +53,12 @@ def test_local_image():
 
 def test_local_video():
     """测试本地 AI 视频模式"""
-    video_path = "test.mp4"
+    video_path = "6.mp4"
     if not os.path.exists(video_path):
         print(f"测试视频不存在: {video_path}, 跳过视频测试")
         return
     try:
-        result = call_local_ai_model(ai_prompt="分析这个视频的内容", video_path=video_path, json_str=True)
+        result = call_local_ai_model(ai_prompt="分析这个视频的内容，用中文简体回复", video_path=video_path, json_str=True)
         print("=== call_local_ai_model 视频模式 ===")
         print(result)
     except Exception as e:
