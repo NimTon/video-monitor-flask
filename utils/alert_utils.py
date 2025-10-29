@@ -13,8 +13,7 @@ from email.mime.application import MIMEApplication
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.utils import formataddr
-
-from config import AUTH_CODE
+from config import AUTH_CODE, FROM_EMAIL
 from utils.utils import md5
 from utils.log_utils import log
 
@@ -154,7 +153,7 @@ class EmailAlert:
         except Exception as e:
             raise RuntimeError(f"邮件服务器登录失败: {e}")
 
-    def send_email(self, message, to_email="576467179@qq.com", attachments=None, subject="视频报警通知"):
+    def send_email(self, message, to_email=FROM_EMAIL, attachments=None, subject="视频报警通知"):
         """
         发送邮件
         :param message: 邮件正文
