@@ -19,6 +19,7 @@ QWEN_URL = "https://dashscope.aliyuncs.com/compatible-mode/v1"
 
 DB_PATH = "video_db.sqlite"
 
+AUTH_CODE = "eynbzlkuuwrqbbed"
 
 with open('prompts.json', encoding='utf-8') as f:
     PROMPTS = json.load(f)

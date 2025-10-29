@@ -13,6 +13,8 @@ from email.mime.application import MIMEApplication
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 from email.utils import formataddr
+
+from config import AUTH_CODE
 from utils.utils import md5
 from utils.log_utils import log
 
@@ -90,7 +92,7 @@ def send_wechat_alert(message, contact_value=None, attachments=None):
 # 邮件报警函数
 def send_email_alert(message, contact_value="576467179@qq.com", attachments=None, subject="视频报警通知"):
     from_email = "576467179@qq.com"
-    auth_code = "mirozaqvewotbdci"
+    auth_code = AUTH_CODE
 
     msg = MIMEMultipart()
     msg['From'] = formataddr(("报警系统", from_email))
