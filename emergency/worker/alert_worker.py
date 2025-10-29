@@ -4,6 +4,7 @@ from datetime import datetime, date
 from emergency.utils.api_utils import zk_api, ZhongkaiAPIError
 from utils.db_utils import db
 from storage import sm, rm, asm, mm, ddm
+from utils import email_alert
 from utils.log_utils import log
 from utils.alert_utils import send_alert, send_email_alert
 from urllib.parse import urljoin
@@ -79,7 +80,7 @@ async def alert_worker():
                                   f"设备资产详情: {asset_detail}\n" \
                                   f"设备异常内容: {event_msg}\n" \
                                   f"设备异常视频: {urljoin(BASE_URL, video_path)}"
-                    send_email_alert(emal_conent, subject=f"编组视频流 {stream_uid} 预警。")
+                    email_alert.send_email(emal_conent, subject=f"编组视频流 {stream_uid} 预警。")
                     log("SUCCESS", f"[EMERGENCY ALERT] {stream_name} (UID={stream_uid}, GROUP_UID={group_event_uid}), 邮件发送完成")
             else:
                 log("INFO", f"[EMERGENCY ALERT] GROUP_UID={group_event_uid}, 无异常内容")
