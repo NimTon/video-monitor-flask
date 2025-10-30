@@ -12,11 +12,15 @@ class DBHelper:
 
     @contextmanager
     def get_conn(self):
-        conn = sqlite3.connect(self.db_path)
+        conn = sqlite3.connect(self.db_path, timeout=30, check_same_thread=False)
         conn.row_factory = sqlite3.Row
         try:
+            # 设置 WAL 模式，允许并发读写
+            conn.execute("PRAGMA journal_mode=WAL;")
+            conn.execute("PRAGMA synchronous=NORMAL;")
             yield conn
         finally:
+            conn.commit()
             conn.close()
 
     def init_db(self):
