@@ -1,5 +1,6 @@
 import os
 import smtplib
+import threading
 import time
 import hmac
 import hashlib
@@ -7,6 +8,7 @@ import base64
 import urllib
 import urllib.request
 import json
+from queue import Queue, Empty
 import requests
 from email.header import Header
 from email.mime.application import MIMEApplication
@@ -132,58 +134,92 @@ def send_alert(method_name, contact_value, message, attachments=None):
     else:
         raise ValueError(f"不支持的报警方式: {method_name}")
 
-
 class EmailAlert:
-    def __init__(self, from_email, auth_code, smtp_server="smtp.qq.com", smtp_port=465):
+    def __init__(self, from_email, auth_code, smtp_server="smtp.qq.com", smtp_port=465,
+                 batch_size=5, cooldown=10):
         """
-        初始化邮件发送类，并登录邮箱
+        初始化批量邮件发送类
         :param from_email: 发件人邮箱
         :param auth_code: 邮箱授权码
-        :param smtp_server: SMTP服务器地址
-        :param smtp_port: SMTP服务器端口
+        :param smtp_server: SMTP服务器
+        :param smtp_port: SMTP端口
+        :param batch_size: 每次发送邮件数量
+        :param cooldown: 批量发送间隔秒数
         """
         self.from_email = from_email
         self.auth_code = auth_code
         self.smtp_server = smtp_server
         self.smtp_port = smtp_port
+        self.batch_size = batch_size
+        self.cooldown = cooldown
 
-        try:
-            self.server = smtplib.SMTP(self.smtp_server, self.smtp_port)
-            self.server.ehlo()
-            self.server.starttls()
-            self.server.login(self.from_email, self.auth_code)
-        except Exception as e:
-            raise RuntimeError(f"邮件服务器登录失败: {e}")
+        self.queue = Queue()
+        self._stop_event = threading.Event()
+        self._thread = threading.Thread(target=self._worker_loop, daemon=True)
+        self._thread.start()
 
-    def send_email(self, message, to_email=FROM_EMAIL, attachments=None, subject="视频报警通知"):
-        """
-        发送邮件
-        :param message: 邮件正文
-        :param to_email: 收件人邮箱
-        :param attachments: 附件列表
-        :param subject: 邮件主题
-        """
-        msg = MIMEMultipart()
-        msg['From'] = formataddr(("报警系统", self.from_email))
-        msg['To'] = to_email
-        msg['Subject'] = Header(subject, 'utf-8')
-        msg.attach(MIMEText(message.replace("\n", "<br>"), 'html', 'utf-8'))
+    def _worker_loop(self):
+        """后台线程循环发送邮件"""
+        while not self._stop_event.is_set():
+            batch = []
+            try:
+                # 从队列中取 batch_size 条
+                for _ in range(self.batch_size):
+                    batch.append(self.queue.get_nowait())
+            except Empty:
+                pass
 
-        # 添加附件
-        if attachments:
-            for file_path in attachments:
-                if file_path and os.path.exists(file_path):
-                    with open(file_path, 'rb') as f:
-                        part = MIMEApplication(f.read(), Name=os.path.basename(file_path))
-                        part['Content-Disposition'] = f'attachment; filename="{os.path.basename(file_path)}"'
-                        msg.attach(part)
+            if batch:
+                try:
+                    self._send_batch(batch)
+                except Exception as e:
+                    print(f"[EMAIL][ERROR] 批量发送失败: {e}")
+            time.sleep(self.cooldown)
 
-        try:
-            self.server.sendmail(self.from_email, [to_email], msg.as_string())
-            return True
-        except Exception as e:
-            raise RuntimeError(f"邮件发送失败: {to_email}, 错误: {e}")
+    def _send_batch(self, batch):
+        """一次性发送一批邮件"""
+        with smtplib.SMTP_SSL(self.smtp_server, self.smtp_port) as server:
+            server.login(self.from_email, self.auth_code)
+            for item in batch:
+                to_email = item['to_email']
+                subject = item['subject']
+                message = item['message']
+                attachments = item.get('attachments')
+
+                msg = MIMEMultipart()
+                msg['From'] = formataddr(("报警系统", self.from_email))
+                msg['To'] = to_email
+                msg['Subject'] = Header(subject, 'utf-8')
+                msg.attach(MIMEText(message.replace("\n", "<br>"), 'html', 'utf-8'))
+
+                # 添加附件
+                if attachments:
+                    for file_path in attachments:
+                        if file_path and os.path.exists(file_path):
+                            with open(file_path, 'rb') as f:
+                                part = MIMEApplication(f.read(), Name=os.path.basename(file_path))
+                                part['Content-Disposition'] = f'attachment; filename="{os.path.basename(file_path)}"'
+                                msg.attach(part)
+
+                server.sendmail(self.from_email, [to_email], msg.as_string())
+                # print(f"[EMAIL] 邮件发送成功 -> {to_email}")
+
+    def send_email(self, message, to_email, attachments=None, subject="视频报警通知"):
+        """存入缓存池，等待批量发送"""
+        self.queue.put({
+            "message": message,
+            "to_email": to_email,
+            "attachments": attachments,
+            "subject": subject
+        })
+        # print(f"[EMAIL] 邮件已加入发送队列 -> {to_email}")
 
     def close(self):
-        """关闭SMTP连接"""
-        self.server.quit()
+        """关闭邮件发送线程，先发送队列中剩余邮件"""
+        # print("[EMAIL] 正在关闭邮件发送线程...")
+        while not self.queue.empty():
+            # print(f"[EMAIL] 剩余邮件 {self.queue.qsize()} 条，等待发送...")
+            time.sleep(self.cooldown)
+        self._stop_event.set()
+        self._thread.join()
+        # print("[EMAIL] 邮件发送线程已关闭")
