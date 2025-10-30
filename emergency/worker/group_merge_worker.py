@@ -91,6 +91,9 @@ async def group_merge_worker():
                     else:
                         log("FAIL", f"[GROUP MERGE] 保存帧失败: {out_file}")
                     video_frames.append(frame)
+                if len(video_frames) == 0:
+                    log("WARNING", f"[GROUP MERGE] 组 {group_uid} 的流 {stream_uid} 没有可用帧，跳过")
+                    continue
                 log("INFO", f"[GROUP MERGE] 开始生成视频, 帧数量: {len(video_frames)}")
                 video_url, video_path = save_frames_as_video(stream_uid, '0', video_frames, fps=1)
                 log("SUCCESS", f"[GROUP MERGE] 视频生成完成: {video_path}")

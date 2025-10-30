@@ -40,6 +40,9 @@ async def merge_worker():
                             log("WARNING", f"[MERGE] 读取帧失败: {frame_path}")
                             continue
                         video_frames.append(frame)
+                    if len(video_frames) == 0:
+                        log("INFO", f"[MERGE] 流 {stream_name} (UID={stream_uid}, FENCE_UID={fence_uid}) 的回放帧数量为 0 张，跳过")
+                        continue
                     log("INFO", f"[MERGE] 开始生成视频, 帧数量: {len(video_frames)}")
                     video_url, video_path = save_frames_as_video(stream_uid, fence_uid, video_frames, fps=1)
                     image_urls, image_paths = save_key_frames(stream_uid, fence_uid, video_frames, base_url=BASE_URL)
