@@ -37,7 +37,7 @@ async def merge_worker():
                         # log("INFO", f"[MERGE] 读取帧: {frame_path} (stream: {stream_uid})")
                         frame = cv2.imread(frame_path)
                         if frame is None:
-                            log("WARNING", f"[MERGE] 读取帧失败: {frame_path}")
+                            log("WARN", f"[MERGE] 读取帧失败: {frame_path}")
                             continue
                         video_frames.append(frame)
                     if len(video_frames) == 0:

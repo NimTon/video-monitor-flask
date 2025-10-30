@@ -96,7 +96,7 @@ class AutoReportScheduler:
             for idx, img in enumerate(images):
                 if img["timestamp"].startswith(frame_hour.zfill(2)):  # 找到对应小时
                     if img["image_path"]:
-                        log("WARNING", f"{stream_name} ({stream_uid}) 在 {img['timestamp']} 已存在 image_path={img['image_path']}，将被替换为 {frame_data['image_path']}。", log_path=self.log_file_path)
+                        log("WARN", f"{stream_name} ({stream_uid}) 在 {img['timestamp']} 已存在 image_path={img['image_path']}，将被替换为 {frame_data['image_path']}。", log_path=self.log_file_path)
                     images[idx] = frame_data  # 替换
                     updated = True
                     break
@@ -117,7 +117,7 @@ class AutoReportScheduler:
         """整点抓取所有视频流"""
         streams = self.storage_mgr.list_streams()
         if not streams:
-            log("WARNING", "没有视频流可抓取。", log_path=self.log_file_path)
+            log("WARN", "没有视频流可抓取。", log_path=self.log_file_path)
             return
 
         log("INFO", f"开始抓取视频流，总数: {len(streams)}。", log_path=self.log_file_path)
@@ -148,15 +148,15 @@ class AutoReportScheduler:
             # 获取昨天的报告
             day_report = self.report_mgr.get_report(stream_uid, yesterday)
             if not day_report:
-                log("WARNING", f"视频流 {stream_name} (UID={stream_uid}) 缺少 {yesterday} 的报告，跳过。", log_path=self.log_file_path)
+                log("WARN", f"视频流 {stream_name} (UID={stream_uid}) 缺少 {yesterday} 的报告，跳过。", log_path=self.log_file_path)
                 continue
             images = day_report.get("images", [])
             img_count = len([img for img in images if img.get("image_path")])
             if img_count < 1:
-                log("WARNING", f"视频流 {stream_name} (UID={stream_uid}) 的 {yesterday} 报告不足 1 张，跳过。", log_path=self.log_file_path)
+                log("WARN", f"视频流 {stream_name} (UID={stream_uid}) 的 {yesterday} 报告不足 1 张，跳过。", log_path=self.log_file_path)
                 continue
             elif 1 <= img_count < 24:
-                log("WARNING", f"视频流 {stream_name} (UID={stream_uid}) 的 {yesterday} 报告不足 24 张（那天 {img_count} 张）。", log_path=self.log_file_path)
+                log("WARN", f"视频流 {stream_name} (UID={stream_uid}) 的 {yesterday} 报告不足 24 张（那天 {img_count} 张）。", log_path=self.log_file_path)
             img_paths = [img.get("image_path") for img in images if img.get("image_path")]
             image_captions = [img.get("timestamp") for img in images if img.get("image_path")]
             # 调用 AI 生成单个监控总结
@@ -228,12 +228,12 @@ class AutoReportScheduler:
                 log("FAIL", f"视频流 {stream_name} (UID={stream_uid}) 的 Word 报告保存失败。", log_path=self.log_file_path)
             recipients = RecipientsManager().get_recipients_by_stream_id(stream_uid)
             if not recipients:
-                log("WARNING", f"视频流 {stream_name} (UID={stream_uid}) 未绑定联系人。", log_path=self.log_file_path)
+                log("WARN", f"视频流 {stream_name} (UID={stream_uid}) 未绑定联系人。", log_path=self.log_file_path)
             for recipient in recipients:
                 contact = recipient.get("contact", {})
                 email_addr = contact.get("email")
                 if not email_addr:
-                    log("WARNING", f"视频流 {stream_name} (UID={stream_uid}) 收件人 {recipient.get('name', '')} 未配置邮箱。", log_path=self.log_file_path)
+                    log("WARN", f"视频流 {stream_name} (UID={stream_uid}) 收件人 {recipient.get('name', '')} 未配置邮箱。", log_path=self.log_file_path)
                     continue
                 try:
                     send_email_alert(ai_summary, email_addr, attachments=img_paths.append(pdf_file), subject=f"视频流 {stream_name} (UID={stream_uid}) {yesterday} 报告。")

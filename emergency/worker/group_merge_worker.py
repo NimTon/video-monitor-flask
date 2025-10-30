@@ -60,7 +60,7 @@ async def group_merge_worker():
                     export_frame_id = export_frame_df['id'].values
                     log("INFO", f"[GROUP MERGE] stream {stream_uid} 需要导出的帧数量: {len(list(export_frame_id))}")
                 else:
-                    log("WARNING", f"[GROUP MERGE] stream {stream_uid} 在时间段 {start_ts} - {end_ts} 没有可用帧，跳过")
+                    log("WARN", f"[GROUP MERGE] stream {stream_uid} 在时间段 {start_ts} - {end_ts} 没有可用帧，跳过")
                     await asyncio.sleep(10)
                     continue
                 unique_frame_data = frame_data.drop_duplicates(subset='frame_id', keep='first')
@@ -73,7 +73,7 @@ async def group_merge_worker():
                     log("INFO", f"[GROUP MERGE] 读取帧: {frame_path} (stream: {stream_uid})")
                     frame = cv2.imread(frame_path)
                     if frame is None:
-                        log("WARNING", f"[GROUP MERGE] 读取帧失败: {frame_path}")
+                        log("WARN", f"[GROUP MERGE] 读取帧失败: {frame_path}")
                         continue
                     height, width = frame.shape[:2]
                     fences = sm.list_fences(stream_uid)
@@ -92,7 +92,7 @@ async def group_merge_worker():
                         log("FAIL", f"[GROUP MERGE] 保存帧失败: {out_file}")
                     video_frames.append(frame)
                 if len(video_frames) == 0:
-                    log("WARNING", f"[GROUP MERGE] 组 {group_uid} 的流 {stream_uid} 没有可用帧，跳过")
+                    log("WARN", f"[GROUP MERGE] 组 {group_uid} 的流 {stream_uid} 没有可用帧，跳过")
                     continue
                 log("INFO", f"[GROUP MERGE] 开始生成视频, 帧数量: {len(video_frames)}")
                 video_url, video_path = save_frames_as_video(stream_uid, '0', video_frames, fps=1)

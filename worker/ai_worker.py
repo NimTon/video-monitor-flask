@@ -25,7 +25,7 @@ async def ai_worker():
             try:
                 ai_result = call_local_ai_model(ai_prompt=PROMPTS['normal'], video_path=video_path, json_str=True) # 有需要再改为异步
                 if not "status" in ai_result or not "detail" in ai_result:
-                    log("WARNING", f"[AI] {stream_name} AI识别返回异常, DETECTION_ID={detection_id}, {ai_result}")
+                    log("WARN", f"[AI] {stream_name} AI识别返回异常, DETECTION_ID={detection_id}, {ai_result}")
                     ai_result = {"ERROR": "AI识别返回异常"}
                     ai_status = -1
                 else:

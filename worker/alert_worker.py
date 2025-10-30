@@ -30,7 +30,7 @@ async def alert_worker():
             log("INFO", f"[ALERT] {stream_name} (UID={stream_uid}, FENCE_UID={fence_uid}), 待报警记录 {len(group)}")
             recipients = rm.get_recipients_by_stream_id(stream_uid)
             if not recipients:
-                log("WARNING", f"[ALERT] {stream_name} (UID={stream_uid}) 没有配置报警接收人")
+                log("WARN", f"[ALERT] {stream_name} (UID={stream_uid}) 没有配置报警接收人")
                 await asyncio.sleep(2)
                 continue
 

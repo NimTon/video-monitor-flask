@@ -65,7 +65,7 @@ async def capture_stream(stream, queues):
                 if len(raw_frame) != frame_size:
                     now = datetime.now().timestamp()
                     if now - last_warning > 5:
-                        log("WARNING", f"[CAPTURE] {stream_name} ({stream_uid}) 读取帧长度不匹配，重试...", log_path=log_file_path)
+                        log("WARN", f"[CAPTURE] {stream_name} ({stream_uid}) 读取帧长度不匹配，重试...", log_path=log_file_path)
                         last_warning = now
                     await asyncio.sleep(1)
                     continue
@@ -160,7 +160,7 @@ async def run_system():
     log("INFO", "加载存储管理器完成", log_path=log_file_path)
     streams = get_running_streams(storage_manger)
     if len(streams) == 0:
-        log("WARNING", "当前没有运行的流", log_path=log_file_path)
+        log("WARN", "当前没有运行的流", log_path=log_file_path)
         await asyncio.sleep(RESTART_INTERVAL)
 
     log("INFO", f"加载运行中的视频流: {len(streams)} 个", log_path=log_file_path)
