@@ -204,7 +204,7 @@ class EmailAlert:
                 server.sendmail(self.from_email, [to_email], msg.as_string())
                 # print(f"[EMAIL] 邮件发送成功 -> {to_email}")
 
-    def send_email(self, message, to_email, attachments=None, subject="视频报警通知"):
+    def send_email(self, message, to_email=FROM_EMAIL, attachments=None, subject="视频报警通知"):
         """存入缓存池，等待批量发送"""
         self.queue.put({
             "message": message,
