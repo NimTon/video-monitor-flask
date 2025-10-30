@@ -148,7 +148,9 @@ class EmailAlert:
         self.smtp_port = smtp_port
 
         try:
-            self.server = smtplib.SMTP_SSL(self.smtp_server, self.smtp_port)
+            self.server = smtplib.SMTP(self.smtp_server, self.smtp_port)
+            self.server.ehlo()
+            self.server.starttls()
             self.server.login(self.from_email, self.auth_code)
         except Exception as e:
             raise RuntimeError(f"邮件服务器登录失败: {e}")
