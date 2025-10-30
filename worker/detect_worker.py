@@ -29,19 +29,24 @@ log_file_path = os.path.join(log_dir, "detect_worker.log")
 
 # ------------------ 抓帧模块 ------------------
 async def capture_stream(stream, queues):
+    """
+    抓帧模块：控制每张帧是否需要检测（基于检测间隔）
+    """
     detecting = stream.get("detecting")
     stream_uid = stream.get("uid")
     stream_name = stream.get("name")
     group_uid = stream.get("group_uid")
     url = stream.get("stream_url")
+    detect_interval = float(stream.get("frequency", 1.0))  # 检测间隔（秒）
     fences = [f['id'] for f in stream.get("fences", [])]
 
     os.makedirs(capture_path, exist_ok=True)
     os.makedirs(detect_path, exist_ok=True)
 
+    last_detect_time = 0  # 上一次执行检测的时间戳
+
     while True:
         try:
-            # ---------- 使用 ffmpeg 拉取 HLS 流 ----------
             cmd = [
                 f"{FFMPEG_DIR}/bin/ffmpeg.exe",
                 "-i", url,
@@ -55,7 +60,7 @@ async def capture_stream(stream, queues):
 
             width, height = get_stream_resolution(url)
             if width is None or height is None:
-                width, height = 1280, 720  # 默认分辨率
+                width, height = 1280, 720
             frame_size = width * height * 3
             last_warning = 0
 
@@ -73,16 +78,24 @@ async def capture_stream(stream, queues):
                 frame_path = f"{capture_path}/{stream_uid}_{timestamp.strftime('%Y%m%d_%H%M%S_%f')}.png"
                 frame_array = np.frombuffer(raw_frame, dtype=np.uint8).reshape((height, width, 3))
                 cv2.imwrite(frame_path, frame_array)
-
                 frame_id = db.insert_frame(stream_uid, group_uid, timestamp, frame_path)
-                log("SUCCESS", f"[CAPTURE] {stream_name} ({stream_uid}) frame_id={frame_id}", log_path=log_file_path)
+
+                # 判断是否需要识别
+                now_ts = timestamp.timestamp()
+                need_detect = False
+                if now_ts - last_detect_time >= detect_interval:
+                    log("SUCCESS", f"[CAPTURE] {stream_name} ({stream_uid}) frame_id={frame_id} 检测间隔已到，开始识别...", log_path=log_file_path)
+                    need_detect = True
+                    last_detect_time = now_ts
+                else:
+                    log("INFO", f"[CAPTURE] {stream_name} ({stream_uid}) frame_id={frame_id} 检测间隔未到，跳过识别...", log_path=log_file_path)
 
                 # ---------- 入队 ----------
                 for fence_id in fences:
                     await queues[(stream_uid, fence_id)].put((
                         detecting, stream_name, stream_uid,
                         frame_id, group_uid, fence_id,
-                        frame_path, timestamp
+                        frame_path, timestamp, need_detect
                     ))
 
                 await asyncio.sleep(1)
@@ -93,96 +106,100 @@ async def capture_stream(stream, queues):
 
 
 # ------------------ 异常检测模块 ------------------
-async def detect_worker(queue, detector, change_threshold, detect_interval):
+async def detect_worker(queue, detector, change_threshold):
     """
-    每个围栏独立 detector，使用各自的检测时间间隔（秒）和变化阈值
+    每个围栏独立 detector
+    每帧都要处理，但仅当 need_detect=True 时才进行识别
     """
     last_points = None
     kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
-    interval = max(detect_interval, 0.1)  # 防止为0
 
     while True:
-        detecting, stream_name, stream_uid, frame_id, group_uid, fence_id, frame_path, timestamp = await queue.get()
+        detecting, stream_name, stream_uid, frame_id, group_uid, fence_id, frame_path, timestamp, need_detect = await queue.get()
         try:
             if detecting:
                 frame = cv2.imread(frame_path)
                 if frame is None:
-                    log("FAIL", f"[DETECT] {stream_name} (UID={stream_uid}, FENCE_UID={fence_id}) 读取帧失败: {frame_path}", log_path=log_file_path)
+                    log("FAIL", f"[DETECT] {stream_name} (UID={stream_uid}, FENCE={fence_id}) 读取帧失败", log_path=log_file_path)
                     db.insert_detection(stream_uid, group_uid, fence_id, 0, False, timestamp, frame_path, frame_id)
                     queue.task_done()
-                    await asyncio.sleep(interval)
                     continue
 
                 height, width = frame.shape[:2]
                 fence = storage_manger.get_fence(stream_uid, fence_id)
                 points = fence.get('points', [])
-                if len(points) >= 3:
-                    fence_points = [(int(p['x'] * width), int(p['y'] * height)) for p in points]
-                else:
+                if len(points) < 3:
                     queue.task_done()
-                    await asyncio.sleep(interval)
                     continue
 
-                # 更新围栏点
+                fence_points = [(int(p['x'] * width), int(p['y'] * height)) for p in points]
+
+                # 仅当围栏点变化时重新设置
                 if fence_points != last_points:
                     detector.set_fence(fence_points)
                     last_points = fence_points
 
-                # 检测变化，使用该围栏的阈值
-                changed, change_area, change_ratio = detector.detect_change(frame, change_threshold=change_threshold)
+                if need_detect:
+                    log("INFO", f"[DETECT] {stream_name} (UID={stream_uid}, FENCE={fence_id}) 开始检测...", log_path=log_file_path)
+                    # 真正进行检测
+                    changed, change_area, change_ratio = detector.detect_change(frame, change_threshold=change_threshold)
 
-                # 过滤小面积噪声
-                if 0 <= change_ratio <= 1:
-                    if change_area < 500:
-                        changed = False
-                        change_ratio = 0.0
+                    # 过滤微小变化
+                    if 0 <= change_ratio <= 1:
+                        if change_area < 500:
+                            changed = False
+                            change_ratio = 0.0
+                else:
+                    # 跳过检测
+                    log("INFO", f"[DETECT] {stream_name} (UID={stream_uid}, FENCE={fence_id}) 跳过检测...", log_path=log_file_path)
+                    changed = False
+                    change_ratio = 0.0
 
-                    frame_drawn = draw_fence_on_frame(frame, fence_points)
-                    frame_save_path = f"{detect_path}/{stream_uid}_{fence_id}_{timestamp.strftime('%Y%m%d_%H%M%S')}.jpg"
-                    cv2.imwrite(frame_save_path, frame_drawn)
+                # 保存结果
+                frame_drawn = draw_fence_on_frame(frame, fence_points)
+                frame_save_path = f"{detect_path}/{stream_uid}_{fence_id}_{timestamp.strftime('%Y%m%d_%H%M%S')}.jpg"
+                cv2.imwrite(frame_save_path, frame_drawn)
 
-                    db.insert_detection(
-                        stream_uid, group_uid, fence_id,
-                        change_ratio, changed,
-                        timestamp, frame_save_path, frame_id
-                    )
-                    log("SUCCESS", f"[DETECT] {stream_name} (UID={stream_uid}, FENCE_UID={fence_id}) "
-                                   f"变化率={change_ratio:.2f} 阈值={change_threshold:.2f} 检测结果={'异常' if changed else '正常'}",
-                        log_path=log_file_path)
+                db.insert_detection(
+                    stream_uid, group_uid, fence_id,
+                    change_ratio, changed,
+                    timestamp, frame_save_path, frame_id
+                )
+
+                log("SUCCESS",
+                    f"[DETECT] {stream_name} (UID={stream_uid}, FENCE_UID={fence_id}) "
+                    f"need_detect={need_detect} 变化率={change_ratio:.2f} 阈值={change_threshold:.2f} 结果={'异常' if changed else '正常'}",
+                    log_path=log_file_path)
 
                 queue.task_done()
-                await asyncio.sleep(interval)
 
         except Exception as e:
-            log("FAIL", f"[DETECT] {stream_name} (UID={stream_uid}, FENCE_UID={fence_id}) 异常: {str(e)}", log_path=log_file_path)
+            log("FAIL", f"[DETECT] {stream_name} (UID={stream_uid}, FENCE={fence_id}) 异常: {str(e)}", log_path=log_file_path)
             queue.task_done()
-            await asyncio.sleep(interval)
+            await asyncio.sleep(0.5)
 
 
 # ------------------ 主程序 ------------------
 async def run_system():
     global detect_queues
     log("INFO", "系统启动中...", log_path=log_file_path)
-    log("INFO", "加载存储管理器完成", log_path=log_file_path)
     streams = get_running_streams(storage_manger)
-    if len(streams) == 0:
+    if not streams:
         log("WARN", "当前没有运行的流", log_path=log_file_path)
         await asyncio.sleep(RESTART_INTERVAL)
+        return []
 
-    log("INFO", f"加载运行中的视频流: {len(streams)} 个", log_path=log_file_path)
-
-    # 初始化队列与 detector
     detect_queues = {}
     detectors = {}
 
+    # 初始化
     for stream in streams:
         for fence in stream.get("fences", []):
             uid_pair = (stream['uid'], fence['id'])
             detect_queues[uid_pair] = asyncio.Queue()
-            detector = FenceChangeDetector()
-            detectors[uid_pair] = detector
+            detectors[uid_pair] = FenceChangeDetector()
 
-    log("INFO", "检测队列与检测器初始化完成", log_path=log_file_path)
+    log("INFO", f"检测器初始化完成，共 {len(detect_queues)} 个", log_path=log_file_path)
 
     # 抓帧任务
     capture_tasks = []
@@ -194,17 +211,13 @@ async def run_system():
     detect_tasks = []
     streams = {s['uid']: s for s in streams}
     for (stream_uid, fence_uid), queue in detect_queues.items():
-        stream_info = streams.get(stream_uid)
-        name = stream_info.get('name')
+        stream_info = streams[stream_uid]
+        name = stream_info['name']
         change_threshold = float(stream_info.get('threshold', 0.2))
-        detect_interval = float(stream_info.get('interval', 1.0))  # 单位：秒
-        log("INFO",
-            f"启动检测任务: {name} (UID={stream_uid}, FENCE_UID={fence_uid}, "
-            f"检测间隔={detect_interval}s, 阈值={change_threshold:.2f})",
-            log_path=log_file_path)
         detect_tasks.append(asyncio.create_task(
-            detect_worker(queue, detectors[(stream_uid, fence_uid)], change_threshold, detect_interval)
+            detect_worker(queue, detectors[(stream_uid, fence_uid)], change_threshold)
         ))
+        log("INFO", f"启动检测任务: {name} (UID={stream_uid}, FENCE_UID={fence_uid}, 阈值={change_threshold:.2f})", log_path=log_file_path)
 
     return capture_tasks + detect_tasks
 
@@ -212,12 +225,12 @@ async def run_system():
 # ------------------ 循环主控 ------------------
 async def main_loop():
     while True:
-        log("INFO", f"系统启动: {datetime.now()}", log_path=log_file_path)
+        log("INFO", f"系统启动时间: {datetime.now()}", log_path=log_file_path)
         tasks = await run_system()
         try:
             await asyncio.wait_for(asyncio.gather(*tasks), timeout=RESTART_INTERVAL)
         except asyncio.TimeoutError:
-            log("INFO", f"达到重启周期: {datetime.now()}, 重启系统", log_path=log_file_path)
+            log("INFO", f"到达重启周期，系统重启中...", log_path=log_file_path)
             for t in tasks:
                 t.cancel()
             await asyncio.gather(*tasks, return_exceptions=True)
