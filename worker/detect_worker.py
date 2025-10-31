@@ -84,11 +84,8 @@ async def capture_stream(stream, queues):
                 now_ts = timestamp.timestamp()
                 need_detect = False
                 if now_ts - last_detect_time >= detect_interval:
-                    log("SUCCESS", f"[CAPTURE] {stream_name} ({stream_uid}) frame_id={frame_id} 检测间隔已到，开始识别...", log_path=log_file_path)
                     need_detect = True
                     last_detect_time = now_ts
-                else:
-                    log("INFO", f"[CAPTURE] {stream_name} ({stream_uid}) frame_id={frame_id} 检测间隔未到，跳过识别...", log_path=log_file_path)
 
                 # ---------- 入队 ----------
                 for fence_id in fences:
@@ -149,6 +146,12 @@ async def detect_worker(queue, detector, change_threshold):
                         if change_area < 500:
                             changed = False
                             change_ratio = 0.0
+
+                    log("SUCCESS",
+                        f"[DETECT] {stream_name} (UID={stream_uid}, FENCE_UID={fence_id}) "
+                        f"need_detect={need_detect} 变化率={change_ratio:.2f} 阈值={change_threshold:.2f} 结果={'异常' if changed else '正常'}",
+                        log_path=log_file_path)
+
                 else:
                     # 跳过检测
                     log("INFO", f"[DETECT] {stream_name} (UID={stream_uid}, FENCE={fence_id}) 跳过检测...", log_path=log_file_path)
@@ -165,11 +168,6 @@ async def detect_worker(queue, detector, change_threshold):
                     change_ratio, changed,
                     timestamp, frame_save_path, frame_id
                 )
-
-                log("SUCCESS",
-                    f"[DETECT] {stream_name} (UID={stream_uid}, FENCE_UID={fence_id}) "
-                    f"need_detect={need_detect} 变化率={change_ratio:.2f} 阈值={change_threshold:.2f} 结果={'异常' if changed else '正常'}",
-                    log_path=log_file_path)
 
                 queue.task_done()
 
