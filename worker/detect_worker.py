@@ -154,7 +154,6 @@ async def detect_worker(queue, detector, change_threshold):
 
                 else:
                     # 跳过检测
-                    log("INFO", f"[DETECT] {stream_name} (UID={stream_uid}, FENCE={fence_id}) 跳过检测...", log_path=log_file_path)
                     changed = False
                     change_ratio = 0.0
 
