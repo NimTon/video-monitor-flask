@@ -1,10 +1,10 @@
 import asyncio
 from datetime import datetime
+from utils import ai_manager
 from utils.db_utils import db
-from utils.ai_utils import call_local_ai_model, call_qwen_via_client
 from utils.log_utils import log
 import pandas as pd
-from config import BASE_URL, PROMPTS
+from config import PROMPTS
 
 
 async def ai_worker():
@@ -25,7 +25,8 @@ async def ai_worker():
                 video_path = video.get('video_path')
                 log("INFO", f"[EMERGENCY AI] {stream_name} (UID={stream_uid}, GROUP_UID={group_uid}, TIMESTAMPE={timestamp}) 开始识别")
                 try:
-                    ai_result = call_local_ai_model(ai_prompt=PROMPTS['normal'], video_path=video_path, json_str=True)
+                    future = ai_manager.add_task("call_local_ai_model", ai_prompt=PROMPTS['normal'], video_path=video_path, json_str=True)
+                    ai_result = future.result()  # 阻塞等待后台线程执行完成
                     if not "status" in ai_result or not "detail" in ai_result:
                         log("WARN", f"[EMERGENCY AI] {stream_name} (UID={stream_uid}, GROUP_UID={group_uid}, TIMESTAMPE={timestamp}) AI识别返回异常, {ai_result}")
                         ai_result = {"ERROR": "AI识别返回异常"}

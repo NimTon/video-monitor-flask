@@ -1,13 +1,10 @@
 import asyncio
-from datetime import datetime, timedelta
 from utils.db_utils import db
 from storage import sm
-from utils.ai_utils import call_local_ai_model, call_qwen_via_client
-from utils.utils import save_frames_as_video, save_key_frames
+from utils import ai_manager
 from utils.log_utils import log
 import pandas as pd
-import cv2
-from config import BASE_URL, PROMPTS
+from config import PROMPTS
 
 
 async def ai_worker():
@@ -23,7 +20,8 @@ async def ai_worker():
             stream_name = sm.get_stream(stream_uid)['name']
             detection_id = row['id']
             try:
-                ai_result = call_local_ai_model(ai_prompt=PROMPTS['normal'], video_path=video_path, json_str=True) # 有需要再改为异步
+                future = ai_manager.add_task("call_local_ai_model", ai_prompt=PROMPTS['normal'], video_path=video_path, json_str=True)  # 有需要再改为异步
+                ai_result = future.result()  # 阻塞等待后台线程执行完成
                 if not "status" in ai_result or not "detail" in ai_result:
                     log("WARN", f"[AI] {stream_name} AI识别返回异常, DETECTION_ID={detection_id}, {ai_result}")
                     ai_result = {"ERROR": "AI识别返回异常"}
@@ -43,6 +41,7 @@ async def ai_worker():
             )
             log("INFO", f"[AI] {stream_name} 数据库更新完成 DETECTION_ID={detection_id}, AI_STATUS={ai_status}")
             await asyncio.sleep(1)
+
 
 async def run_ai_module():
     ai_task = asyncio.create_task(ai_worker())
