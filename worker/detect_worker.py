@@ -137,7 +137,7 @@ async def detect_worker(queue, detector, change_threshold):
                     last_points = fence_points
 
                 if need_detect:
-                    log("INFO", f"[DETECT] {stream_name} (UID={stream_uid}, FENCE={fence_id}) 开始检测...", log_path=log_file_path)
+                    # log("INFO", f"[DETECT] {stream_name} (UID={stream_uid}, FENCE={fence_id}) 开始检测...", log_path=log_file_path)
                     # 真正进行检测
                     changed, change_area, change_ratio = detector.detect_change(frame, change_threshold=change_threshold)
 
