@@ -62,32 +62,51 @@ async def capture_stream(stream, queues):
             if width is None or height is None:
                 width, height = 1280, 720
             frame_size = width * height * 3
+
+            mismatch_count = 0
             last_warning = 0
+            MAX_MISMATCH = 5  # 连续帧异常阈值
 
             while True:
                 raw_frame = pipe.stdout.read(frame_size)
+
+                # 帧长度异常
                 if len(raw_frame) != frame_size:
+                    mismatch_count += 1
                     now = datetime.now().timestamp()
                     if now - last_warning > 5:
-                        log("WARN", f"[CAPTURE] {stream_name} ({stream_uid}) 读取帧长度不匹配，重试...", log_path=log_file_path)
+                        log("WARN", f"[CAPTURE] {stream_name} ({stream_uid}) 帧长度异常 ({mismatch_count}/{MAX_MISMATCH})，等待重试...",
+                            log_path=log_file_path)
                         last_warning = now
+
+                    # 若连续异常超过阈值，则重启 CMD
+                    if mismatch_count >= MAX_MISMATCH:
+                        log("FAIL", f"[CAPTURE] {stream_name} ({stream_uid}) 连续帧异常，重启 CMD 进程...",
+                            log_path=log_file_path)
+                        pipe.kill()
+                        await asyncio.sleep(2)
+                        break  # 跳出内层 while，重新启动外层循环
+
                     await asyncio.sleep(1)
                     continue
 
+                # 正常帧，重置计数
+                mismatch_count = 0
+
+                # 处理帧
                 timestamp = datetime.now()
                 frame_path = f"{capture_path}/{stream_uid}_{timestamp.strftime('%Y%m%d_%H%M%S_%f')}.png"
                 frame_array = np.frombuffer(raw_frame, dtype=np.uint8).reshape((height, width, 3))
                 cv2.imwrite(frame_path, frame_array)
                 frame_id = db.insert_frame(stream_uid, group_uid, timestamp, frame_path)
 
-                # 判断是否需要识别
+                # 是否需要检测
                 now_ts = timestamp.timestamp()
-                need_detect = False
-                if now_ts - last_detect_time >= detect_interval:
-                    need_detect = True
+                need_detect = now_ts - last_detect_time >= detect_interval
+                if need_detect:
                     last_detect_time = now_ts
 
-                # ---------- 入队 ----------
+                # 入队
                 for fence_id in fences:
                     await queues[(stream_uid, fence_id)].put((
                         detecting, stream_name, stream_uid,
