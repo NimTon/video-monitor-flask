@@ -45,11 +45,8 @@ async def capture_stream(stream, queues):
     has_gpu, device_name = check_device(use_gpu)
     if has_gpu:
         log("INFO", f"使用 GPU: {device_name} 进行抓帧", log_path=log_file_path)
-        # GPU 支持，选择硬件加速编码器
-        encoder = "rawvideo"  # 使用 NVIDIA GPU 编解码器 (如果是 NVIDIA GPU)
     else:
         log("INFO", f"使用 CPU: {device_name} 进行抓帧", log_path=log_file_path)
-        encoder = "rawvideo"  # 使用 CPU 编解码器
 
     os.makedirs(capture_path, exist_ok=True)
     os.makedirs(detect_path, exist_ok=True)
@@ -66,9 +63,12 @@ async def capture_stream(stream, queues):
                 "-f", "image2pipe",
                 "-pix_fmt", "bgr24",
                 "-vf", "fps=1",
-                "-vcodec", encoder,
+                "-vcodec", "rawvideo",
                 "-"
             ]
+
+            if has_gpu:
+                cmd.extend(["-hwaccel", "cuda"])
 
             # 启动 FFmpeg 进程
             pipe = subprocess.Popen(cmd, stdout=subprocess.PIPE, bufsize=10 ** 8)
