@@ -6,7 +6,7 @@ from datetime import datetime
 import numpy as np
 from utils.db_utils import db
 from storage import StorageManager
-from utils.stream_utils import get_running_streams, FenceChangeDetector, get_stream_resolution
+from utils.stream_utils import get_running_streams, FenceChangeDetector, get_stream_resolution, check_device
 from utils.utils import draw_fence_on_frame
 from utils.log_utils import log
 from utils.init_ffmpeg import FFMPEG_DIR
@@ -40,6 +40,17 @@ async def capture_stream(stream, queues):
     detect_interval = float(stream.get("frequency", 1.0))  # 检测间隔（秒）
     fences = [f['id'] for f in stream.get("fences", [])]
 
+    # 自动检测是否支持 GPU
+    use_gpu = True  # 默认使用 GPU
+    has_gpu, device_name = check_device(use_gpu)
+    if has_gpu:
+        log("INFO", f"使用 GPU: {device_name} 进行抓帧", log_path=log_file_path)
+        # GPU 支持，选择硬件加速编码器
+        encoder = "h264_nvenc"  # 使用 NVIDIA GPU 编解码器 (如果是 NVIDIA GPU)
+    else:
+        log("INFO", f"使用 CPU: {device_name} 进行抓帧", log_path=log_file_path)
+        encoder = "libx264"  # 使用 CPU 编解码器
+
     os.makedirs(capture_path, exist_ok=True)
     os.makedirs(detect_path, exist_ok=True)
 
@@ -47,6 +58,7 @@ async def capture_stream(stream, queues):
 
     while True:
         try:
+            # 如果支持 GPU 加速，使用 GPU 相关的设置
             cmd = [
                 f"{FFMPEG_DIR}/bin/ffmpeg.exe",
                 "-i", url,
@@ -54,10 +66,14 @@ async def capture_stream(stream, queues):
                 "-f", "image2pipe",
                 "-pix_fmt", "bgr24",
                 "-vf", "fps=1",
-                "-vcodec", "rawvideo", "-"
+                "-vcodec", encoder,
+                "-"
             ]
+
+            # 启动 FFmpeg 进程
             pipe = subprocess.Popen(cmd, stdout=subprocess.PIPE, bufsize=10 ** 8)
 
+            # 获取流的分辨率，默认 1280x720
             width, height = get_stream_resolution(url)
             if width is None or height is None:
                 width, height = 1280, 720
@@ -119,7 +135,6 @@ async def capture_stream(stream, queues):
         except Exception as e:
             log("FAIL", f"[CAPTURE] {stream_name} ({stream_uid}) 异常: {str(e)}", log_path=log_file_path)
             await asyncio.sleep(5)
-
 
 # ------------------ 异常检测模块 ------------------
 async def detect_worker(queue, detector, change_threshold):

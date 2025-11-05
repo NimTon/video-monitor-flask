@@ -7,6 +7,40 @@ from utils.log_utils import log
 from utils.init_ffmpeg import FFMPEG_DIR
 
 
+def check_device(use_gpu=True):
+    """
+    检测系统是否支持GPU，支持则使用GPU加速
+    """
+    try:
+        # 检查是否有可用的 GPU
+        result = subprocess.run(
+            ["ffmpeg", "-hide_banner", "-encoders"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True
+        )
+        has_gpu = "h264_nvenc" in result.stdout
+
+        device_name = "未知"
+        if has_gpu and use_gpu:
+            try:
+                smi_result = subprocess.run(
+                    ["nvidia-smi", "--query-gpu=name", "--format=csv,noheader"],
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    text=True
+                )
+                device_name = smi_result.stdout.strip() or "未知"
+            except Exception:
+                device_name = "nvidia-smi 不可用"
+        else:
+            device_name = "CPU (型号未知)"
+
+        return has_gpu and use_gpu, device_name
+    except Exception as e:
+        return False, "未知"
+
+
 def get_fuse_bool_time_range(streams_frames, fuse_bool):
     """
     streams_frames: {stream_uid: {frame_id: timestamp_str}}
