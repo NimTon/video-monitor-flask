@@ -1,5 +1,6 @@
 import asyncio
 import os
+import shutil
 import uuid
 from datetime import datetime
 import cv2
@@ -73,9 +74,14 @@ async def group_merge_worker():
                 for idx, row in frames.iterrows():
                     frame_path = row['frame_path']
                     if before_image_path is None:
-                        before_image_path = frame_path
+                        filename = os.path.basename(frame_path)
+                        before_image_path = f"images/{stream_uid}/{filename}"
+                        os.makedirs(f"images/{stream_uid}", exist_ok=True)
+                        shutil.copy(frame_path, before_image_path)
                     else:
-                        after_image_path = frame_path
+                        filename = os.path.basename(frame_path)
+                        before_image_path = f"images/{stream_uid}/{filename}"
+                        shutil.copy(frame_path, before_image_path)
                     log("INFO", f"[GROUP MERGE] 读取帧: {frame_path} (stream: {stream_uid})")
                     frame = cv2.imread(frame_path)
                     if frame is None:
