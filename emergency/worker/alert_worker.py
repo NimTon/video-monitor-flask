@@ -36,6 +36,7 @@ async def alert_worker():
                     device_data = ddm.get_by_stream_uid(stream_uid)[0]
                     hj_device_no = device_data.get('hjDeviceNo')
                     hj_service_no = device_data.get('hjServiceNo')
+                    ai_result_str = None
                     try:
                         ai_result_str = video.get('ai_result', '{}')
                         ai_result = json.loads(ai_result_str.replace("'", '"'))
@@ -90,7 +91,7 @@ async def alert_worker():
                         fence_uid='-1',
                         stream_name=stream_name,
                         change_ratio="-1",
-                        ai_report=event_msg,
+                        ai_report=ai_result_str,
                         image_before_url=urljoin(BASE_URL, before_image_path),
                         image_after_url=urljoin(BASE_URL, after_image_path),
                         video_url=urljoin(BASE_URL, video_path)
