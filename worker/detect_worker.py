@@ -46,10 +46,10 @@ async def capture_stream(stream, queues):
     if has_gpu:
         log("INFO", f"使用 GPU: {device_name} 进行抓帧", log_path=log_file_path)
         # GPU 支持，选择硬件加速编码器
-        encoder = "h264_nvenc"  # 使用 NVIDIA GPU 编解码器 (如果是 NVIDIA GPU)
+        encoder = "rawvideo"  # 使用 NVIDIA GPU 编解码器 (如果是 NVIDIA GPU)
     else:
         log("INFO", f"使用 CPU: {device_name} 进行抓帧", log_path=log_file_path)
-        encoder = "libx264"  # 使用 CPU 编解码器
+        encoder = "rawvideo"  # 使用 CPU 编解码器
 
     os.makedirs(capture_path, exist_ok=True)
     os.makedirs(detect_path, exist_ok=True)
