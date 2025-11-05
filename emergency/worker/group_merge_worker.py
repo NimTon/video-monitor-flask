@@ -68,8 +68,14 @@ async def group_merge_worker():
                 video_frames = []
                 frames = unique_frame_data.loc[export_frame_index, ['stream_uid', 'frame_path']]
                 log("INFO", f"[GROUP MERGE] stream {stream_uid} 对应帧数量: {len(frames)}")
+                before_image_path = None
+                after_image_path = None
                 for idx, row in frames.iterrows():
                     frame_path = row['frame_path']
+                    if before_image_path is None:
+                        before_image_path = frame_path
+                    else:
+                        after_image_path = frame_path
                     log("INFO", f"[GROUP MERGE] 读取帧: {frame_path} (stream: {stream_uid})")
                     frame = cv2.imread(frame_path)
                     if frame is None:
@@ -101,7 +107,7 @@ async def group_merge_worker():
                 db.mark_as_group_exported(frame_data['id'].tolist(), event_uid, group_event_uid)
                 size = os.path.getsize(video_path)
                 duration = len(video_frames) / 1  # fps=1
-                db.insert_merged_video(stream_name, stream_uid, group_uid, '0', video_path, duration, size, datetime.now(), event_uid, group_event_uid)
+                db.insert_merged_video(stream_name, stream_uid, group_uid, '0', video_path, before_image_path, after_image_path, duration, size, datetime.now(), event_uid, group_event_uid)
             db.mark_video_as_exported(group_event_uid)
         await asyncio.sleep(10)
 

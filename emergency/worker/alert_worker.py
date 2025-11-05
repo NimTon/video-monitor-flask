@@ -31,6 +31,8 @@ async def alert_worker():
                     stream_uid = video.get('stream_uid')
                     stream_name = video.get('stream_name')
                     video_path = video.get('video_path')
+                    before_image_path = video.get('before_image_path')
+                    after_image_path = video.get('after_image_path')
                     device_data = ddm.get_by_stream_uid(stream_uid)[0]
                     hj_device_no = device_data.get('hjDeviceNo')
                     hj_service_no = device_data.get('hjServiceNo')
@@ -72,21 +74,34 @@ async def alert_worker():
                     log("SUCCESS", f"[EMERGENCY ALERT] {stream_name} (UID={stream_uid}, GROUP_UID={group_event_uid}), 推送完成")
                     # 发送邮件
                     emal_conent = f"编组视频流 {stream_uid} 预警。\n" \
-                                   f"设备名称: {stream_name}\n" \
-                                   f"设备编号: {hj_device_no}\n" \
-                                   f"设备服务编号: {hj_service_no}\n" \
-                                   f"设备所在仓库: {wh_code} {wh_name}\n" \
-                                   f"设备所在贷款编号: {loan_no}\n" \
+                                  f"设备名称: {stream_name}\n" \
+                                  f"设备编号: {hj_device_no}\n" \
+                                  f"设备服务编号: {hj_service_no}\n" \
+                                  f"设备所在仓库: {wh_code} {wh_name}\n" \
+                                  f"设备所在贷款编号: {loan_no}\n" \
                                   f"设备资产详情: {asset_detail}\n" \
                                   f"设备异常内容: {event_msg}\n" \
                                   f"设备异常视频: {urljoin(BASE_URL, video_path)}"
                     email_alert.send_email(emal_conent, subject=f"编组视频流 {stream_uid} 预警。")
+
+                    # 存入message.json
+                    mm.add_message(
+                        stream_uid=stream_uid,
+                        fence_uid='-1',
+                        stream_name=stream_name,
+                        change_ratio="-1",
+                        ai_report=event_msg,
+                        image_before_url=urljoin(BASE_URL, before_image_path),
+                        image_after_url=urljoin(BASE_URL, after_image_path),
+                        video_url=urljoin(BASE_URL, video_path)
+                    )
                     log("SUCCESS", f"[EMERGENCY ALERT] {stream_name} (UID={stream_uid}, GROUP_UID={group_event_uid}), 邮件发送完成")
             else:
                 log("INFO", f"[EMERGENCY ALERT] GROUP_UID={group_event_uid}, 无异常内容")
             # 更新数据库
             db.mark_video_as_alerted(group_event_uid)
             await asyncio.sleep(1)
+
 
 async def run_alert_module():
     alert_task = asyncio.create_task(alert_worker())
