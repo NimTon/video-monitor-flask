@@ -25,7 +25,7 @@ def get_expire_time_from_url(url: str) -> int:
 # ====================== 主逻辑函数 ======================
 def get_streams_worker():
     """运行一轮获取设备、启动检测，同时保存 JSON"""
-    all_data = {}
+    all_data = ddm.load_all()
     now = int(time.time())
 
     for machine in MACHINE_CODES:
