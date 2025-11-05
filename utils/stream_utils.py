@@ -31,8 +31,11 @@ def check_device(use_gpu=True):
                     text=True
                 )
                 device_name = smi_result.stdout.strip() or "未知"
+                if device_name == "未知":
+                    use_gpu = False
             except Exception:
                 device_name = "nvidia-smi 不可用"
+                use_gpu = False
         else:
             device_name = "CPU (型号未知)"
 
