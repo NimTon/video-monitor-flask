@@ -1,4 +1,5 @@
 import json
+import platform
 import subprocess
 from datetime import datetime
 import cv2
@@ -37,7 +38,39 @@ def check_device(use_gpu=True):
                 device_name = "nvidia-smi 不可用"
                 use_gpu = False
         else:
-            device_name = "CPU (型号未知)"
+            # 获取系统平台
+            system = platform.system().lower()
+            # 检测 CPU 型号
+            try:
+                if system == "windows":
+                    # Windows 平台
+                    cpu_result = subprocess.run(
+                        ["wmic", "cpu", "get", "name"],
+                        stdout=subprocess.PIPE,
+                        stderr=subprocess.PIPE,
+                        text=True
+                    )
+                    lines = [l.strip() for l in cpu_result.stdout.splitlines() if l.strip()]
+                    if len(lines) > 1:
+                        device_name = lines[1]  # 第二行是CPU名称
+                    else:
+                        device_name = "CPU (型号未知)"
+                elif system == "linux":
+                    # Linux 平台
+                    cpu_result = subprocess.run(
+                        ["cat", "/proc/cpuinfo"],
+                        stdout=subprocess.PIPE,
+                        stderr=subprocess.PIPE,
+                        text=True
+                    )
+                    for line in cpu_result.stdout.split('\n'):
+                        if "model name" in line:
+                            device_name = line.split(":")[1].strip()
+                            break
+                else:
+                    device_name = f"未知系统: {system}"
+            except Exception:
+                device_name = "CPU (型号未知)"
 
         return has_gpu and use_gpu, device_name
     except Exception as e:
