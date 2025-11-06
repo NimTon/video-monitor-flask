@@ -739,7 +739,7 @@ class DeviceDataManager:
         # 若文件不存在则创建一个空的JSON结构
         if not os.path.exists(filepath):
             with open(filepath, 'w', encoding='utf-8') as f:
-                json.dump([], f, indent=2, ensure_ascii=False)
+                json.dump({}, f, indent=2, ensure_ascii=False)
 
     def load_all(self):
         """加载所有仓库及设备信息"""
