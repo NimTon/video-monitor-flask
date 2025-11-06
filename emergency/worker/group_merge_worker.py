@@ -70,17 +70,13 @@ async def group_merge_worker():
                 frames = unique_frame_data.loc[export_frame_index, ['stream_uid', 'frame_path']]
                 log("INFO", f"[GROUP MERGE] stream {stream_uid} 对应帧数量: {len(frames)}")
                 before_image_path = None
-                after_image_path = None
+                frame_path = None
                 for idx, row in frames.iterrows():
                     frame_path = row['frame_path']
                     if before_image_path is None:
                         filename = os.path.basename(frame_path)
                         before_image_path = f"images/{stream_uid}/{filename}"
                         os.makedirs(f"images/{stream_uid}", exist_ok=True)
-                        shutil.copy(frame_path, before_image_path)
-                    else:
-                        filename = os.path.basename(frame_path)
-                        before_image_path = f"images/{stream_uid}/{filename}"
                         shutil.copy(frame_path, before_image_path)
                     log("INFO", f"[GROUP MERGE] 读取帧: {frame_path} (stream: {stream_uid})")
                     frame = cv2.imread(frame_path)
@@ -106,6 +102,9 @@ async def group_merge_worker():
                 if len(video_frames) == 0:
                     log("WARN", f"[GROUP MERGE] 组 {group_uid} 的流 {stream_uid} 没有可用帧，跳过")
                     continue
+                filename = os.path.basename(frame_path)
+                after_image_path = f"images/{stream_uid}/{filename}"
+                shutil.copy(frame_path, before_image_path)
                 log("INFO", f"[GROUP MERGE] 开始生成视频, 帧数量: {len(video_frames)}")
                 video_url, video_path = save_frames_as_video(stream_uid, '0', video_frames, fps=1)
                 log("SUCCESS", f"[GROUP MERGE] 视频生成完成: {video_path}")
