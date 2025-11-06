@@ -518,21 +518,7 @@ class DBHelper:
         with self.get_conn() as conn:
             cur = conn.cursor()
             sql = """
-                  SELECT id,
-                         stream_name,
-                         stream_uid,
-                         group_uid,
-                         fence_uid,
-                         video_path,
-                         duration,
-                         size,
-                         timestamp,
-                         ai_checked,
-                         ai_status,
-                         ai_result,
-                         alerted,
-                         event_uid,
-                         group_event_uid
+                  SELECT *
                   FROM merged_videos
                   WHERE ai_checked = 0
                     AND exported = 1
@@ -551,21 +537,7 @@ class DBHelper:
         with self.get_conn() as conn:
             cur = conn.cursor()
             sql = """
-                  SELECT id,
-                         stream_name,
-                         stream_uid,
-                         group_uid,
-                         fence_uid,
-                         video_path,
-                         duration,
-                         size,
-                         timestamp,
-                         ai_checked,
-                         ai_status,
-                         ai_result,
-                         alerted,
-                         event_uid,
-                         group_event_uid
+                  SELECT *
                   FROM merged_videos
                   WHERE alerted = 0
                     AND ai_checked = 1
