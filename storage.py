@@ -107,9 +107,29 @@ class StorageManager:
         for key, value in kwargs.items():
             if value is not None:  # 忽略None值
                 data[idx][key] = value
+            if key == "site":
+                group_uid = self.get_stream_group(stream_uid)
+                self.update_group(group_uid, site=kwargs.get("site"))
 
         self.save_all(data)  # 保存更新
         return True  # 成功返回True
+
+    def update_group(self, group_uid, **kwargs):
+        """更新某个编组下的所有视频流字段"""
+        data = self.load_all()
+        updated = False
+
+        for stream in data:
+            if stream.get("group_uid") == group_uid:
+                for key, value in kwargs.items():
+                    if value is not None:
+                        stream[key] = value
+                        updated = True
+
+        if updated:
+            self.save_all(data)
+
+        return updated
 
     def delete_stream(self, stream_uid):
         """删除视频流"""
