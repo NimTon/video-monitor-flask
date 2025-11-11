@@ -1,4 +1,5 @@
 import asyncio
+import signal
 import subprocess
 import cv2
 import os
@@ -11,11 +12,11 @@ from utils.utils import draw_fence_on_frame
 from utils.log_utils import log
 from utils.init_ffmpeg import FFMPEG_DIR
 
-storage_manger = StorageManager()
+storage_manager = StorageManager()
 detect_queues = {}
 capture_path = "./tmp/capture"
 detect_path = "./tmp/detect"
-RESTART_INTERVAL = 3600  # 每1小时重启一次
+RESTART_INTERVAL = 60  # 每1小时重启一次
 
 # ------------------------
 # 日志文件路径
@@ -26,6 +27,8 @@ log_dir = os.path.join("logs", date_str)
 os.makedirs(log_dir, exist_ok=True)
 log_file_path = os.path.join(log_dir, "detect_worker.log")
 
+# ------------------ 进程管理 ------------------
+processes = {}
 
 # ------------------ 抓帧模块 ------------------
 async def capture_stream(stream, queues):
@@ -55,7 +58,6 @@ async def capture_stream(stream, queues):
 
     while True:
         try:
-            # 如果支持 GPU 加速，使用 GPU 相关的设置
             cmd = [
                 f"{FFMPEG_DIR}/bin/ffmpeg.exe",
                 "-i", url,
@@ -71,7 +73,8 @@ async def capture_stream(stream, queues):
                 cmd.extend(["-hwaccel", "cuda"])
 
             # 启动 FFmpeg 进程
-            pipe = subprocess.Popen(cmd, stdout=subprocess.PIPE, bufsize=10 ** 8)
+            process = subprocess.Popen(cmd, stdout=subprocess.PIPE, bufsize=10**8)
+            processes[stream_uid] = process  # 存储进程对象以便管理
 
             # 获取流的分辨率，默认 1280x720
             width, height = get_stream_resolution(url)
@@ -84,7 +87,7 @@ async def capture_stream(stream, queues):
             MAX_MISMATCH = 5  # 连续帧异常阈值
 
             while True:
-                raw_frame = pipe.stdout.read(frame_size)
+                raw_frame = process.stdout.read(frame_size)
 
                 # 帧长度异常
                 if len(raw_frame) != frame_size:
@@ -99,7 +102,7 @@ async def capture_stream(stream, queues):
                     if mismatch_count >= MAX_MISMATCH:
                         log("FAIL", f"[CAPTURE] {stream_name} ({stream_uid}) 连续帧异常，重启 CMD 进程...",
                             log_path=log_file_path)
-                        pipe.kill()
+                        process.kill()
                         await asyncio.sleep(2)
                         break  # 跳出内层 while，重新启动外层循环
 
@@ -136,6 +139,7 @@ async def capture_stream(stream, queues):
             log("FAIL", f"[CAPTURE] {stream_name} ({stream_uid}) 异常: {str(e)}", log_path=log_file_path)
             await asyncio.sleep(5)
 
+
 # ------------------ 异常检测模块 ------------------
 async def detect_worker(queue, detector, change_threshold):
     """
@@ -157,7 +161,7 @@ async def detect_worker(queue, detector, change_threshold):
                     continue
 
                 height, width = frame.shape[:2]
-                fence = storage_manger.get_fence(stream_uid, fence_id)
+                fence = storage_manager.get_fence(stream_uid, fence_id)
                 points = fence.get('points', [])
                 if len(points) < 3:
                     queue.task_done()
@@ -210,11 +214,25 @@ async def detect_worker(queue, detector, change_threshold):
             await asyncio.sleep(0.5)
 
 
+async def stop_ffmpeg_processes():
+    """
+    停止所有 FFmpeg 进程
+    """
+    for stream_uid, process in processes.items():
+        try:
+            if process.poll() is None:
+                os.kill(process.pid, signal.SIGTERM)
+                log("INFO", f"停止 FFmpeg 进程 {stream_uid}", log_path=log_file_path)
+        except Exception as e:
+            log("WARN", f"停止进程 {stream_uid} 时出错: {str(e)}", log_path=log_file_path)
+    processes.clear()
+
+
 # ------------------ 主程序 ------------------
 async def run_system():
     global detect_queues
     log("INFO", "系统启动中...", log_path=log_file_path)
-    streams = get_running_streams(storage_manger)
+    streams = get_running_streams(storage_manager)
     if not streams:
         log("WARN", "当前没有运行的流", log_path=log_file_path)
         await asyncio.sleep(RESTART_INTERVAL)
@@ -265,6 +283,10 @@ async def main_loop():
             for t in tasks:
                 t.cancel()
             await asyncio.gather(*tasks, return_exceptions=True)
+
+            # 重启前停止所有 FFmpeg 进程
+            await stop_ffmpeg_processes()
+
             await asyncio.sleep(2)
 
 

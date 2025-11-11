@@ -173,8 +173,8 @@ def fuse_streams_by_position(streams_bool_dict, max_consecutive_false=2):
     return fused, status
 
 
-def get_running_streams(storage_manger):
-    streams = [stream for stream in storage_manger.list_streams() if stream.get("status") == "running"]
+def get_running_streams(storage_manager):
+    streams = [stream for stream in storage_manager.list_streams() if stream.get("status") == "running"]
     return streams
 
 
