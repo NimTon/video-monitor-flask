@@ -16,7 +16,7 @@ storage_manager = StorageManager()
 detect_queues = {}
 capture_path = "./tmp/capture"
 detect_path = "./tmp/detect"
-RESTART_INTERVAL = 60  # 每1小时重启一次
+RESTART_INTERVAL = 3600  # 每1小时重启一次
 
 # ------------------------
 # 日志文件路径
