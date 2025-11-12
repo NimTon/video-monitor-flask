@@ -1,4 +1,5 @@
 import json
+import os
 import platform
 import subprocess
 from datetime import datetime
@@ -6,6 +7,41 @@ import cv2
 import numpy as np
 from utils.log_utils import log
 from utils.init_ffmpeg import FFMPEG_DIR
+
+
+def capture_frame(stream_url, save_path):
+    """
+    从视频流中捕获一帧并保存到指定路径。
+
+    Args:
+        stream_url (str): 视频流 URL 或本地视频文件路径
+        save_path (str): 保存图片的完整路径
+    """
+    # 创建保存目录（如果不存在）
+    os.makedirs(os.path.dirname(save_path), exist_ok=True)
+
+    # 打开视频流
+    cap = cv2.VideoCapture(stream_url)
+    if not cap.isOpened():
+        raise Exception("无法打开视频流")
+        # print(f"无法打开视频流: {stream_url}")
+        # return False
+
+    # 读取一帧
+    ret, frame = cap.read()
+    if not ret:
+        cap.release()
+        raise Exception("无法从视频流获取帧")
+        # print(f"无法捕获视频帧: {stream_url}")
+        # return False
+
+    # 保存图片
+    cv2.imwrite(save_path, frame)
+    # print(f"已保存图片: {save_path}")
+
+    # 释放资源
+    cap.release()
+    return True
 
 
 def check_device(use_gpu=True):
