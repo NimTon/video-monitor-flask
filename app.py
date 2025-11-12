@@ -4,6 +4,7 @@ import requests
 import json
 import os
 from datetime import datetime
+from utils.detect_utils import detect_with_stream_info
 from utils.stream_utils import get_video_size
 from utils.utils import draw_fence_on_frame, points_to_abs_points, clean_old_files, clean_task
 from utils.log_utils import log
@@ -734,6 +735,19 @@ def get_messages_by_fence(fence_uid):
     try:
         messages = message_manager.get_messages_by_fence(fence_uid)
         return jsonify(messages), 200
+    except Exception as e:
+        print(traceback.format_exc())
+        return jsonify({"message": str(e)}), 500
+
+
+@app.route('/api/detects', methods=['POST'])
+def detect():
+    try:
+        data = request.json
+        stream_info = {stream['uid']: {"camera_info": stream.get('camera'), "site_info": stream.get('site')} for stream in data['streams']}
+        prompt = data['prompt']
+        ai_response = detect_with_stream_info(stream_info, prompt)
+        return jsonify({"ai_response": ai_response}), 200
     except Exception as e:
         print(traceback.format_exc())
         return jsonify({"message": str(e)}), 500
