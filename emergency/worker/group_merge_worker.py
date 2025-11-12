@@ -104,7 +104,7 @@ async def group_merge_worker():
                     continue
                 filename = os.path.basename(frame_path)
                 after_image_path = f"images/{stream_uid}/{filename}"
-                shutil.copy(frame_path, before_image_path)
+                shutil.copy(frame_path, after_image_path)
                 log("INFO", f"[GROUP MERGE] 开始生成视频, 帧数量: {len(video_frames)}")
                 video_url, video_path = save_frames_as_video(stream_uid, '0', video_frames, fps=1)
                 log("SUCCESS", f"[GROUP MERGE] 视频生成完成: {video_path}")
