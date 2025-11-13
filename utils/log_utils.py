@@ -4,6 +4,14 @@ import os
 from datetime import datetime
 from typing import Optional
 
+# 强制行缓冲输出（每行自动刷新）
+if hasattr(sys.stdout, "reconfigure"):
+    sys.stdout.reconfigure(line_buffering=True)
+
+# 若是 Windows 控制台，强制切换为 UTF-8 防止乱码
+if os.name == "nt":
+    os.system("chcp 65001 >nul")
+
 # 全局输出锁，保证线程安全
 _stdout_lock = threading.Lock()
 
