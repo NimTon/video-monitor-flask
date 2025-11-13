@@ -19,7 +19,6 @@ async def alert_worker():
             log("INFO", "[EMERGENCY ALERT] 当前无待报警记录，休眠2秒")
             await asyncio.sleep(2)
             continue
-
         grouped = pending_alerts.groupby('group_event_uid')
         for group_event_uid, group in grouped:
             group_uid = group.group_uid.unique()[0]
@@ -54,7 +53,7 @@ async def alert_worker():
                     try:
                         # 上传视频
                         file_id = zk_api.upload_byte_file_with_apikey(video_path)
-                        print("patrol_record 成功:", file_id)
+                        log("INFO", f"[EMERGENCY ALERT] {stream_name} (UID={stream_uid}, GROUP_UID={group_event_uid}), 上传视频完成")
                         # 调用API接口触发报警
                         iot_event = zk_api.push_iot_event(
                             hj_device_no=hj_device_no,
@@ -69,9 +68,9 @@ async def alert_worker():
                             loan_no=loan_no,
                             asset_detail=asset_detail
                         )
-                        print("patrol_record 响应:", iot_event)
+                        log("SUCCESS", f"[EMERGENCY ALERT] {stream_name} (UID={stream_uid}, GROUP_UID={group_event_uid}), 推送至中科云成功")
                     except ZhongkaiAPIError as e:
-                        print("patrol_record 失败:", e, getattr(e, "response", None))
+                        log("FAIL", f"[EMERGENCY ALERT] {stream_name} (UID={stream_uid}, GROUP_UID={group_event_uid}), 推送至中科云失败: {e}")
                     log("SUCCESS", f"[EMERGENCY ALERT] {stream_name} (UID={stream_uid}, GROUP_UID={group_event_uid}), 推送完成")
                     # 发送邮件
                     emal_conent = f"编组视频流 {stream_uid} 预警。\n" \
