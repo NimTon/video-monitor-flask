@@ -55,7 +55,7 @@ async def alert_worker():
                         file_id = zk_api.upload_byte_file_with_apikey(video_path)
                         log("INFO", f"[EMERGENCY ALERT] {stream_name} (UID={stream_uid}, GROUP_UID={group_event_uid}), 上传视频完成")
                         # 调用API接口触发报警
-                        log("INFO", f"[EMERGENCY ALERT] {stream_name} (UID={stream_uid}, GROUP_UID={group_event_uid}), 准备推送至中科云: "
+                        log("INFO", f"[EMERGENCY ALERT] {stream_name} (UID={stream_uid}, GROUP_UID={group_event_uid}), 准备推送至中凯云: "
                                    f"hj_device_no={hj_device_no}, hj_service_no={hj_service_no}, event_type={event_type}, "
                                    f"event_date={date.today().strftime('%Y-%m-%d')}, event_msg={event_msg}, "
                                    f"event_video_file_id={file_id}, wh_code={wh_code}, wh_name={wh_name}, "
@@ -73,10 +73,9 @@ async def alert_worker():
                             loan_no=loan_no,
                             asset_detail=asset_detail
                         )
-                        log("SUCCESS", f"[EMERGENCY ALERT] {stream_name} (UID={stream_uid}, GROUP_UID={group_event_uid}), 推送至中科云成功")
+                        log("SUCCESS", f"[EMERGENCY ALERT] {stream_name} (UID={stream_uid}, GROUP_UID={group_event_uid}), 推送至中凯云成功")
                     except ZhongkaiAPIError as e:
-                        log("FAIL", f"[EMERGENCY ALERT] {stream_name} (UID={stream_uid}, GROUP_UID={group_event_uid}), 推送至中科云失败: {e}")
-                    log("SUCCESS", f"[EMERGENCY ALERT] {stream_name} (UID={stream_uid}, GROUP_UID={group_event_uid}), 推送完成")
+                        log("FAIL", f"[EMERGENCY ALERT] {stream_name} (UID={stream_uid}, GROUP_UID={group_event_uid}), 推送至中凯云失败: {e}")
                     # 发送邮件
                     emal_conent = f"编组视频流 {stream_uid} 预警。\n" \
                                   f"设备名称: {stream_name}\n" \
