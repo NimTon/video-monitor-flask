@@ -109,7 +109,8 @@ async def group_merge_worker():
                 video_url, video_path = save_frames_as_video(stream_uid, '0', video_frames, fps=1)
                 log("SUCCESS", f"[GROUP MERGE] 视频生成完成: {video_path}")
                 event_uid = str(uuid.uuid4())
-                db.mark_as_group_exported(frame_data['id'].tolist(), event_uid, group_event_uid)
+                frame_data['timestamp'] = pd.to_datetime(frame_data['timestamp'])
+                db.mark_as_group_exported(frame_data[frame_data['timestamp'] <= end_ts]['id'].tolist(), event_uid, group_event_uid)
                 size = os.path.getsize(video_path)
                 duration = len(video_frames) / 1  # fps=1
                 db.insert_merged_video(stream_name, stream_uid, group_uid, '0', video_path, before_image_path, after_image_path, duration, size, datetime.now(), event_uid, group_event_uid)

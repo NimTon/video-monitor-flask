@@ -145,10 +145,10 @@ def get_stream_change_dict(group_streams_data):
     return result
 
 
-def fuse_streams_by_position(streams_bool_dict, max_consecutive_false=120):
+def fuse_streams_by_position(streams_bool_dict, max_consecutive_false=10, max_length=3000):
     stream_keys = list(streams_bool_dict.keys())
     stream_lists = [list(v.values()) for v in streams_bool_dict.values()]
-    max_len = max(len(lst) for lst in stream_lists)
+    max_len = min(max(len(lst) for lst in stream_lists), max_length)  # 限制最大长度为 3000
 
     # 对齐长度
     for lst in stream_lists:
@@ -196,15 +196,23 @@ def fuse_streams_by_position(streams_bool_dict, max_consecutive_false=120):
             lst.pop(key)
         fused[k] = lst
 
-    # 状态判断
-    last_values = [list(lst.values())[-1] if lst else False for lst in fused.values()]
-    if first_true_idx == 0 and all(not any(lst) for lst in stream_lists):
-        status = "waiting"
-    else:
-        if all(last_values):
-            status = "recording"
-        else:
-            status = "completed"
+    # 如果融合后的结果中，存在 120 个或更多连续的 False，则是完成，否则是录制中
+    status = "recording"  # 默认状态是 "录制中"
+
+    # 判断是否有连续 120 个 False
+    for lst in fused.values():
+        values = list(lst.values())
+        consecutive_count = 0
+        for v in values:
+            if not v:
+                consecutive_count += 1
+                if consecutive_count >= max_consecutive_false:
+                    status = "completed"
+                    break
+            else:
+                consecutive_count = 0
+        if status == "completed":
+            break
 
     return fused, status
 
