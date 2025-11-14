@@ -1,6 +1,4 @@
 import asyncio
-import signal
-import subprocess
 import cv2
 import os
 from datetime import datetime
@@ -10,7 +8,8 @@ from storage import StorageManager
 from utils.stream_utils import get_running_streams, FenceChangeDetector, get_stream_resolution, check_device
 from utils.utils import draw_fence_on_frame
 from utils.log_utils import log
-from utils.init_ffmpeg import FFMPEG_DIR
+import ffmpeg
+from utils.init_ffmpeg import FFMPEG_EXE
 
 storage_manager = StorageManager()
 detect_queues = {}
@@ -33,93 +32,86 @@ processes = {}
 # ------------------ 抓帧模块 ------------------
 async def capture_stream(stream, queues):
     """
-    抓帧模块：控制每张帧是否需要检测（基于检测间隔）
+    基于 ffmpeg-python + pipe 的抓帧模块
+    完全无阻塞，不会被 read(frame_size) 卡住
     """
     detecting = stream.get("detecting")
     stream_uid = stream.get("uid")
     stream_name = stream.get("name")
     group_uid = stream.get("group_uid")
     url = stream.get("stream_url")
-    detect_interval = float(stream.get("frequency", 1.0))  # 检测间隔（秒）
+    detect_interval = float(stream.get("frequency", 1.0))
     fences = [f['id'] for f in stream.get("fences", [])]
 
-    # 自动检测是否支持 GPU
-    use_gpu = True  # 默认使用 GPU
+    # 检查是否支持 GPU
+    use_gpu = True
     has_gpu, device_name = check_device(use_gpu)
     if has_gpu:
-        log("INFO", f"使用 GPU: {device_name} 进行抓帧", log_path=log_file_path)
+        hwaccel = "cuda"
+        log("INFO", f"使用 GPU：{device_name} 进行抓帧", log_path=log_file_path)
     else:
-        log("INFO", f"使用 CPU: {device_name} 进行抓帧", log_path=log_file_path)
+        hwaccel = None
+        log("INFO", f"使用 CPU：{device_name} 进行抓帧", log_path=log_file_path)
 
     os.makedirs(capture_path, exist_ok=True)
-    os.makedirs(detect_path, exist_ok=True)
 
-    last_detect_time = 0  # 上一次执行检测的时间戳
+    # 获取分辨率
+    width, height = get_stream_resolution(url)
+    if not width or not height:
+        width, height = 1280, 720
+
+    frame_size = width * height * 3
+
+    last_detect_time = 0
 
     while True:
         try:
-            cmd = [
-                f"{FFMPEG_DIR}/bin/ffmpeg.exe",
-                "-i", url,
-                "-loglevel", "quiet",
-                "-f", "image2pipe",
-                "-pix_fmt", "bgr24",
-                "-vf", "fps=1",
-                "-vcodec", "rawvideo",
-                "-"
-            ]
+            # ------------------------
+            # 启动 ffmpeg 异步管道
+            # ------------------------
+            stream_input = ffmpeg.input(url, **({"hwaccel": hwaccel} if hwaccel else {}))
 
-            if has_gpu:
-                cmd.extend(["-hwaccel", "cuda"])
+            process = (
+                ffmpeg
+                .output(
+                    stream_input,
+                    'pipe:',
+                    format='rawvideo',
+                    pix_fmt='bgr24',
+                    vf=f"fps=1"
+                )
+                .global_args('-loglevel', 'error')
+                .run_async(pipe_stdout=True, pipe_stderr=True, cmd=FFMPEG_EXE)
+            )
 
-            # 启动 FFmpeg 进程
-            process = subprocess.Popen(cmd, stdout=subprocess.PIPE, bufsize=10**8)
-            processes[stream_uid] = process  # 存储进程对象以便管理
+            log("INFO", f"[CAPTURE] {stream_name} ({stream_uid}) ffmpeg 启动", log_path=log_file_path)
 
-            # 获取流的分辨率，默认 1280x720
-            width, height = get_stream_resolution(url)
-            if width is None or height is None:
-                width, height = 1280, 720
-            frame_size = width * height * 3
-
-            mismatch_count = 0
-            last_warning = 0
-            MAX_MISMATCH = 5  # 连续帧异常阈值
+            # ------------------------
+            # 逐帧读取（非阻塞）
+            # ------------------------
+            loop = asyncio.get_running_loop()
 
             while True:
-                raw_frame = process.stdout.read(frame_size)
+                # 非阻塞读取：在子线程执行 read(frame_size)
+                raw_frame = await loop.run_in_executor(None, process.stdout.read, frame_size)
 
-                # 帧长度异常
+                if not raw_frame:
+                    log("WARN", f"[CAPTURE] {stream_name} ({stream_uid}) FFmpeg 输出为空，准备重启", log_path=log_file_path)
+                    break  # 重新启动 ffmpeg
+
                 if len(raw_frame) != frame_size:
-                    mismatch_count += 1
-                    now = datetime.now().timestamp()
-                    if now - last_warning > 5:
-                        log("WARN", f"[CAPTURE] {stream_name} ({stream_uid}) 帧长度异常 ({mismatch_count}/{MAX_MISMATCH})，等待重试...",
-                            log_path=log_file_path)
-                        last_warning = now
+                    log("WARN", f"[CAPTURE] {stream_name} ({stream_uid}) 读取到异常帧，长度 {len(raw_frame)}", log_path=log_file_path)
+                    break  # 也重启
 
-                    # 若连续异常超过阈值，则重启 CMD
-                    if mismatch_count >= MAX_MISMATCH:
-                        log("FAIL", f"[CAPTURE] {stream_name} ({stream_uid}) 连续帧异常，重启 CMD 进程...",
-                            log_path=log_file_path)
-                        process.kill()
-                        await asyncio.sleep(2)
-                        break  # 跳出内层 while，重新启动外层循环
-
-                    await asyncio.sleep(1)
-                    continue
-
-                # 正常帧，重置计数
-                mismatch_count = 0
-
-                # 处理帧
+                # ------------- 正常处理帧 -------------
                 timestamp = datetime.now()
                 frame_path = f"{capture_path}/{stream_uid}_{timestamp.strftime('%Y%m%d_%H%M%S_%f')}.png"
-                frame_array = np.frombuffer(raw_frame, dtype=np.uint8).reshape((height, width, 3))
-                cv2.imwrite(frame_path, frame_array)
+
+                frame = np.frombuffer(raw_frame, np.uint8).reshape((height, width, 3))
+                cv2.imwrite(frame_path, frame)
+
                 frame_id = db.insert_frame(stream_uid, group_uid, timestamp, frame_path)
 
-                # 是否需要检测
                 now_ts = timestamp.timestamp()
                 need_detect = now_ts - last_detect_time >= detect_interval
                 if need_detect:
@@ -137,7 +129,9 @@ async def capture_stream(stream, queues):
 
         except Exception as e:
             log("FAIL", f"[CAPTURE] {stream_name} ({stream_uid}) 异常: {str(e)}", log_path=log_file_path)
-            await asyncio.sleep(5)
+
+        # FFmpeg 重启前的间隔
+        await asyncio.sleep(2)
 
 
 # ------------------ 异常检测模块 ------------------
@@ -175,7 +169,7 @@ async def detect_worker(queue, detector, change_threshold):
                     last_points = fence_points
 
                 if need_detect:
-                    # log("INFO", f"[DETECT] {stream_name} (UID={stream_uid}, FENCE={fence_id}) 开始检测...", log_path=log_file_path)
+                    log("INFO", f"[DETECT] {stream_name} (UID={stream_uid}, FENCE={fence_id}) 开始检测...", log_path=log_file_path)
                     # 真正进行检测
                     changed, change_area, change_ratio = detector.detect_change(frame, change_threshold=change_threshold)
 
@@ -216,16 +210,20 @@ async def detect_worker(queue, detector, change_threshold):
 
 async def stop_ffmpeg_processes():
     """
-    停止所有 FFmpeg 进程
+    停止所有 FFmpeg 进程（跨平台安全）
     """
     for stream_uid, process in processes.items():
         try:
             if process.poll() is None:
-                os.kill(process.pid, signal.SIGTERM)
+                # 优先 terminate（Windows/Linux 都支持）
+                process.terminate()
                 log("INFO", f"停止 FFmpeg 进程 {stream_uid}", log_path=log_file_path)
+
         except Exception as e:
-            log("WARN", f"停止进程 {stream_uid} 时出错: {str(e)}", log_path=log_file_path)
+            log("WARN", f"停止 FFmpeg 进程 {stream_uid} 时出错: {str(e)}", log_path=log_file_path)
+
     processes.clear()
+
 
 
 # ------------------ 主程序 ------------------

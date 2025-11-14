@@ -5,7 +5,8 @@ import shutil
 import time
 from utils.log_utils import log
 
-FFMPEG_DIR = os.path.join(os.getcwd(), "ffmpeg")
+FFMPEG_DIR = os.path.join(os.getcwd(), "ffmpeg_full")
+FFPROBE_EXE = os.path.join(FFMPEG_DIR, "bin", "ffprobe.exe")
 FFMPEG_EXE = os.path.join(FFMPEG_DIR, "bin", "ffmpeg.exe")
 FFMPEG_URL = "https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip"  # Windows release 包
 
