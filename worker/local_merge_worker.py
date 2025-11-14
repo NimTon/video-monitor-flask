@@ -5,10 +5,10 @@ from storage import sm
 import pandas as pd
 from datetime import datetime
 
-stream_uid = ""
+stream_uid = "1-91370000698086271U-609239518-10"
 # 获取指定时间范围内的帧
-start_time = ''  # 格式: YYYY-MM-DD HH:MM:SS
-end_time = ''  # 格式: YYYY-MM-DD HH:MM:SS
+start_time = '2025-11-13 14:38:00'  # 格式: YYYY-MM-DD HH:MM:SS
+end_time = '2025-11-13 14:40:00'  # 格式: YYYY-MM-DD HH:MM:SS
 start_dt = datetime.strptime(start_time, '%Y-%m-%d %H:%M:%S')
 end_dt = datetime.strptime(end_time, '%Y-%m-%d %H:%M:%S')
 stream_uid_list = [stream['uid'] for stream in sm.list_streams()]
@@ -25,7 +25,7 @@ if not stream_frames:
 # 创建数据框，包含文件名和时间戳两列
 frame_data = []
 for frame in stream_frames:
-    timestamp_str = frame.split('_')[-1].split('.')[0]
+    timestamp_str = '_'.join(frame.split('_')[-3:-1])  # '20251113_143910'
     frame_data.append({
         'timestamp': timestamp_str,
         'file_path': os.path.join(f'tmp/capture', frame)
@@ -37,6 +37,7 @@ df = pd.DataFrame(frame_data)
 df['timestamp'] = pd.to_datetime(df['timestamp'], format='%Y%m%d_%H%M%S')
 df = df[(df['timestamp'] >= start_dt) & (df['timestamp'] <= end_dt)].sort_values('timestamp')
 
-imgs_paths = df['file_path']
+imgs_paths = df['file_path'].to_list()
 os.makedirs(f'tmp/merge', exist_ok=True)
-save_imgs_as_video(frame_paths, f'tmp/merge/{stream_uid}_{start_time}_{end_time}.mp4', fps=1)
+output_path = f'tmp/merge/{stream_uid}_{start_dt.strftime("%Y%m%d%H%M%S")}_{end_dt.strftime("%Y%m%d%H%M%S")}.mp4'
+save_imgs_as_video(imgs_paths, output_path, fps=1)

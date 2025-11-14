@@ -61,14 +61,15 @@ async def capture_video(stream, queues):
         return
 
     fps = cap.get(cv2.CAP_PROP_FPS)
-    frame_interval = int(fps * detect_interval) if fps > 0 else 25
+    total_frames = cap.get(cv2.CAP_PROP_FRAME_COUNT)
+    duration_fmt = total_frames / fps
     frame_index = 0
-    last_detect_time = 0
 
-    log("INFO", f"[CAPTURE] 开始处理视频: {video_path} FPS={fps:.2f}", log_path=log_file_path)
+    log("INFO", f"[CAPTURE] 开始处理视频: {video_path} FPS={fps:.2f} Duration={duration_fmt}", log_path=log_file_path)
 
     while cap.isOpened():
         ret, frame = cap.read()
+        log("INFO", f"[CAPTURE] 读取帧: {video_path} ({frame_index})", log_path=log_file_path)
         if not ret:
             log("INFO", f"[CAPTURE] 视频读取结束: {video_path}", log_path=log_file_path)
             break
@@ -78,10 +79,7 @@ async def capture_video(stream, queues):
         cv2.imwrite(frame_path, frame)
         frame_id = db.insert_frame(stream_uid, group_uid, timestamp, frame_path)
 
-        now_ts = timestamp.timestamp()
-        need_detect = now_ts - last_detect_time >= detect_interval
-        if need_detect:
-            last_detect_time = now_ts
+        need_detect = True
 
         for fence_id in fences:
             await queues[(stream_uid, fence_id)].put((
@@ -91,7 +89,6 @@ async def capture_video(stream, queues):
             ))
 
         frame_index += 1
-        await asyncio.sleep(1 / fps if fps > 0 else 0.04)
 
     cap.release()
     log("INFO", f"[CAPTURE] 视频帧抓取完成: {video_path}", log_path=log_file_path)
@@ -104,6 +101,7 @@ async def detect_worker(queue, detector, change_threshold):
     每帧都要处理，但仅当 need_detect=True 时才进行识别
     """
     last_points = None
+    index = 0
     kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (5, 5))
 
     while True:
@@ -153,8 +151,8 @@ async def detect_worker(queue, detector, change_threshold):
                     change_ratio = 0.0
 
                 # 保存结果
-                frame_drawn = draw_fence_on_frame(frame, fence_points)
-                frame_save_path = f"{detect_path}/{stream_uid}_{fence_id}_{timestamp.strftime('%Y%m%d_%H%M%S')}.jpg"
+                frame_drawn = draw_fence_on_frame(frame, fence_points, changed)
+                frame_save_path = f"{detect_path}/{stream_uid}_{fence_id}_{index}.jpg"
                 cv2.imwrite(frame_save_path, frame_drawn)
 
                 db.insert_detection(
@@ -162,6 +160,8 @@ async def detect_worker(queue, detector, change_threshold):
                     change_ratio, changed,
                     timestamp, frame_save_path, frame_id
                 )
+
+                index += 1
 
                 queue.task_done()
 

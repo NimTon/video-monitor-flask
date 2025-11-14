@@ -145,7 +145,7 @@ def get_stream_change_dict(group_streams_data):
     return result
 
 
-def fuse_streams_by_position(streams_bool_dict, max_consecutive_false=2):
+def fuse_streams_by_position(streams_bool_dict, max_consecutive_false=120):
     stream_keys = list(streams_bool_dict.keys())
     stream_lists = [list(v.values()) for v in streams_bool_dict.values()]
     max_len = max(len(lst) for lst in stream_lists)

@@ -283,31 +283,46 @@ def points_to_abs_points(frame, fences):
 
 
 # 在报警分发时，给frame加上红色围栏标记
-def draw_fence_on_frame(frame, fence_points):
+def draw_fence_on_frame(frame, fence_points, changed=None):
     """
-    在 frame 上绘制红色围栏（点和连线）
-    兼容 3 通道 (BGR) 和 4 通道 (BGRA) 图像
+    在 frame 上绘制围栏，根据 changed 的 bool 自动切换颜色：
+        True  -> 红色
+        False -> 绿色
+    兼容 BGR / BGRA 图像
     """
     if not fence_points or len(fence_points) < 3:
         return frame
 
+    # 根据 changed 设置颜色
+    # BGR 或 BGRA（若是 BGRA 会自动补上 alpha）
+    if changed is True:
+        color_bgr = (0, 0, 255)      # red
+        color_bgra = (0, 0, 255, 255)
+    elif changed is False:
+        color_bgr = (0, 255, 0)      # green
+        color_bgra = (0, 255, 0, 255)
+    else:
+        color_bgr = (0, 0, 255)
+        color_bgra = (0, 0, 255, 255)
+
     pts = np.array(fence_points, np.int32).reshape((-1, 1, 2))
 
+    # -------- BGR 图像 --------
     if frame.shape[2] == 3:
-        # BGR 图像
-        cv2.polylines(frame, [pts], isClosed=True, color=(0, 0, 255), thickness=2)
+        cv2.polylines(frame, [pts], isClosed=True, color=color_bgr, thickness=2)
         for (x, y) in fence_points:
-            cv2.circle(frame, (x, y), radius=4, color=(0, 0, 255), thickness=-1)
+            cv2.circle(frame, (x, y), radius=4, color=color_bgr, thickness=-1)
+
+    # -------- BGRA 图像（带透明度）--------
     elif frame.shape[2] == 4:
-        # BGRA 图像
         overlay = np.zeros_like(frame, dtype=np.uint8)
 
-        # 在 overlay 上画红色 (BGR)，同时 alpha=255
-        cv2.polylines(overlay, [pts], isClosed=True, color=(0, 0, 255, 255), thickness=2)
+        # 在 overlay 层绘制
+        cv2.polylines(overlay, [pts], isClosed=True, color=color_bgra, thickness=2)
         for (x, y) in fence_points:
-            cv2.circle(overlay, (x, y), radius=4, color=(0, 0, 255, 255), thickness=-1)
+            cv2.circle(overlay, (x, y), radius=4, color=color_bgra, thickness=-1)
 
-        # 覆盖到原图（仅替换非透明像素）
+        # 覆盖非透明部分
         mask = overlay[:, :, 3] > 0
         frame[mask] = overlay[mask]
 
