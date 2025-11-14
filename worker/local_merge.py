@@ -38,4 +38,5 @@ df['timestamp'] = pd.to_datetime(df['timestamp'], format='%Y%m%d_%H%M%S')
 df = df[(df['timestamp'] >= start_dt) & (df['timestamp'] <= end_dt)].sort_values('timestamp')
 
 imgs_paths = df['file_path']
+os.makedirs(f'tmp/merge', exist_ok=True)
 save_imgs_as_video(frame_paths, f'tmp/merge/{stream_uid}_{start_time}_{end_time}.mp4', fps=1)
