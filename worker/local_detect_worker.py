@@ -38,8 +38,10 @@ async def capture_video(stream, queues):
     video_path = stream.get("video_path", "")
     if not video_path:
         log("FAIL", f"[CAPTURE] video_path 字段缺失: {stream_name} (UID={stream_uid})", log_path=log_file_path)
+        return
     elif not os.path.exists(video_path):
         log("FAIL", f"[CAPTURE] 视频文件不存在: {video_path} (UID={stream_uid})", log_path=log_file_path)
+        return
 
     group_uid = stream.get("group_uid", "default")
     detect_interval = float(stream.get("frequency", 1.0))  # 检测间隔（秒）
