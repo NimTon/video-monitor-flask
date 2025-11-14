@@ -145,10 +145,10 @@ def get_stream_change_dict(group_streams_data):
     return result
 
 
-def fuse_streams_by_position(streams_bool_dict, max_consecutive_false=10, max_length=3000):
+def fuse_streams_by_position(streams_bool_dict, max_consecutive_false=10, max_length=300):
     stream_keys = list(streams_bool_dict.keys())
     stream_lists = [list(v.values()) for v in streams_bool_dict.values()]
-    max_len = min(max(len(lst) for lst in stream_lists), max_length)  # 限制最大长度为 3000
+    max_len = min(max(len(lst) for lst in stream_lists), max_length)  # 限制最大长度为 300
 
     # 对齐长度
     for lst in stream_lists:
