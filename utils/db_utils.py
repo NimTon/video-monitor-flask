@@ -436,20 +436,20 @@ class DBHelper:
                 """, batch)
             conn.commit()
 
-    def get_pending_alerts(self, group_uid=None):
+
+    def get_ai_result_by_group_event_uid(self, group_event_uid):
         """
-        获取未报警的异常检测记录。
-        :param group_uid: 可选，指定组
-        :return: 未报警的记录列表
+        根据 group_event_uid 获取AI检测结果
+        :param group_event_uid: 组事件ID
+        :return: 检测结果列表
         """
         with self.get_conn() as conn:
             cur = conn.cursor()
-            query = "SELECT * FROM fence_detections WHERE ai_status=1 AND alerted=0"
-            params = []
-            if group_uid:
-                query += " AND group_uid=?"
-                params.append(group_uid)
-            cur.execute(query, params)
+            cur.execute("""
+                        SELECT ai_result
+                        FROM fence_detections
+                        WHERE group_event_uid = ?
+                        """, (group_event_uid,))
             return [dict(row) for row in cur.fetchall()]
 
     def get_pending_ai_checked(self, group_uid=None):

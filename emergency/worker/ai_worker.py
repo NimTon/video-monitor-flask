@@ -1,4 +1,5 @@
 import asyncio
+import json
 from datetime import datetime
 from utils import ai_manager
 from utils.db_utils import db
@@ -23,9 +24,12 @@ async def ai_worker():
                 group_uid = video.get('group_uid')
                 timestamp = datetime.fromisoformat(video.get('timestamp'))
                 video_path = video.get('video_path')
+                group_event_uid = video.get('group_event_uid')
+                # 查询单个视频内相关识别内容
+                single_ai_results = json.dumps(db.get_ai_result_by_group_event_uid(group_event_uid), default=str)
                 log("INFO", f"[EMERGENCY AI] {stream_name} (UID={stream_uid}, GROUP_UID={group_uid}, TIMESTAMPE={timestamp}) 开始识别")
                 try:
-                    future = ai_manager.add_task("call_local_ai_model", ai_prompt=PROMPTS['normal'], video_path=video_path, json_str=True)
+                    future = ai_manager.add_task("call_local_ai_model", ai_prompt=PROMPTS['single'] + single_ai_results, json_str=True)
                     ai_result = future.result()  # 阻塞等待后台线程执行完成
                     if not "status" in ai_result or not "detail" in ai_result:
                         log("WARN", f"[EMERGENCY AI] {stream_name} (UID={stream_uid}, GROUP_UID={group_uid}, TIMESTAMPE={timestamp}) AI识别返回异常, {ai_result}")
