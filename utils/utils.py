@@ -339,6 +339,50 @@ def md5(str):
     m.update(str.encode("utf8"))  # 更新哈希内容
     return m.hexdigest()  # 返回16进制哈希值
 
+def save_imgs_as_video(frame_paths, output_path, fps=25):
+    """
+    将一系列图像路径合并为一个视频文件
+    
+    Args:
+        frame_paths: 图像文件路径列表
+        output_path: 输出视频文件路径
+        fps: 视频帧率，默认25
+    
+    Returns:
+        str: 输出视频文件路径
+    """
+    if not frame_paths:
+        raise ValueError("没有图像路径提供")
+    
+    # 读取第一帧以获取尺寸
+    first_frame = cv2.imread(frame_paths[0])
+    if first_frame is None:
+        raise ValueError(f"无法读取第一帧图像: {frame_paths[0]}")
+    
+    height, width = first_frame.shape[:2]
+    fourcc = cv2.VideoWriter_fourcc(*'H264')
+    
+    # 确保输出目录存在
+    os.makedirs(os.path.dirname(output_path), exist_ok=True)
+    
+    # 创建VideoWriter对象
+    video_writer = cv2.VideoWriter(output_path, fourcc, fps, (width, height))
+    
+    # 写入每一帧
+    for frame_path in frame_paths:
+        frame = cv2.imread(frame_path)
+        if frame is None:
+            print(f"警告: 无法读取帧 {frame_path}，跳过")
+            continue
+            
+        # 如果尺寸不匹配，调整尺寸
+        if frame.shape[1] != width or frame.shape[0] != height:
+            frame = cv2.resize(frame, (width, height))
+            
+        video_writer.write(frame)
+    
+    video_writer.release()
+    return output_path
 
 def save_frames_as_video(stream_id, fence_id, frames, video_root='./videos', base_url='127.0.0.1:5000', fps=25):
     """
