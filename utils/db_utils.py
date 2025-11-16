@@ -446,7 +446,7 @@ class DBHelper:
         with self.get_conn() as conn:
             cur = conn.cursor()
             cur.execute("""
-                        SELECT ai_result
+                        SELECT stream_uid, ai_checked, ai_result
                         FROM fence_detections
                         WHERE group_event_uid = ?
                         """, (group_event_uid,))

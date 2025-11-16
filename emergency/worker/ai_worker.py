@@ -26,7 +26,18 @@ async def ai_worker():
                 video_path = video.get('video_path')
                 group_event_uid = video.get('group_event_uid')
                 # 查询单个视频内相关识别内容
-                single_ai_results = json.dumps(db.get_ai_result_by_group_event_uid(group_event_uid), default=str)
+                single_ai_results = db.get_ai_result_by_group_event_uid(group_event_uid)
+                single_ai_results = pd.DataFrame(single_ai_results)
+                # 如果ai_checked为0则记录日志
+                if (single_ai_results['ai_checked'] == 0).any():
+                    log("INFO", f"[EMERGENCY AI] 有尚未识别的单个AI结果，group_event_uid: {group_event_uid}, 跳过")
+                    await asyncio.sleep(5)
+                    continue
+                if not "报警" in single_ai_results['ai_status'].unique():
+                    log("INFO", f"[EMERGENCY AI] {stream_name} (UID={stream_uid}, GROUP_UID={group_uid}, TIMESTAMPE={timestamp}) 无报警内容，跳过")
+                    await asyncio.sleep(5)
+                    continue
+                single_ai_results = single_ai_results[single_ai_results['ai_status'] != "正常"].to_json()
                 log("INFO", f"[EMERGENCY AI] {stream_name} (UID={stream_uid}, GROUP_UID={group_uid}, TIMESTAMPE={timestamp}) 开始识别")
                 try:
                     future = ai_manager.add_task("call_local_ai_model", ai_prompt=PROMPTS['single'] + single_ai_results, json_str=True)
@@ -49,7 +60,7 @@ async def ai_worker():
                     ai_result=str(ai_result['detail'] if "detail" in ai_result else ai_result)
                 )
                 log("INFO", f"[EMERGENCY AI] {stream_name} (UID={stream_uid}, GROUP_UID={group_uid}, TIMESTAMPE={timestamp}) 数据库更新完成, AI_STATUS={ai_status}")
-                await asyncio.sleep(1)
+                await asyncio.sleep(5)
 
 
 async def run_ai_module():
