@@ -109,7 +109,30 @@ async def group_merge_worker():
                 video_url, video_path = save_frames_as_video(stream_uid, '0', video_frames, fps=1)
                 log("SUCCESS", f"[GROUP MERGE] 视频生成完成: {video_path}")
                 event_uid = str(uuid.uuid4())
-                frame_data['timestamp'] = pd.to_datetime(frame_data['timestamp'])
+
+
+                frame_data['timestamp'] = pd.to_datetime(frame_data['timestamp'], format='ISO8601', errors='coerce')
+
+                # 移除无法解析的时间数据
+                frame_data = frame_data.dropna(subset=['timestamp'])
+
+                # 确保时间列存在
+                if 'timestamp' not in frame_data.columns:
+                    log("WARN", "[GROUP MERGE] 时间列不存在，跳过当前处理")
+                    continue
+
+                start_ts, end_ts = get_fuse_bool_time_range(streams_frames, fuse_bool)
+                if start_ts is None or end_ts is None:
+                    log("WARN", "[GROUP MERGE] 无法获取有效时间范围，跳过")
+                    continue
+
+                # 修改标记导出的逻辑
+                if not frame_data.empty:
+                    # 确保时间比较有效
+                    valid_frames = frame_data[frame_data['timestamp'] <= end_ts]
+                    if not valid_frames.empty:
+                        db.mark_as_group_exported(valid_frames['id'].tolist(), event_uid, group_event_uid)
+
                 db.mark_as_group_exported(frame_data[frame_data['timestamp'] <= end_ts]['id'].tolist(), event_uid, group_event_uid)
                 size = os.path.getsize(video_path)
                 duration = len(video_frames) / 1  # fps=1
