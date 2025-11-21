@@ -30,7 +30,7 @@ async def ai_worker():
                 single_ai_results = pd.DataFrame(single_ai_results)
                 # 如果ai_checked为0则记录日志
                 if (single_ai_results['ai_checked'] == 0).any():
-                    log("INFO", f"[EMERGENCY AI] 有尚未识别的单个AI结果，group_event_uid: {group_event_uid}, 跳过")
+                    # log("INFO", f"[EMERGENCY AI] 有尚未识别的单个AI结果，group_event_uid: {group_event_uid}, 跳过")
                     await asyncio.sleep(5)
                     continue
                 if not "报警" in single_ai_results['ai_status'].unique():
