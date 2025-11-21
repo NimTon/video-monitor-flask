@@ -190,7 +190,7 @@ async def detect_worker(queue, detector, change_threshold):
                     change_ratio = 0.0
 
                 # 保存结果
-                frame_drawn = draw_fence_on_frame(frame, fence_points)
+                frame_drawn = draw_fence_on_frame(frame, fence_points, changed)
                 frame_save_path = f"{detect_path}/{stream_uid}_{fence_id}_{timestamp.strftime('%Y%m%d_%H%M%S')}.jpg"
                 cv2.imwrite(frame_save_path, frame_drawn)
 
