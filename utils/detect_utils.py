@@ -22,8 +22,11 @@ def detect_with_stream_info(stream_info, prompt):
         # 创建保存目录（如果不存在）
         os.makedirs(os.path.dirname(image_path), exist_ok=True)
         frame = capture_frame(stream_url)
+        height, width = frame.shape[:2]
         for fence in stream_fences:
-            frame = draw_fence_on_frame(frame, fence)
+            points = fence.get('points', [])
+            fence_points = [(int(p['x'] * width), int(p['y'] * height)) for p in points]
+            frame = draw_fence_on_frame(frame, fence_points)
         cv2.imwrite(image_path, frame)
         image_paths.append(image_path)
     future = ai_manager.add_task("call_local_ai_model", ai_prompt=prompt, image_paths=image_paths, json_str=False)
