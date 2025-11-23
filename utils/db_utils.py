@@ -122,12 +122,19 @@ class DBHelper:
     def cleanup_table_by_column(self, table_name, column_name, value):
         """根据指定列的值清理数据"""
         with self.get_conn() as conn:
-            cur = conn.cursor()
-            cur.execute(f"""
-                        DELETE FROM {table_name}
-                        WHERE {column_name} = ?;
-                        """, (value,))
-            conn.commit()
+            conn.execute("PRAGMA busy_timeout = 3000;")  # 设置忙碌等待的超时，避免冲突时立即报错
+            try:
+                cur = conn.cursor()
+                cur.execute(f"""
+                            DELETE FROM {table_name}
+                            WHERE {column_name} = ?;
+                            """, (value,))
+                conn.commit()  # 提交事务
+            except Exception as e:
+                conn.rollback()  # 发生异常时回滚事务
+                raise f"删除数据失败: {e}"
+            finally:
+                conn.execute("COMMIT;")
 
     # ------------------ 清理抓帧表 ------------------
     def cleanup_captured_frames_by_time(self, time_threshold):

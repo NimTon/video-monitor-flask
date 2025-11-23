@@ -16,12 +16,21 @@ def cleanup_24_hours_data():
 
     # 按时间清理每个表的数据
     log('INFO', "清理24小时以前数据...")
-    db.cleanup_captured_frames_by_time(time_threshold)  # 清理抓帧表
-    log('INFO', "清理 抓帧表 24小时以前数据完成！")
-    db.cleanup_fence_detections_by_time(time_threshold)  # 清理异常检测表
-    log('INFO', "清理 异常检测表 24小时以前数据完成！")
-    db.cleanup_merged_videos_by_time(time_threshold)  # 清理视频合成表
-    log('INFO', "清理 视频合成表 24小时以前数据完成！")
+    try:
+        db.cleanup_captured_frames_by_time(time_threshold)  # 清理抓帧表
+        log('INFO', "清理 抓帧表 24小时以前数据完成！")
+    except Exception as e:
+        log('FAIL', f"清理 抓帧表 24小时以前数据失败: {e}")
+    try:
+        db.cleanup_fence_detections_by_time(time_threshold)  # 清理异常检测表
+        log('INFO', "清理 异常检测表 24小时以前数据完成！")
+    except Exception as e:
+        log('FAIL', f"清理 异常检测表 24小时以前数据失败: {e}")
+    try:
+        db.cleanup_merged_videos_by_time(time_threshold)  # 清理视频合成表
+        log('INFO', "清理 视频合成表 24小时以前数据完成！")
+    except Exception as e:
+        log('FAIL', f"清理 视频合成表 24小时以前数据失败: {e}")
 
 
 def cleanup_old_files():
