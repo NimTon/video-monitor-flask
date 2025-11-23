@@ -13,7 +13,7 @@ def detect_with_stream_info(stream_info, prompt):
     image_paths = []
     for key, value in stream_info.items():
         prompt += str(value)
-        stream_data = sm.get_stream_data(key)
+        stream_data = sm.get_stream(key)
         stream_url = stream_data['stream_url']
         stream_fences = stream_data['fences']
         # 通过stream_url获取一帧存入tmp/detect
