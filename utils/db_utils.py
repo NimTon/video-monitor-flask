@@ -108,6 +108,54 @@ class DBHelper:
 
             conn.commit()
 
+    # ------------------ 清理方法 ------------------
+    def cleanup_table_by_time(self, table_name, time_column, time_threshold):
+        """根据时间清理指定表的数据"""
+        with self.get_conn() as conn:
+            cur = conn.cursor()
+            cur.execute(f"""
+                        DELETE FROM {table_name}
+                        WHERE {time_column} < ?;
+                        """, (time_threshold,))
+            conn.commit()
+
+    def cleanup_table_by_column(self, table_name, column_name, value):
+        """根据指定列的值清理数据"""
+        with self.get_conn() as conn:
+            cur = conn.cursor()
+            cur.execute(f"""
+                        DELETE FROM {table_name}
+                        WHERE {column_name} = ?;
+                        """, (value,))
+            conn.commit()
+
+    # ------------------ 清理抓帧表 ------------------
+    def cleanup_captured_frames_by_time(self, time_threshold):
+        """按时间清理抓帧表"""
+        self.cleanup_table_by_time('captured_frames', 'timestamp', time_threshold)
+
+    def cleanup_captured_frames_by_column(self, column_value):
+        """按列值清理抓帧表"""
+        self.cleanup_table_by_column('captured_frames', 'frame_path', column_value)
+
+    # ------------------ 清理异常检测表 ------------------
+    def cleanup_fence_detections_by_time(self, time_threshold):
+        """按时间清理异常检测表"""
+        self.cleanup_table_by_time('fence_detections', 'timestamp', time_threshold)
+
+    def cleanup_fence_detections_by_column(self, column_value):
+        """按列值清理异常检测表"""
+        self.cleanup_table_by_column('fence_detections', 'changed', column_value)
+
+    # ------------------ 清理视频合成表 ------------------
+    def cleanup_merged_videos_by_time(self, time_threshold):
+        """按时间清理视频合成表"""
+        self.cleanup_table_by_time('merged_videos', 'timestamp', time_threshold)
+
+    def cleanup_merged_videos_by_column(self, column_value):
+        """按列值清理视频合成表"""
+        self.cleanup_table_by_column('merged_videos', 'exported', column_value)
+
     # ------------------ 抓帧表操作 ------------------
     def insert_frame(self, stream_uid, group_uid, timestamp, frame_path):
         """插入抓帧表"""
@@ -435,7 +483,6 @@ class DBHelper:
                     WHERE id IN ({','.join('?' for _ in batch)})
                 """, batch)
             conn.commit()
-
 
     def get_ai_result_by_group_event_uid(self, group_event_uid):
         """

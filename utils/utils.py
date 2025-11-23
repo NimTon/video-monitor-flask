@@ -49,20 +49,15 @@ def camel_to_snake(name: str) -> str:
     return re.sub('([a-z0-9])([A-Z])', r'\1_\2', s1).lower()
 
 
-async def clean_task(paths, interval=24 * 3600, days=7):
+def clean_task(paths, days=7):
     """
-    异步定时清理任务
-    - 启动时立即执行一次
-    - 之后每隔 interval 秒执行一次
+    同步清理任务
     """
-    while True:
-        log("INFO", f"开始清理旧文件, {', '.join(paths)}")
-        for path in paths:
-            cleared_path = clean_old_files(path, days)
-            if cleared_path:
-                log("INFO", f"清理了 {path} 中 {len(cleared_path)} 个过期文件")
-        # 首次执行完直接等待 interval 秒，再执行下一轮
-        await asyncio.sleep(interval)
+    log("INFO", f"开始清理旧文件, {', '.join(paths)}")
+    for path in paths:
+        cleared_path = clean_old_files(path, days)
+        if cleared_path:
+            log("INFO", f"清理了 {path} 中 {len(cleared_path)} 个过期文件")
 
 
 def clean_old_files(path: str, day: int):

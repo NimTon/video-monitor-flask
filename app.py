@@ -6,14 +6,11 @@ import os
 from datetime import datetime
 from utils.detect_utils import detect_with_stream_info
 from utils.stream_utils import get_video_size
-from utils.utils import draw_fence_on_frame, points_to_abs_points, clean_old_files, clean_task
-from utils.log_utils import log
+from utils.utils import draw_fence_on_frame, points_to_abs_points
 import numpy as np
 import cv2
 from config import FLOW_URL
 import traceback
-import asyncio
-import threading
 
 with open('config.json', encoding='utf-8') as f:
     config = json.load(f)
@@ -753,23 +750,6 @@ def detect():
         return jsonify({"message": str(e)}), 500
 
 
-def run_flask():
-    """独立线程运行 Flask"""
-    app.run(host="0.0.0.0", port=5000)
-
-
-async def clean_main():
-    # 启动两个异步清理任务（并行执行）
-    task1 = asyncio.create_task(clean_task([VIDEO_DIR, IMAGE_DIR], days=7))
-    task2 = asyncio.create_task(clean_task([TEMP_DIR], days=1))
-    await asyncio.gather(task1, task2)
-
-
 # 主程序入口
 if __name__ == '__main__':
-    # 启动 Flask
-    flask_thread = threading.Thread(target=run_flask, daemon=True)
-    flask_thread.start()
-
-    # 启动异步清理任务
-    asyncio.run(clean_main())
+    app.run(host="0.0.0.0", port=5000)
