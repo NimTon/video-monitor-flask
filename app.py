@@ -9,7 +9,7 @@ from utils.stream_utils import get_video_size
 from utils.utils import draw_fence_on_frame, points_to_abs_points
 import numpy as np
 import cv2
-from config import FLOW_URL
+from config import FLOW_URL, IMAGE_DIR, VIDEO_DIR, TEMP_DIR
 import traceback
 
 with open('config.json', encoding='utf-8') as f:
@@ -19,7 +19,6 @@ with open('config.json', encoding='utf-8') as f:
 FRONTEND_DIST = os.path.join(os.path.dirname(__file__), "frontend", "dist")
 os.makedirs(FRONTEND_DIST, exist_ok=True)
 # 创建Flask应用实例
-# app = create_app()
 app = Flask(__name__, static_folder=None)  # 关闭默认的 static 文件服务
 # 创建存储管理器实例
 storage = StorageManager()
@@ -31,18 +30,6 @@ alert_storage = AlertStorageManager()
 message_manager = MessageManager()
 # 初始化视频流线程字典，用于存储stream_id到线程的映射
 app.video_threads = {}
-# ZLMediaKit服务器配置
-ZLMediaKit_secret = config['zlmk_secret']  # 虚拟机
-# ZLMediaKit_secret = 'k9mlFsMF38CGAUVSdIzpiPKonvgxBT9v'  # 公司服务器
-# ZLMediaKit_url = 'http://172.26.18.19/index/api'  # 测试虚拟机
-ZLMediaKit_url = config['zlmk_url']  # 虚拟机
-# ZLMediaKit_url = 'http://10.30.4.50:180/index/api'  # 公司服务器
-# 图片存放路径
-IMAGE_DIR = os.path.join(os.getcwd(), 'images')  # 绝对路径更安全
-# 视频存放路径
-VIDEO_DIR = os.path.join(os.getcwd(), 'videos')  # 绝对路径更安全
-# 临时文件路径
-TEMP_DIR = os.path.join(os.getcwd(), 'tmp')
 
 
 # -------- 前端路由 --------

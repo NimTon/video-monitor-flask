@@ -1,7 +1,7 @@
 import time
 import schedule
 from datetime import datetime, timedelta
-from app import VIDEO_DIR, IMAGE_DIR, TEMP_DIR
+from config import VIDEO_DIR, IMAGE_DIR, TEMP_DIR
 from utils.db_utils import db  # 引入 db 实例
 from utils.utils import clean_task, log  # 引入清理任务和日志函数
 
