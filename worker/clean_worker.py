@@ -53,8 +53,8 @@ def cleanup_all():
 # 首次运行时立即执行清理任务
 cleanup_all()  # 立即执行一次清理
 
-# 每24小时运行一次清理任务
-schedule.every(24).hours.do(cleanup_all)
+# 每12小时运行一次清理任务
+schedule.every(12).hours.do(cleanup_all)
 
 # 启动定时任务
 while True:
