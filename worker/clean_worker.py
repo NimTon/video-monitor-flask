@@ -15,24 +15,24 @@ def cleanup_24_hours_data():
     time_threshold = threshold_time.isoformat()
 
     # 按时间清理每个表的数据
-    print("清理24小时以前数据...")
+    log('INFO', "清理24小时以前数据...")
     db.cleanup_captured_frames_by_time(time_threshold)  # 清理抓帧表
-    print("清理 抓帧表 24小时以前数据完成！")
+    log('INFO', "清理 抓帧表 24小时以前数据完成！")
     db.cleanup_fence_detections_by_time(time_threshold)  # 清理异常检测表
-    print("清理 异常检测表 24小时以前数据完成！")
+    log('INFO', "清理 异常检测表 24小时以前数据完成！")
     db.cleanup_merged_videos_by_time(time_threshold)  # 清理视频合成表
-    print("清理 视频合成表 24小时以前数据完成！")
+    log('INFO', "清理 视频合成表 24小时以前数据完成！")
 
 
 def cleanup_old_files():
     """清理旧文件"""
     # 清理视频和图片目录中的旧文件（超过7天）
     clean_task([VIDEO_DIR, IMAGE_DIR], days=7)
-    print("清理 视频和图片目录中的旧文件完成！")
+    log('INFO', "清理 视频和图片目录中的旧文件完成！")
 
     # 清理临时目录中的旧文件（超过1天）
     clean_task([TEMP_DIR], days=1)
-    print("清理 临时目录中的旧文件完成！")
+    log('INFO', "清理 临时目录中的旧文件完成！")
 
 
 def cleanup_all():
