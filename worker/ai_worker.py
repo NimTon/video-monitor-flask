@@ -35,7 +35,6 @@ async def ai_worker():
                 ai_status = -1
             db.update_ai_result(
                 detection_id=detection_id,
-                ai_checked=1,
                 ai_status=ai_status,
                 ai_result=str(ai_result['detail'] if "detail" in ai_result else ai_result)
             )
