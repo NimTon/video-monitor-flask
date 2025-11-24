@@ -30,167 +30,79 @@ class DBHelper:
 
             # 抓帧表
             cur.execute("""
-                        CREATE TABLE IF NOT EXISTS captured_frames
-                        (
-                            id
-                            INTEGER
-                            PRIMARY
-                            KEY
-                            AUTOINCREMENT,
-                            stream_uid
-                            TEXT,
-                            group_uid
-                            TEXT,
-                            timestamp
-                            TEXT,
-                            frame_path
-                            TEXT
-                        );
-                        """)
+                CREATE TABLE IF NOT EXISTS captured_frames (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    stream_uid TEXT,
+                    group_uid TEXT,
+                    timestamp TEXT,
+                    frame_path TEXT
+                );
+            """)
 
             # 异常检测表
             cur.execute("""
-                        CREATE TABLE IF NOT EXISTS fence_detections
-                        (
-                            id
-                            INTEGER
-                            PRIMARY
-                            KEY
-                            AUTOINCREMENT,
-                            stream_uid
-                            TEXT,
-                            group_uid
-                            TEXT,
-                            fence_uid
-                            TEXT,
-                            change_ratio
-                            REAL,
-                            changed
-                            INTEGER, -- 0=normal,1=abnormal
-                            timestamp
-                            TEXT,
-                            frame_path
-                            TEXT,
-                            frame_id
-                            INTEGER,
-                            exported
-                            INTEGER
-                            DEFAULT
-                            0,       -- 0=未导出, 1=已导出
-                            group_exported
-                            INTEGER
-                            DEFAULT
-                            0,       -- 0=未导出, 1=已导出
-                            ai_checked
-                            INTEGER
-                            DEFAULT
-                            0,
-                            ai_status
-                            INTEGER
-                            DEFAULT
-                            NULL,    -- 0=normal,1=AI判定异常,-1=失败
-                            ai_result
-                            TEXT
-                            DEFAULT
-                            NULL,
-                            alerted
-                            INTEGER
-                            DEFAULT
-                            0,
-                            event_uid
-                            TEXT,    -- 事件ID (UUID)
-                            group_event_uid
-                            TEXT,
-                            before_image_path
-                            TEXT
-                            DEFAULT
-                            NULL,    -- 新增：前一帧图像路径
-                            after_image_path
-                            TEXT
-                            DEFAULT
-                            NULL,    -- 新增：后一帧图像路径
-                            alert_video_path
-                            TEXT
-                            DEFAULT
-                            NULL
-                        );
-                        """)
+                CREATE TABLE IF NOT EXISTS fence_detections (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    stream_uid TEXT,
+                    group_uid TEXT,
+                    fence_uid TEXT,
+                    change_ratio REAL,
+                    changed INTEGER,  -- 0=normal,1=abnormal
+                    timestamp TEXT,
+                    frame_path TEXT,
+                    frame_id INTEGER,
+                    exported INTEGER DEFAULT 0,    -- 0=未导出, 1=已导出
+                    group_exported INTEGER DEFAULT 0,    -- 0=未导出, 1=已导出
+                    ai_checked INTEGER DEFAULT 0,
+                    ai_status INTEGER DEFAULT NULL, -- 0=normal,1=AI判定异常,-1=失败
+                    ai_result TEXT DEFAULT NULL,
+                    alerted INTEGER DEFAULT 0,
+                    event_uid TEXT,     -- 事件ID (UUID)
+                    group_event_uid TEXT,
+                    before_image_path TEXT DEFAULT NULL, -- 新增：前一帧图像路径
+                    after_image_path TEXT DEFAULT NULL, -- 新增：后一帧图像路径
+                    alert_video_path TEXT DEFAULT NULL
+                );
+            """)
 
             # 视频合成表
             cur.execute("""
-                        CREATE TABLE IF NOT EXISTS merged_videos
-                        (
-                            id
-                            INTEGER
-                            PRIMARY
-                            KEY
-                            AUTOINCREMENT,
-                            stream_name
-                            TEXT,
-                            stream_uid
-                            TEXT,
-                            group_uid
-                            TEXT,
-                            fence_uid
-                            TEXT,
-                            video_path
-                            TEXT,
-                            before_image_path
-                            TEXT
-                            DEFAULT
-                            NULL,    -- 新增：前一帧图像路径
-                            after_image_path
-                            TEXT
-                            DEFAULT
-                            NULL,    -- 新增：后一帧图像路径
-                            duration
-                            REAL,    -- 秒
-                            size
-                            INTEGER, -- 字节
-                            timestamp
-                            TEXT,
-                            exported
-                            INTEGER
-                            DEFAULT
-                            0,       -- 0=未导出, 1=已导出
-                            ai_checked
-                            INTEGER
-                            DEFAULT
-                            0,
-                            ai_status
-                            INTEGER
-                            DEFAULT
-                            NULL,    -- 0=normal,1=AI判定异常,-1=失败
-                            ai_result
-                            TEXT
-                            DEFAULT
-                            NULL,
-                            alerted
-                            INTEGER
-                            DEFAULT
-                            0,
-                            event_uid
-                            TEXT,    -- 事件ID (UUID)
-                            group_event_uid
-                            TEXT
-                        );
-                        """)
+                CREATE TABLE IF NOT EXISTS merged_videos (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    stream_name TEXT,
+                    stream_uid TEXT,
+                    group_uid TEXT,
+                    fence_uid TEXT,
+                    video_path TEXT,
+                    before_image_path TEXT DEFAULT NULL, -- 新增：前一帧图像路径
+                    after_image_path TEXT DEFAULT NULL, -- 新增：后一帧图像路径
+                    duration REAL,     -- 秒
+                    size INTEGER,  -- 字节
+                    timestamp TEXT,
+                    exported INTEGER DEFAULT 0,    -- 0=未导出, 1=已导出
+                    ai_checked INTEGER DEFAULT 0,
+                    ai_status INTEGER DEFAULT NULL, -- 0=normal,1=AI判定异常,-1=失败
+                    ai_result TEXT DEFAULT NULL,
+                    alerted INTEGER DEFAULT 0,
+                    event_uid TEXT,     -- 事件ID (UUID)
+                    group_event_uid TEXT
+                );
+            """)
 
             # 编组预警事件表
             cur.execute("""
-                        CREATE TABLE IF NOT EXISTS events
-                        (
-                            id              INTEGER PRIMARY KEY AUTOINCREMENT,
-                            group_uid       TEXT,
-                            group_event_uid TEXT,
-                            timestamp       TEXT,
-                            exported        INTEGER DEFAULT 0,
-                            ai_checked      INTEGER DEFAULT 0,
-                            ai_status       INTEGER DEFAULT 0,
-                            ai_result       TEXT,
-                            alerted         INTEGER DEFAULT 0
-                        );
-                        """)
+                CREATE TABLE IF NOT EXISTS events (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    group_uid TEXT,
+                    group_event_uid TEXT,
+                    timestamp TEXT,
+                    exported INTEGER DEFAULT 0,
+                    ai_checked INTEGER DEFAULT 0,
+                    ai_status INTEGER DEFAULT 0,
+                    ai_result TEXT,
+                    alerted INTEGER DEFAULT 0
+                );
+            """)
 
             conn.commit()
 
