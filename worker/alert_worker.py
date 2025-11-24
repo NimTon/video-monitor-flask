@@ -68,8 +68,6 @@ async def alert_worker():
                 try:
                     message = template['text'].format(**template_vars)  # 渲染模板
                 except Exception as e:
-                    import traceback
-                    traceback.print_exc()
                     log("FAIL", f"{stream_name} (UID={stream_uid}, FENCE_UID={fence_uid}, DETECTION_ID={detection_id}, TIMESTAMP={timestamp}) 的组装报警信息失败: {e}")
                     await asyncio.sleep(1)
                     continue
