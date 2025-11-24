@@ -32,11 +32,19 @@ class DBHelper:
             cur.execute("""
                         CREATE TABLE IF NOT EXISTS captured_frames
                         (
-                            id         INTEGER PRIMARY KEY AUTOINCREMENT,
-                            stream_uid TEXT,
-                            group_uid  TEXT,
-                            timestamp  TEXT,
-                            frame_path TEXT
+                            id
+                            INTEGER
+                            PRIMARY
+                            KEY
+                            AUTOINCREMENT,
+                            stream_uid
+                            TEXT,
+                            group_uid
+                            TEXT,
+                            timestamp
+                            TEXT,
+                            frame_path
+                            TEXT
                         );
                         """)
 
@@ -44,26 +52,67 @@ class DBHelper:
             cur.execute("""
                         CREATE TABLE IF NOT EXISTS fence_detections
                         (
-                            id                INTEGER PRIMARY KEY AUTOINCREMENT,
-                            stream_uid        TEXT,
-                            group_uid         TEXT,
-                            fence_uid         TEXT,
-                            change_ratio      REAL,
-                            changed           INTEGER,              -- 0=normal,1=abnormal
-                            timestamp         TEXT,
-                            frame_path        TEXT,
-                            frame_id          INTEGER,
-                            exported          INTEGER DEFAULT 0,    -- 0=未导出, 1=已导出
-                            group_exported    INTEGER DEFAULT 0,    -- 0=未导出, 1=已导出
-                            ai_checked        INTEGER DEFAULT 0,
-                            ai_status         INTEGER DEFAULT NULL, -- 0=normal,1=AI判定异常,-1=失败
-                            ai_result         TEXT    DEFAULT NULL,
-                            alerted           INTEGER DEFAULT 0,
-                            event_uid         TEXT,                 -- 事件ID (UUID)
-                            group_event_uid   TEXT,
-                            before_image_path TEXT    DEFAULT NULL, -- 新增：前一帧图像路径
-                            after_image_path  TEXT    DEFAULT NULL, -- 新增：后一帧图像路径
-                            alert_video_path  TEXT    DEFAULT NULL
+                            id
+                            INTEGER
+                            PRIMARY
+                            KEY
+                            AUTOINCREMENT,
+                            stream_uid
+                            TEXT,
+                            group_uid
+                            TEXT,
+                            fence_uid
+                            TEXT,
+                            change_ratio
+                            REAL,
+                            changed
+                            INTEGER, -- 0=normal,1=abnormal
+                            timestamp
+                            TEXT,
+                            frame_path
+                            TEXT,
+                            frame_id
+                            INTEGER,
+                            exported
+                            INTEGER
+                            DEFAULT
+                            0,       -- 0=未导出, 1=已导出
+                            group_exported
+                            INTEGER
+                            DEFAULT
+                            0,       -- 0=未导出, 1=已导出
+                            ai_checked
+                            INTEGER
+                            DEFAULT
+                            0,
+                            ai_status
+                            INTEGER
+                            DEFAULT
+                            NULL,    -- 0=normal,1=AI判定异常,-1=失败
+                            ai_result
+                            TEXT
+                            DEFAULT
+                            NULL,
+                            alerted
+                            INTEGER
+                            DEFAULT
+                            0,
+                            event_uid
+                            TEXT,    -- 事件ID (UUID)
+                            group_event_uid
+                            TEXT,
+                            before_image_path
+                            TEXT
+                            DEFAULT
+                            NULL,    -- 新增：前一帧图像路径
+                            after_image_path
+                            TEXT
+                            DEFAULT
+                            NULL,    -- 新增：后一帧图像路径
+                            alert_video_path
+                            TEXT
+                            DEFAULT
+                            NULL
                         );
                         """)
 
@@ -71,24 +120,59 @@ class DBHelper:
             cur.execute("""
                         CREATE TABLE IF NOT EXISTS merged_videos
                         (
-                            id                INTEGER PRIMARY KEY AUTOINCREMENT,
-                            stream_name       TEXT,
-                            stream_uid        TEXT,
-                            group_uid         TEXT,
-                            fence_uid         TEXT,
-                            video_path        TEXT,
-                            before_image_path TEXT    DEFAULT NULL, -- 新增：前一帧图像路径
-                            after_image_path  TEXT    DEFAULT NULL, -- 新增：后一帧图像路径
-                            duration          REAL,                 -- 秒
-                            size              INTEGER,              -- 字节
-                            timestamp         TEXT,
-                            exported          INTEGER DEFAULT 0,    -- 0=未导出, 1=已导出
-                            ai_checked        INTEGER DEFAULT 0,
-                            ai_status         INTEGER DEFAULT NULL, -- 0=normal,1=AI判定异常,-1=失败
-                            ai_result         TEXT    DEFAULT NULL,
-                            alerted           INTEGER DEFAULT 0,
-                            event_uid         TEXT,                 -- 事件ID (UUID)
-                            group_event_uid   TEXT
+                            id
+                            INTEGER
+                            PRIMARY
+                            KEY
+                            AUTOINCREMENT,
+                            stream_name
+                            TEXT,
+                            stream_uid
+                            TEXT,
+                            group_uid
+                            TEXT,
+                            fence_uid
+                            TEXT,
+                            video_path
+                            TEXT,
+                            before_image_path
+                            TEXT
+                            DEFAULT
+                            NULL,    -- 新增：前一帧图像路径
+                            after_image_path
+                            TEXT
+                            DEFAULT
+                            NULL,    -- 新增：后一帧图像路径
+                            duration
+                            REAL,    -- 秒
+                            size
+                            INTEGER, -- 字节
+                            timestamp
+                            TEXT,
+                            exported
+                            INTEGER
+                            DEFAULT
+                            0,       -- 0=未导出, 1=已导出
+                            ai_checked
+                            INTEGER
+                            DEFAULT
+                            0,
+                            ai_status
+                            INTEGER
+                            DEFAULT
+                            NULL,    -- 0=normal,1=AI判定异常,-1=失败
+                            ai_result
+                            TEXT
+                            DEFAULT
+                            NULL,
+                            alerted
+                            INTEGER
+                            DEFAULT
+                            0,
+                            event_uid
+                            TEXT,    -- 事件ID (UUID)
+                            group_event_uid
+                            TEXT
                         );
                         """)
 
@@ -96,13 +180,27 @@ class DBHelper:
             cur.execute("""
                         CREATE TABLE IF NOT EXISTS events
                         (
-                            id             INTEGER PRIMARY KEY AUTOINCREMENT,
-                            group_event_id TEXT,
-                            group_uid      TEXT,
-                            timestamp      TEXT,
-                            alerted        INTEGER DEFAULT 0,
-                            ai_checked     INTEGER DEFAULT 0,
-                            ai_report      TEXT
+                            id
+                            INTEGER
+                            PRIMARY
+                            KEY
+                            AUTOINCREMENT,
+                            group_event_id
+                            TEXT,
+                            group_uid
+                            TEXT,
+                            timestamp
+                            TEXT,
+                            alerted
+                            INTEGER
+                            DEFAULT
+                            0,
+                            ai_checked
+                            INTEGER
+                            DEFAULT
+                            0,
+                            ai_report
+                            TEXT
                         );
                         """)
 
@@ -206,7 +304,7 @@ class DBHelper:
                         SELECT *
                         FROM captured_frames
                         ORDER BY timestamp ASC
-                        LIMIT ?;
+                            LIMIT ?;
                         """, (limit,))
             return [dict(row) for row in cur.fetchall()]
 
@@ -228,7 +326,8 @@ class DBHelper:
                         SELECT *
                         FROM captured_frames
                         WHERE stream_uid = ?
-                          AND timestamp BETWEEN ? AND ?
+                          AND timestamp BETWEEN ?
+                          AND ?
                         ORDER BY timestamp ASC;
                         """, (stream_uid, start_ts.isoformat(), end_ts.isoformat()))
             return [dict(row) for row in cur.fetchall()]
@@ -266,7 +365,8 @@ class DBHelper:
                   SELECT *
                   FROM fence_detections
                   WHERE stream_uid = ?
-                    AND timestamp BETWEEN ? AND ? \
+                    AND timestamp BETWEEN ?
+                    AND ? \
                   """
             params = [stream_uid, start_ts.isoformat(), end_ts.isoformat()]
             # 如果传了 fence_uid，则添加条件
@@ -371,7 +471,8 @@ class DBHelper:
                         FROM fence_detections
                         WHERE stream_uid = ?
                           AND fence_uid = ?
-                          AND timestamp BETWEEN ? AND ?
+                          AND timestamp BETWEEN ?
+                          AND ?
                         ORDER BY timestamp ASC;
                         """, (stream_uid, fence_uid, start_ts.isoformat(), end_ts.isoformat()))
             return [dict(row) for row in cur.fetchall()]
@@ -529,6 +630,22 @@ class DBHelper:
                         """, (group_event_uid,))
             return [dict(row) for row in cur.fetchall()]
 
+    def get_pending_alerts(self, group_uid=None):
+        """
+        获取未报警的异常检测记录。
+        :param group_uid: 可选，指定组
+        :return: 未报警的记录列表
+        """
+        with self.get_conn() as conn:
+            cur = conn.cursor()
+            query = "SELECT * FROM fence_detections WHERE ai_status=1 AND alerted=0"
+            params = []
+            if group_uid:
+                query += " AND group_uid=?"
+                params.append(group_uid)
+            cur.execute(query, params)
+            return [dict(row) for row in cur.fetchall()]
+
     def get_pending_ai_checked(self, group_uid=None):
         """
         获取未AI识别的异常检测记录。
@@ -546,18 +663,21 @@ class DBHelper:
             return [dict(row) for row in cur.fetchall()]
 
     # ------------------ 视频合成表操作 ------------------
-    def insert_merged_video(self, stream_name, stream_uid, group_uid, fence_uid, video_path, before_image_path, after_image_path, duration, size, timestamp, event_uid, group_event_uid,
+    def insert_merged_video(self, stream_name, stream_uid, group_uid, fence_uid, video_path, before_image_path,
+                            after_image_path, duration, size, timestamp, event_uid, group_event_uid,
                             exported=0, ai_checked=0, ai_status=None, ai_result=None, alerted=0):
         """插入一条视频合成数据"""
         with self.get_conn() as conn:
             cur = conn.cursor()
             cur.execute("""
                         INSERT INTO merged_videos
-                        (stream_name, stream_uid, group_uid, fence_uid, video_path, before_image_path, after_image_path, duration, size, timestamp, event_uid, group_event_uid,
+                        (stream_name, stream_uid, group_uid, fence_uid, video_path, before_image_path, after_image_path,
+                         duration, size, timestamp, event_uid, group_event_uid,
                          exported, ai_checked, ai_status, ai_result, alerted)
                         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
                         """, (
-                            stream_name, stream_uid, group_uid, fence_uid, video_path, before_image_path, after_image_path, duration, size, timestamp.isoformat(), event_uid, group_event_uid,
+                            stream_name, stream_uid, group_uid, fence_uid, video_path, before_image_path,
+                            after_image_path, duration, size, timestamp.isoformat(), event_uid, group_event_uid,
                             exported, ai_checked, ai_status, ai_result, alerted
 
                         ))
@@ -684,7 +804,7 @@ class DBHelper:
                         FROM events
                         WHERE group_uid = ?
                         ORDER BY timestamp ASC
-                        LIMIT ?;
+                            LIMIT ?;
                         """, (group_uid, limit))
             return [dict(row) for row in cur.fetchall()]
 
@@ -697,7 +817,7 @@ class DBHelper:
                         FROM events
                         WHERE ai_checked = 0
                         ORDER BY timestamp ASC
-                        LIMIT ?;
+                            LIMIT ?;
                         """, (limit,))
             return [dict(row) for row in cur.fetchall()]
 
