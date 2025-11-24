@@ -126,15 +126,14 @@ class AIModelManager:
             raise ValueError(f"所有方法均解析失败，原始文本: {text}")
 
     # ------------------ 模型调用 ------------------
-
-    def call_qwen_via_client(self, p=None, imgs=None, model='qwen-vl-max-latest', json_str=True):
+    def call_qwen_via_client(self, ai_prompt=None, image_paths=None, model='qwen-vl-max-latest', json_str=True):
         """调用千问模型"""
         client = OpenAI(api_key=self.api_key, base_url=self.base_url)
-        prompt = p or self.default_prompt
+        prompt = ai_prompt or self.default_prompt
         try:
-            if imgs:
+            if image_paths:
                 content = [
-                    *[{"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{img}"}} for img in imgs],
+                    *[{"type": "image_url", "image_url": {"url": f"data:image/jpeg;base64,{img}"}} for img in image_paths],
                     {"type": "text", "text": prompt}
                 ]
             else:
