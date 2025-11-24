@@ -96,13 +96,15 @@ class DBHelper:
             cur.execute("""
                         CREATE TABLE IF NOT EXISTS events
                         (
-                            id             INTEGER PRIMARY KEY AUTOINCREMENT,
-                            group_event_id TEXT,
-                            group_uid      TEXT,
-                            timestamp      TEXT,
-                            alerted        INTEGER DEFAULT 0,
-                            ai_checked     INTEGER DEFAULT 0,
-                            ai_report      TEXT
+                            id              INTEGER PRIMARY KEY AUTOINCREMENT,
+                            group_uid       TEXT,
+                            group_event_uid TEXT,
+                            timestamp       TEXT,
+                            exported        INTEGER DEFAULT 0,
+                            ai_checked      INTEGER DEFAULT 0,
+                            ai_status       INTEGER DEFAULT 0,
+                            ai_result       TEXT,
+                            alerted         INTEGER DEFAULT 0
                         );
                         """)
 
@@ -185,6 +187,15 @@ class DBHelper:
     def cleanup_merged_videos_by_column(self, column_value):
         """按列值清理视频合成表"""
         self.cleanup_table_by_column('merged_videos', 'exported', column_value)
+
+    # ------------------ 清理事件表 ------------------
+    def cleanup_events_by_time(self, time_threshold):
+        """按时间清理事件表"""
+        self.cleanup_table_by_time('events', 'timestamp', time_threshold)
+
+    def cleanup_events_by_column(self, column_value):
+        """按列值清理事件表"""
+        self.cleanup_table_by_column('events', 'alerted', column_value)
 
     # ------------------ 抓帧表操作 ------------------
     def insert_frame(self, stream_uid, group_uid, timestamp, frame_path):
@@ -523,9 +534,10 @@ class DBHelper:
         with self.get_conn() as conn:
             cur = conn.cursor()
             cur.execute("""
-                        SELECT stream_uid, ai_checked, ai_result
+                        SELECT stream_uid, ai_checked, ai_status, ai_result
                         FROM fence_detections
                         WHERE group_event_uid = ?
+                          AND changed = 1
                         """, (group_event_uid,))
             return [dict(row) for row in cur.fetchall()]
 
@@ -546,6 +558,18 @@ class DBHelper:
             return [dict(row) for row in cur.fetchall()]
 
     # ------------------ 视频合成表操作 ------------------
+    def get_videos_by_group_event_uid(self, group_event_uid):
+        """获取指定组事件下的视频合成数据"""
+        with self.get_conn() as conn:
+            cur = conn.cursor()
+            cur.execute("""
+                        SELECT *
+                        FROM merged_videos
+                        WHERE group_event_uid = ?
+                        """, (group_event_uid,))
+            rows = cur.fetchall()
+            return [dict(row) for row in rows]
+
     def insert_merged_video(self, stream_name, stream_uid, group_uid, fence_uid, video_path, before_image_path, after_image_path, duration, size, timestamp, event_uid, group_event_uid,
                             exported=0, ai_checked=0, ai_status=None, ai_result=None, alerted=0):
         """插入一条视频合成数据"""
@@ -652,40 +676,27 @@ class DBHelper:
             return cur.rowcount > 0
 
     # ------------------ 事件表操作 ------------------
-    def insert_event(self, group_event_id, group_uid, timestamp, alerted=0, ai_checked=0, ai_report=None):
+    def insert_event(self, group_uid, group_event_uid, timestamp):
         """插入一条事件记录"""
         with self.get_conn() as conn:
             cur = conn.cursor()
             cur.execute("""
-                        INSERT INTO events (group_event_id, group_uid, timestamp, alerted, ai_checked, ai_report)
-                        VALUES (?, ?, ?, ?, ?, ?);
-                        """, (group_event_id, group_uid, timestamp.isoformat(), alerted, ai_checked, ai_report))
+                        INSERT INTO events (group_uid, group_event_uid, timestamp)
+                        VALUES (?, ?, ?);
+                        """, (group_uid, group_event_uid, timestamp.isoformat()))
             conn.commit()
             return cur.lastrowid
 
-    def get_event_by_id(self, event_id):
-        """根据 ID 获取事件"""
+    def get_events_by_group(self, group_event_uid):
+        """根据 group_event_uid 获取事件列表"""
         with self.get_conn() as conn:
             cur = conn.cursor()
             cur.execute("""
                         SELECT *
                         FROM events
-                        WHERE id = ?;
-                        """, (event_id,))
-            row = cur.fetchone()
-            return dict(row) if row else None
-
-    def get_events_by_group(self, group_uid, limit=50):
-        """根据 group_uid 获取事件列表"""
-        with self.get_conn() as conn:
-            cur = conn.cursor()
-            cur.execute("""
-                        SELECT *
-                        FROM events
-                        WHERE group_uid = ?
-                        ORDER BY timestamp ASC
-                        LIMIT ?;
-                        """, (group_uid, limit))
+                        WHERE group_event_uid = ?
+                        ORDER BY timestamp ASC;
+                        """, (group_event_uid,))
             return [dict(row) for row in cur.fetchall()]
 
     def get_unchecked_events(self, limit=10):
@@ -701,28 +712,42 @@ class DBHelper:
                         """, (limit,))
             return [dict(row) for row in cur.fetchall()]
 
-    def mark_event_alerted(self, event_id):
+    def mark_event_checked(self, group_event_uid, ai_status, ai_result):
+        """更新事件的 AI 检查结果"""
+        with self.get_conn() as conn:
+            cur = conn.cursor()
+            cur.execute("""
+                        UPDATE events
+                        SET ai_checked = 1,
+                            ai_status  = ?,
+                            ai_result  = ?
+                        WHERE group_event_uid = ?;
+                        """, (ai_status, ai_result,))
+            conn.commit()
+            return cur.rowcount
+
+    def get_unalerted_events(self, limit=10):
+        """获取未告警的事件"""
+        with self.get_conn() as conn:
+            cur = conn.cursor()
+            cur.execute("""
+                        SELECT *
+                        FROM events
+                        WHERE alerted = 0
+                        ORDER BY timestamp ASC
+                        LIMIT ?;
+                        """, (limit,))
+            return [dict(row) for row in cur.fetchall()]
+
+    def mark_event_alerted(self, group_event_uid):
         """标记事件为已告警"""
         with self.get_conn() as conn:
             cur = conn.cursor()
             cur.execute("""
                         UPDATE events
                         SET alerted = 1
-                        WHERE id = ?;
-                        """, (event_id,))
-            conn.commit()
-            return cur.rowcount
-
-    def update_ai_result_for_event(self, event_id, ai_checked=1, ai_report=None):
-        """更新事件的 AI 检查结果"""
-        with self.get_conn() as conn:
-            cur = conn.cursor()
-            cur.execute("""
-                        UPDATE events
-                        SET ai_checked = ?,
-                            ai_report  = ?
-                        WHERE id = ?;
-                        """, (int(ai_checked), ai_report, event_id))
+                        WHERE group_event_uid = ?;
+                        """, (group_event_uid,))
             conn.commit()
             return cur.rowcount
 

@@ -14,48 +14,48 @@ from config import BASE_URL
 
 async def alert_worker():
     while True:
-        pending_alerts = pd.DataFrame(db.get_unalerted_videos())
-        if pending_alerts.empty:
+        pending_alert_events = db.get_unalerted_events()
+        if pending_alert_events == []:
             log("INFO", "[EMERGENCY ALERT] 当前无待报警记录，休眠2秒")
             await asyncio.sleep(2)
             continue
-        grouped = pending_alerts.groupby('group_event_uid')
-        for group_event_uid, group in grouped:
-            group_uid = group.group_uid.unique()[0]
+        for event in pending_alert_events:
+            group_event_uid = event['group_event_uid']
+            ai_status = event['ai_status']
+            ai_result = event['ai_result']
             # 是否有异常内容
-            if group.ai_status.any():
-                # 获取整体状态
-                for _, video in group.iterrows():
+            if ai_status == 1:
+                pending_alert_videos = db.get_videos_by_group_event_uid(group_event_uid)
+                for video in pending_alert_videos:
                     # 单个数据查询
-                    stream_uid = video.get('stream_uid')
-                    stream_name = video.get('stream_name')
-                    video_path = video.get('video_path')
-                    before_image_path = video.get('before_image_path')
-                    after_image_path = video.get('after_image_path')
+                    stream_uid = video['stream_uid']
+                    stream_name = video['stream_name']
+                    video_path = video['video_path']
+                    before_image_path = video['before_image_path']
+                    after_image_path = video['after_image_path']
                     device_data = ddm.get_by_stream_uid(stream_uid)[0]
-                    hj_device_no = device_data.get('hjDeviceNo')
-                    hj_service_no = device_data.get('hjServiceNo')
-                    ai_result_str = None
+                    hj_device_no = device_data['hjDeviceNo']
+                    hj_service_no = device_data['hjServiceNo']
+                    ai_result_str = ai_result
                     try:
-                        ai_result_str = video.get('ai_result', '{}')
                         ai_result = json.loads(ai_result_str.replace("'", '"'))
                         event_type = ai_result.get('changes', {}).get('event_type', 'unknown')
                         event_msg = ai_result.get('changes', {}).get('description', '无描述')
                     except Exception as e:
-                        log("FAIL", f"[EMERGENCY ALERT] {stream_name} (UID={stream_uid}, GROUP_UID={group_event_uid}), 获取AI识别结果异常: {e}")
+                        log("FAIL", f"[EMERGENCY ALERT] {stream_name} (UID={stream_uid}, GROUP_EVENT_UID={group_event_uid}), 获取AI识别结果异常: {e}")
                         event_type = 'unknown'
                         event_msg = '无描述'
                     wh_code = device_data.get('whCode')
                     wh_name = device_data.get('whName')
                     loan_no = device_data.get('loanNo')
                     asset_detail = str(device_data.get('assetDetail'))
-                    log("INFO", f"[EMERGENCY ALERT] {stream_name} (UID={stream_uid}, GROUP_UID={group_event_uid}), 待报警")
+                    log("INFO", f"[EMERGENCY ALERT] {stream_name} (UID={stream_uid}, GROUP_EVENT_UID={group_event_uid}), 待报警")
                     try:
                         # 上传视频
                         file_id = zk_api.upload_byte_file_with_apikey(video_path)
-                        log("INFO", f"[EMERGENCY ALERT] {stream_name} (UID={stream_uid}, GROUP_UID={group_event_uid}), 上传视频完成")
+                        log("INFO", f"[EMERGENCY ALERT] {stream_name} (UID={stream_uid}, GROUP_EVENT_UID={group_event_uid}), 上传视频完成")
                         # 调用API接口触发报警
-                        log("INFO", f"[EMERGENCY ALERT] {stream_name} (UID={stream_uid}, GROUP_UID={group_event_uid}), 准备推送至中凯云: "
+                        log("INFO", f"[EMERGENCY ALERT] {stream_name} (UID={stream_uid}, GROUP_EVENT_UID={group_event_uid}), 准备推送至中凯云: "
                                    f"hj_device_no={hj_device_no}, hj_service_no={hj_service_no}, event_type={event_type}, "
                                    f"event_date={date.today().strftime('%Y-%m-%d')}, event_msg={event_msg}, "
                                    f"event_video_file_id={file_id}, wh_code={wh_code}, wh_name={wh_name}, "
@@ -73,9 +73,9 @@ async def alert_worker():
                             loan_no=loan_no,
                             asset_detail=asset_detail
                         )
-                        log("SUCCESS", f"[EMERGENCY ALERT] {stream_name} (UID={stream_uid}, GROUP_UID={group_event_uid}), 推送至中凯云成功")
+                        log("SUCCESS", f"[EMERGENCY ALERT] {stream_name} (UID={stream_uid}, GROUP_EVENT_UID={group_event_uid}), 推送至中凯云成功")
                     except ZhongkaiAPIError as e:
-                        log("FAIL", f"[EMERGENCY ALERT] {stream_name} (UID={stream_uid}, GROUP_UID={group_event_uid}), 推送至中凯云失败: {e}")
+                        log("FAIL", f"[EMERGENCY ALERT] {stream_name} (UID={stream_uid}, GROUP_EVENT_UID={group_event_uid}), 推送至中凯云失败: {e}")
                     # 发送邮件
                     emal_conent = f"编组视频流 {stream_uid} 预警。\n" \
                                   f"设备名称: {stream_name}\n" \
@@ -99,11 +99,11 @@ async def alert_worker():
                         image_after_url=urljoin(BASE_URL, after_image_path),
                         video_url=urljoin(BASE_URL, video_path)
                     )
-                    log("SUCCESS", f"[EMERGENCY ALERT] {stream_name} (UID={stream_uid}, GROUP_UID={group_event_uid}), 邮件发送完成")
+                    log("SUCCESS", f"[EMERGENCY ALERT] {stream_name} (UID={stream_uid}, GROUP_EVENT_UID={group_event_uid}), 邮件发送完成")
             else:
-                log("INFO", f"[EMERGENCY ALERT] GROUP_UID={group_event_uid}, 无异常内容")
+                log("INFO", f"[EMERGENCY ALERT] GROUP_EVENT_UID={group_event_uid}, 无异常内容")
             # 更新数据库
-            db.mark_video_as_alerted(group_event_uid)
+            db.mark_event_alerted(group_event_uid)
             await asyncio.sleep(1)
 
 

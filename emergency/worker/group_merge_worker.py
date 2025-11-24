@@ -137,7 +137,9 @@ async def group_merge_worker():
                 size = os.path.getsize(video_path)
                 duration = len(video_frames) / 1  # fps=1
                 db.insert_merged_video(stream_name, stream_uid, group_uid, '0', video_path, before_image_path, after_image_path, duration, size, datetime.now(), event_uid, group_event_uid)
-            db.mark_video_as_exported(group_event_uid)
+            now_timestamp = datetime.now()
+            db.insert_event(group_uid, group_event_uid, now_timestamp)
+            # db.mark_video_as_exported(group_event_uid)
         await asyncio.sleep(10)
 
 
