@@ -179,7 +179,9 @@ async def detect_worker(queue, detector, change_threshold):
                         change_ratio = np.random.rand()
                         changed = change_ratio < 0.1
                         if changed:
-                            change_ratio = 1 - change_ratio
+                            change_ratio = 0.2
+                        else:
+                            change_ratio = 0.0
                     else:
                         # 真正进行检测
                         changed, change_area, change_ratio = detector.detect_change(frame, change_threshold=change_threshold)
