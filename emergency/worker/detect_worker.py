@@ -174,8 +174,6 @@ async def detect_worker(queue, detector, change_threshold):
 
                 if need_detect:
                     log("INFO", f"[DETECT] {stream_name} (UID={stream_uid}, FENCE={fence_id}) 开始检测...", log_path=log_file_path)
-                    # 真正进行检测
-                    changed, change_area, change_ratio = detector.detect_change(frame, change_threshold=change_threshold)
                     debug = True
                     if debug:
                         change_ratio = np.random.rand()
@@ -183,6 +181,8 @@ async def detect_worker(queue, detector, change_threshold):
                         if changed:
                             change_ratio = 1 - change_ratio
                     else:
+                        # 真正进行检测
+                        changed, change_area, change_ratio = detector.detect_change(frame, change_threshold=change_threshold)
                         # 过滤微小变化
                         if 0 <= change_ratio <= 1:
                             if change_area < 500:
