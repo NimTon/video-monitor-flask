@@ -10,11 +10,15 @@ from utils.utils import draw_fence_on_frame
 from utils.log_utils import log
 import ffmpeg
 from utils.init_ffmpeg import FFMPEG_EXE
+from config import TEMP_DIR
 
 storage_manager = StorageManager()
 detect_queues = {}
-capture_path = "./tmp/capture"
-detect_path = "./tmp/detect"
+capture_path = f"{TEMP_DIR}/capture"
+detect_path = f"{TEMP_DIR}/detect"
+os.makedirs(capture_path, exist_ok=True)
+os.makedirs(detect_path, exist_ok=True)
+
 RESTART_INTERVAL = 3600  # 每1小时重启一次
 
 # ------------------------
@@ -172,7 +176,7 @@ async def detect_worker(queue, detector, change_threshold):
                     log("INFO", f"[DETECT] {stream_name} (UID={stream_uid}, FENCE={fence_id}) 开始检测...", log_path=log_file_path)
                     # 真正进行检测
                     changed, change_area, change_ratio = detector.detect_change(frame, change_threshold=change_threshold)
-
+                    changed = np.random.rand() < 0.1  # 1%概率触发changed
                     # 过滤微小变化
                     if 0 <= change_ratio <= 1:
                         if change_area < 500:
