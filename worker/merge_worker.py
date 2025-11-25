@@ -19,7 +19,7 @@ async def merge_worker():
             for fence_uid in fence_uids:
                 detect_fence_frame = pd.DataFrame(db.get_changed_and_pending_export_frames_by_stream_fence(stream_uid, fence_uid)).copy()
                 if len(detect_fence_frame) == 0:
-                    # log("INFO", f"[MERGE] 流 {stream_name} (UID={stream_uid}, FENCE_UID={fence_uid}) 未检测到异常，跳过")
+                    log("INFO", f"[MERGE] 流 {stream_name} (UID={stream_uid}, FENCE_UID={fence_uid}) 未检测到异常，跳过")
                     continue
                 log("INFO", f"[MERGE] 流 {stream_name} (UID={stream_uid}, FENCE_UID={fence_uid}) 有异常帧数量: {len(detect_fence_frame)}")
                 detect_fence_frame['timestamp'] = pd.to_datetime(detect_fence_frame['timestamp'])
