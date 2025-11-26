@@ -499,11 +499,10 @@ class MessageManager:
                 return i  # 返回索引位置
         return -1  # 未找到返回-1
 
-    def add_message(self, stream_uid, fence_uid, stream_name, change_ratio, ai_report, image_before_url, image_after_url, video_url):
+    def add_message(self, timestamp, stream_uid, fence_uid, stream_name, change_ratio, ai_report, image_before_url, image_after_url, video_url):
         """添加新告警信息"""
         data = self.load_all()  # 加载现有数据
         message_uid = str(uuid.uuid4())  # 生成唯一ID
-        timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
         # 创建新告警信息对象
         new_message = {
