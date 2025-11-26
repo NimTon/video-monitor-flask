@@ -1,6 +1,7 @@
 import sqlite3
 from contextlib import contextmanager
 from config import DB_PATH
+from utils.log_utils import log
 
 MAX_SQL_VARS = 900
 
@@ -24,91 +25,178 @@ class DBHelper:
             conn.close()
 
     def init_db(self):
-        """初始化表结构"""
+        """初始化表结构，若有缺失字段则添加"""
         with self.get_conn() as conn:
             cur = conn.cursor()
 
             # 抓帧表
-            cur.execute("""
-                        CREATE TABLE IF NOT EXISTS captured_frames
-                        (
-                            id         INTEGER PRIMARY KEY AUTOINCREMENT,
-                            stream_uid TEXT,
-                            group_uid  TEXT,
-                            timestamp  TEXT,
-                            frame_path TEXT
-                        );
-                        """)
+            self.create_table_with_check(cur, "captured_frames", [
+                ("id", "INTEGER PRIMARY KEY AUTOINCREMENT"),
+                ("stream_uid", "TEXT"),
+                ("group_uid", "TEXT"),
+                ("group_event_uid", "TEXT"),
+                ("timestamp", "TEXT"),
+                ("frame_path", "TEXT")
+            ])
 
             # 异常检测表
-            cur.execute("""
-                        CREATE TABLE IF NOT EXISTS fence_detections
-                        (
-                            id                INTEGER PRIMARY KEY AUTOINCREMENT,
-                            stream_uid        TEXT,
-                            group_uid         TEXT,
-                            fence_uid         TEXT,
-                            change_ratio      REAL,
-                            changed           INTEGER,              -- 0=normal,1=abnormal
-                            timestamp         TEXT,
-                            frame_path        TEXT,
-                            frame_id          INTEGER,
-                            exported          INTEGER DEFAULT 0,    -- 0=未导出, 1=已导出
-                            group_exported    INTEGER DEFAULT 0,    -- 0=未导出, 1=已导出
-                            ai_checked        INTEGER DEFAULT 0,
-                            ai_status         INTEGER DEFAULT NULL, -- 0=normal,1=AI判定异常,-1=失败
-                            ai_result         TEXT    DEFAULT NULL,
-                            alerted           INTEGER DEFAULT 0,
-                            event_uid         TEXT,                 -- 事件ID (UUID)
-                            group_event_uid   TEXT,
-                            before_image_path TEXT    DEFAULT NULL, -- 新增：前一帧图像路径
-                            after_image_path  TEXT    DEFAULT NULL, -- 新增：后一帧图像路径
-                            alert_video_path  TEXT    DEFAULT NULL
-                        );
-                        """)
+            self.create_table_with_check(cur, "fence_detections", [
+                ("id", "INTEGER PRIMARY KEY AUTOINCREMENT"),
+                ("stream_uid", "TEXT"),
+                ("group_uid", "TEXT"),
+                ("fence_uid", "TEXT"),
+                ("change_ratio", "REAL"),
+                ("changed", "INTEGER"),
+                ("timestamp", "TEXT"),
+                ("frame_path", "TEXT"),
+                ("frame_id", "INTEGER"),
+                ("exported", "INTEGER DEFAULT 0"),
+                ("group_exported", "INTEGER DEFAULT 0"),
+                ("ai_checked", "INTEGER DEFAULT 0"),
+                ("ai_status", "INTEGER DEFAULT NULL"),
+                ("ai_result", "TEXT DEFAULT NULL"),
+                ("alerted", "INTEGER DEFAULT 0"),
+                ("event_uid", "TEXT"),
+                ("group_event_uid", "TEXT"),
+                ("before_image_path", "TEXT DEFAULT NULL"),
+                ("after_image_path", "TEXT DEFAULT NULL"),
+                ("alert_video_path", "TEXT DEFAULT NULL")
+            ])
 
             # 视频合成表
-            cur.execute("""
-                        CREATE TABLE IF NOT EXISTS merged_videos
-                        (
-                            id                INTEGER PRIMARY KEY AUTOINCREMENT,
-                            stream_name       TEXT,
-                            stream_uid        TEXT,
-                            group_uid         TEXT,
-                            fence_uid         TEXT,
-                            video_path        TEXT,
-                            before_image_path TEXT    DEFAULT NULL, -- 新增：前一帧图像路径
-                            after_image_path  TEXT    DEFAULT NULL, -- 新增：后一帧图像路径
-                            duration          REAL,                 -- 秒
-                            size              INTEGER,              -- 字节
-                            timestamp         TEXT,
-                            exported          INTEGER DEFAULT 0,    -- 0=未导出, 1=已导出
-                            ai_checked        INTEGER DEFAULT 0,
-                            ai_status         INTEGER DEFAULT NULL, -- 0=normal,1=AI判定异常,-1=失败
-                            ai_result         TEXT    DEFAULT NULL,
-                            alerted           INTEGER DEFAULT 0,
-                            event_uid         TEXT,                 -- 事件ID (UUID)
-                            group_event_uid   TEXT
-                        );
-                        """)
+            self.create_table_with_check(cur, "merged_videos", [
+                ("id", "INTEGER PRIMARY KEY AUTOINCREMENT"),
+                ("stream_name", "TEXT"),
+                ("stream_uid", "TEXT"),
+                ("group_uid", "TEXT"),
+                ("fence_uid", "TEXT"),
+                ("video_path", "TEXT"),
+                ("before_image_path", "TEXT DEFAULT NULL"),
+                ("after_image_path", "TEXT DEFAULT NULL"),
+                ("duration", "REAL"),
+                ("size", "INTEGER"),
+                ("timestamp", "TEXT"),
+                ("exported", "INTEGER DEFAULT 0"),
+                ("ai_checked", "INTEGER DEFAULT 0"),
+                ("ai_status", "INTEGER DEFAULT NULL"),
+                ("ai_result", "TEXT DEFAULT NULL"),
+                ("alerted", "INTEGER DEFAULT 0"),
+                ("event_uid", "TEXT"),
+                ("group_event_uid", "TEXT")
+            ])
 
             # 编组预警事件表
-            cur.execute("""
-                        CREATE TABLE IF NOT EXISTS events
-                        (
-                            id              INTEGER PRIMARY KEY AUTOINCREMENT,
-                            group_uid       TEXT,
-                            group_event_uid TEXT,
-                            timestamp       TEXT,
-                            exported        INTEGER DEFAULT 0,
-                            ai_checked      INTEGER DEFAULT 0,
-                            ai_status       INTEGER DEFAULT 0,
-                            ai_result       TEXT,
-                            alerted         INTEGER DEFAULT 0
-                        );
-                        """)
+            self.create_table_with_check(cur, "events", [
+                ("id", "INTEGER PRIMARY KEY AUTOINCREMENT"),
+                ("group_uid", "TEXT"),
+                ("group_event_uid", "TEXT"),
+                ("timestamp", "TEXT"),
+                ("exported", "INTEGER DEFAULT 0"),
+                ("ai_checked", "INTEGER DEFAULT 0"),
+                ("ai_status", "INTEGER DEFAULT 0"),
+                ("ai_result", "TEXT"),
+                ("alerted", "INTEGER DEFAULT 0")
+            ])
 
             conn.commit()
+
+    def create_table_with_check(self, cursor, table_name, expected_columns):
+        """创建表并检查字段是否缺失，若有缺失字段则添加"""
+        cursor.execute(f"PRAGMA table_info({table_name})")
+        existing_columns = {row['name'] for row in cursor.fetchall()}
+
+        # 遍历预期的字段，并检查是否缺失
+        for column_name, column_def in expected_columns:
+            if column_name not in existing_columns:
+                cursor.execute(f"ALTER TABLE {table_name} ADD COLUMN {column_name} {column_def}")
+                log("INFO", f"成功添加字段 {column_name} 到表 {table_name} 中")
+
+    # def init_db(self):
+    #     """初始化表结构"""
+    #     with self.get_conn() as conn:
+    #         cur = conn.cursor()
+    #
+    #         # 抓帧表
+    #         cur.execute("""
+    #                     CREATE TABLE IF NOT EXISTS captured_frames
+    #                     (
+    #                         id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    #                         stream_uid TEXT,
+    #                         group_uid  TEXT,
+    #                         timestamp  TEXT,
+    #                         frame_path TEXT
+    #                     );
+    #                     """)
+    #
+    #         # 异常检测表
+    #         cur.execute("""
+    #                     CREATE TABLE IF NOT EXISTS fence_detections
+    #                     (
+    #                         id                INTEGER PRIMARY KEY AUTOINCREMENT,
+    #                         stream_uid        TEXT,
+    #                         group_uid         TEXT,
+    #                         fence_uid         TEXT,
+    #                         change_ratio      REAL,
+    #                         changed           INTEGER,              -- 0=normal,1=abnormal
+    #                         timestamp         TEXT,
+    #                         frame_path        TEXT,
+    #                         frame_id          INTEGER,
+    #                         exported          INTEGER DEFAULT 0,    -- 0=未导出, 1=已导出
+    #                         group_exported    INTEGER DEFAULT 0,    -- 0=未导出, 1=已导出
+    #                         ai_checked        INTEGER DEFAULT 0,
+    #                         ai_status         INTEGER DEFAULT NULL, -- 0=normal,1=AI判定异常,-1=失败
+    #                         ai_result         TEXT    DEFAULT NULL,
+    #                         alerted           INTEGER DEFAULT 0,
+    #                         event_uid         TEXT,                 -- 事件ID (UUID)
+    #                         group_event_uid   TEXT,
+    #                         before_image_path TEXT    DEFAULT NULL, -- 新增：前一帧图像路径
+    #                         after_image_path  TEXT    DEFAULT NULL, -- 新增：后一帧图像路径
+    #                         alert_video_path  TEXT    DEFAULT NULL
+    #                     );
+    #                     """)
+    #
+    #         # 视频合成表
+    #         cur.execute("""
+    #                     CREATE TABLE IF NOT EXISTS merged_videos
+    #                     (
+    #                         id                INTEGER PRIMARY KEY AUTOINCREMENT,
+    #                         stream_name       TEXT,
+    #                         stream_uid        TEXT,
+    #                         group_uid         TEXT,
+    #                         fence_uid         TEXT,
+    #                         video_path        TEXT,
+    #                         before_image_path TEXT    DEFAULT NULL, -- 新增：前一帧图像路径
+    #                         after_image_path  TEXT    DEFAULT NULL, -- 新增：后一帧图像路径
+    #                         duration          REAL,                 -- 秒
+    #                         size              INTEGER,              -- 字节
+    #                         timestamp         TEXT,
+    #                         exported          INTEGER DEFAULT 0,    -- 0=未导出, 1=已导出
+    #                         ai_checked        INTEGER DEFAULT 0,
+    #                         ai_status         INTEGER DEFAULT NULL, -- 0=normal,1=AI判定异常,-1=失败
+    #                         ai_result         TEXT    DEFAULT NULL,
+    #                         alerted           INTEGER DEFAULT 0,
+    #                         event_uid         TEXT,                 -- 事件ID (UUID)
+    #                         group_event_uid   TEXT
+    #                     );
+    #                     """)
+    #
+    #         # 编组预警事件表
+    #         cur.execute("""
+    #                     CREATE TABLE IF NOT EXISTS events
+    #                     (
+    #                         id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    #                         group_uid       TEXT,
+    #                         group_event_uid TEXT,
+    #                         timestamp       TEXT,
+    #                         exported        INTEGER DEFAULT 0,
+    #                         ai_checked      INTEGER DEFAULT 0,
+    #                         ai_status       INTEGER DEFAULT 0,
+    #                         ai_result       TEXT,
+    #                         alerted         INTEGER DEFAULT 0
+    #                     );
+    #                     """)
+    #
+    #         conn.commit()
 
     # ------------------ 清理方法 ------------------
     def cleanup_table_by_time(self, table_name, time_column, time_threshold):
