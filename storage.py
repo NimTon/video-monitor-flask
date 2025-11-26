@@ -499,6 +499,21 @@ class MessageManager:
                 return i  # 返回索引位置
         return -1  # 未找到返回-1
 
+    def clear_old_messages(self, hours):
+        """清理指定小时之前的告警信息"""
+        current_time = datetime.datetime.now()  # 获取当前时间
+        threshold_time = current_time - datetime.timedelta(hours=hours)  # 计算阈值时间
+
+        data = self.load_all()  # 加载所有告警信息
+        cleaned_data = []  # 用于存储过滤后的数据
+
+        for message in data:
+            message_timestamp = datetime.datetime.fromisoformat(message['timestamp'])  # 转换时间戳
+            if message_timestamp >= threshold_time:  # 只保留指定小时内的告警信息
+                cleaned_data.append(message)
+
+        self.save_all(cleaned_data)  # 保存过滤后的数据
+
     def add_message(self, timestamp, stream_uid, fence_uid, stream_name, change_ratio, ai_report, image_before_url, image_after_url, video_url):
         """添加新告警信息"""
         data = self.load_all()  # 加载现有数据

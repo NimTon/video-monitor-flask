@@ -1,6 +1,7 @@
 import time
 import schedule
 from datetime import datetime, timedelta
+from storage import mm
 from config import VIDEO_DIR, IMAGE_DIR, TEMP_DIR
 from utils.db_utils import db  # 引入 db 实例
 from utils.utils import clean_task, log  # 引入清理任务和日志函数
@@ -63,11 +64,16 @@ def cleanup_old_files():
     clean_task([TEMP_DIR], days=1)
     log('INFO', "清理 临时目录中的旧文件完成！")
 
+def cleanup_old_message():
+    """清理预警信息"""
+    mm.clear_old_messages(1)
+
 
 def cleanup_all():
     """执行清理任务：清理数据库和旧文件"""
     cleanup_24_hours_data()  # 清理数据库中的24小时以前的数据
     cleanup_old_files()  # 清理过期的文件
+    # cleanup_old_message()  # 清理过期的预警信息
 
 
 # 首次运行时立即执行清理任务
