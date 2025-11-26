@@ -28,6 +28,7 @@ async def alert_worker():
                 pending_alert_videos = db.get_videos_by_group_event_uid(group_event_uid)
                 for video in pending_alert_videos:
                     # 单个数据查询
+                    timestamp = datetime.fromisoformat(video['timestamp']).strftime("%Y-%m-%d %H:%M:%S")
                     stream_uid = video['stream_uid']
                     stream_name = video['stream_name']
                     video_path = video['video_path']
@@ -90,6 +91,7 @@ async def alert_worker():
 
                     # 存入message.json
                     mm.add_message(
+                        timestamp = timestamp,
                         stream_uid=stream_uid,
                         fence_uid='-1',
                         stream_name=stream_name,

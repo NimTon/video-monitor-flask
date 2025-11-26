@@ -40,11 +40,12 @@ async def alert_worker():
                 before_image_url = urljoin(BASE_URL, before_image_path)
                 after_image_url = urljoin(BASE_URL, after_image_path)
                 alert_video_url = urljoin(BASE_URL, alert_video_path)
-                timestamp = datetime.fromisoformat(alert.get("timestamp"))
+                timestamp = datetime.fromisoformat(alert["timestamp"]).strftime("%Y-%m-%d %H:%M:%S")
                 log("INFO", f"[ALERT] 处理 {stream_name} (UID={stream_uid}, FENCE_UID={fence_uid}, DETECTION_ID={detection_id}, TIMESTAMP={timestamp})")
 
                 # 存入message.json
                 mm.add_message(
+                    timestamp = timestamp,
                     stream_uid=stream_uid,
                     fence_uid=fence_uid,
                     stream_name=stream_name,
