@@ -168,7 +168,7 @@ class DBHelper:
 
     def cleanup_captured_frames_by_column(self, column_value):
         """按列值清理抓帧表"""
-        self.cleanup_table_by_column('captured_frames', 'frame_path', column_value)
+        self.cleanup_table_by_column('captured_frames', 'group_event_uid', column_value)
 
     # ------------------ 清理异常检测表 ------------------
     def cleanup_fence_detections_by_time(self, time_threshold):
@@ -177,7 +177,7 @@ class DBHelper:
 
     def cleanup_fence_detections_by_column(self, column_value):
         """按列值清理异常检测表"""
-        self.cleanup_table_by_column('fence_detections', 'changed', column_value)
+        self.cleanup_table_by_column('fence_detections', 'group_event_uid', column_value)
 
     # ------------------ 清理视频合成表 ------------------
     def cleanup_merged_videos_by_time(self, time_threshold):
@@ -186,7 +186,7 @@ class DBHelper:
 
     def cleanup_merged_videos_by_column(self, column_value):
         """按列值清理视频合成表"""
-        self.cleanup_table_by_column('merged_videos', 'exported', column_value)
+        self.cleanup_table_by_column('merged_videos', 'group_event_uid', column_value)
 
     # ------------------ 清理事件表 ------------------
     def cleanup_events_by_time(self, time_threshold):
@@ -195,7 +195,7 @@ class DBHelper:
 
     def cleanup_events_by_column(self, column_value):
         """按列值清理事件表"""
-        self.cleanup_table_by_column('events', 'alerted', column_value)
+        self.cleanup_table_by_column('events', 'group_event_uid', column_value)
 
     # ------------------ 抓帧表操作 ------------------
     def bind_group_event_uid_to_frames(self, start_ts, end_ts, group_event_uid):
