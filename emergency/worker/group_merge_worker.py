@@ -109,8 +109,6 @@ async def group_merge_worker():
                 video_url, video_path = save_frames_as_video(stream_uid, '0', video_frames, fps=1)
                 log("SUCCESS", f"[GROUP MERGE] 视频生成完成: {video_path}")
                 event_uid = str(uuid.uuid4())
-
-
                 frame_data['timestamp'] = pd.to_datetime(frame_data['timestamp'], format='ISO8601', errors='coerce')
 
                 # 移除无法解析的时间数据
@@ -136,9 +134,8 @@ async def group_merge_worker():
                 db.mark_as_group_exported(frame_data[frame_data['timestamp'] <= end_ts]['id'].tolist(), event_uid, group_event_uid)
                 size = os.path.getsize(video_path)
                 duration = len(video_frames) / 1  # fps=1
-                db.insert_merged_video(stream_name, stream_uid, group_uid, '0', video_path, before_image_path, after_image_path, duration, size, datetime.now(), event_uid, group_event_uid)
-            now_timestamp = datetime.now()
-            db.insert_event(group_uid, group_event_uid, now_timestamp)
+                db.insert_merged_video(stream_name, stream_uid, group_uid, '0', video_path, before_image_path, after_image_path, duration, size, end_ts, event_uid, group_event_uid)
+            db.insert_event(group_uid, group_event_uid, end_ts)
             # db.mark_video_as_exported(group_event_uid)
         await asyncio.sleep(10)
 
