@@ -29,6 +29,10 @@ async def ai_worker():
                 # 查询单个视频内相关识别内容
                 single_ai_results = db.get_ai_result_by_group_event_uid(group_event_uid)
                 single_ai_results = pd.DataFrame(single_ai_results)
+                if single_ai_results.empty:
+                    log("INFO", f"[EMERGENCY AI] {stream_name} (UID={stream_uid}, GROUP_UID={group_uid}, TIMESTAMPE={timestamp}) 无AI结果，跳过")
+                    await asyncio.sleep(5)
+                    continue
                 # 如果ai_checked为0则记录日志
                 if (single_ai_results['ai_checked'] == 0).any():
                     log("INFO", f"[EMERGENCY AI] 有尚未识别的单个AI结果，group_event_uid: {group_event_uid}, 跳过")
