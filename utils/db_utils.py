@@ -123,6 +123,7 @@ class DBHelper:
     #                         id         INTEGER PRIMARY KEY AUTOINCREMENT,
     #                         stream_uid TEXT,
     #                         group_uid  TEXT,
+    #                         group_event_uid TEXT,
     #                         timestamp  TEXT,
     #                         frame_path TEXT
     #                     );
