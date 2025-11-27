@@ -2,7 +2,7 @@ import asyncio
 import cv2
 import pandas as pd
 from utils.db_utils import db
-from utils.utils import save_frames_as_video, save_key_frames, get_first_changed_row
+from utils.utils import save_frames_as_video, save_key_frames, get_first_changed_row, save_frames_as_video_ffmpeg
 from utils.log_utils import log
 from storage import sm
 from config import BASE_URL
@@ -44,7 +44,7 @@ async def merge_worker():
                         log("INFO", f"[MERGE] 流 {stream_name} (UID={stream_uid}, FENCE_UID={fence_uid}) 的可用回放帧数量为 0 张，跳过")
                         continue
                     log("INFO", f"[MERGE] 开始生成视频, 帧数量: {len(video_frames)}")
-                    video_url, video_path = save_frames_as_video(stream_uid, fence_uid, video_frames, fps=1)
+                    video_url, video_path = save_frames_as_video_ffmpeg(stream_uid, fence_uid, video_frames, fps=1)
                     image_urls, image_paths = save_key_frames(stream_uid, fence_uid, video_frames, base_url=BASE_URL)
                     log("SUCCESS", f"[MERGE] 视频生成完成: {video_path}")
                     db.update_media_paths(frame_row['id'],

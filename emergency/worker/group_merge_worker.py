@@ -7,7 +7,7 @@ import cv2
 import pandas as pd
 from utils.db_utils import db
 from utils.stream_utils import get_stream_change_dict, fuse_streams_by_position, get_fuse_bool_time_range
-from utils.utils import draw_fence_on_frame, save_frames_as_video
+from utils.utils import draw_fence_on_frame, save_frames_as_video, save_frames_as_video_ffmpeg
 from utils.log_utils import log
 from storage import sm
 
@@ -106,7 +106,7 @@ async def group_merge_worker():
                 after_image_path = f"images/{stream_uid}/{filename}"
                 shutil.copy(frame_path, after_image_path)
                 log("INFO", f"[GROUP MERGE] 开始生成视频, 帧数量: {len(video_frames)}")
-                video_url, video_path = save_frames_as_video(stream_uid, '0', video_frames, fps=1)
+                video_url, video_path = save_frames_as_video_ffmpeg(stream_uid, '0', video_frames, fps=1)
                 log("SUCCESS", f"[GROUP MERGE] 视频生成完成: {video_path}")
                 event_uid = str(uuid.uuid4())
                 frame_data['timestamp'] = pd.to_datetime(frame_data['timestamp'], format='ISO8601', errors='coerce')

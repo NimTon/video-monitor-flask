@@ -1,3 +1,6 @@
+import shutil
+import subprocess
+from utils.init_ffmpeg import FFMPEG_EXE
 import cv2
 import time
 import numpy as np
@@ -370,7 +373,7 @@ def save_imgs_as_video(frame_paths, output_path, fps=25):
         raise ValueError(f"无法读取第一帧图像: {frame_paths[0]}")
 
     height, width = first_frame.shape[:2]
-    fourcc = cv2.VideoWriter_fourcc(*'H264')
+    fourcc = cv2.VideoWriter_fourcc(*'avc1')
 
     # 确保输出目录存在
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
@@ -420,7 +423,7 @@ def save_frames_as_video(stream_id, fence_id, frames, video_root='./videos', bas
         return None, None
 
     height, width = frames[0].shape[:2]
-    fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+    fourcc = cv2.VideoWriter_fourcc(*'avc1')
     video_filename = f"{stream_id}/{stream_id}_{fence_id}_{now_time_str}.mp4"
     video_path = f"{video_root}/{video_filename}"
 
@@ -432,6 +435,58 @@ def save_frames_as_video(stream_id, fence_id, frames, video_root='./videos', bas
     video_writer.release()
 
     video_url = f"{base_url}/videos/{video_filename}"
+    return video_url, video_path
+
+
+def save_frames_as_video_ffmpeg(stream_id, fence_id, frames, video_root='./videos', base_url='127.0.0.1:5000', fps=25):
+    """
+    使用 FFmpeg 命令行将帧生成 H.264 视频，兼容原 save_frames_as_video 接口。
+    文件名格式: {stream_id}_{fence_id}_{时间戳}.mp4
+    """
+    now_time_str = datetime.now().strftime('%Y%m%d_%H%M%S')
+    stream_dir = os.path.join(video_root, stream_id)
+    os.makedirs(stream_dir, exist_ok=True)
+
+    if not frames:
+        print("No frames to save!")
+        return None, None
+
+    # 保存每帧为临时 PNG 文件
+    tmp_dir = os.path.join(stream_dir, f"tmp_{now_time_str}")
+    os.makedirs(tmp_dir, exist_ok=True)
+    width, height = frames[0].shape[1], frames[0].shape[0]
+
+    for i, frame in enumerate(frames):
+        # 如果帧尺寸不一致，统一调整
+        if frame.shape[1] != width or frame.shape[0] != height:
+            frame = cv2.resize(frame, (width, height))
+        frame_path = os.path.join(tmp_dir, f"frame_{i:05d}.png")
+        cv2.imwrite(frame_path, frame)
+
+    # 输出视频路径
+    video_filename = f"{stream_id}_{fence_id}_{now_time_str}.mp4"
+    video_path = os.path.join(stream_dir, video_filename)
+
+    # 构建 FFmpeg 命令
+    cmd = [
+        FFMPEG_EXE,
+        "-y",  # 覆盖已存在文件
+        "-r", str(fps),  # 帧率
+        "-i", os.path.join(tmp_dir, "frame_%05d.png"),  # 输入帧
+        "-c:v", "libx264",  # H.264 编码
+        "-pix_fmt", "yuv420p",  # 兼容大部分播放器
+        "-loglevel", "error",
+        video_path
+    ]
+
+    # 执行 FFmpeg
+    subprocess.run(cmd, check=True)
+
+    # 删除临时帧
+    time.sleep(3)
+    shutil.rmtree(tmp_dir)
+
+    video_url = f"{base_url}/videos/{stream_id}/{video_filename}"
     return video_url, video_path
 
 
