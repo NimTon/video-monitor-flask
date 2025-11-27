@@ -62,7 +62,7 @@ async def alert_worker():
                     "timestamp": timestamp,
                     "change_ratio": f"{change_ratio:.3f}",
                     "ai_result": ai_result,
-                    "image_url": f"{before_image_url} {after_image_url}",
+                    "image_url": f"{before_image_url}\n{after_image_url}",
                     "video_url": alert_video_url
                 }
                 message = ''
@@ -75,7 +75,7 @@ async def alert_worker():
 
                 # 触发报警 有需要再改为异步
                 if recipients:
-                    attachments = [before_image_path, after_image_path, after_image_path]
+                    attachments = [before_image_path, after_image_path, alert_video_path]
                     for r in recipients:
                         contact = r.get("contact")
                         for method_name, contact_value in contact.items():
