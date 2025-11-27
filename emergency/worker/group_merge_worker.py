@@ -137,7 +137,7 @@ async def group_merge_worker():
                 db.insert_merged_video(stream_name, stream_uid, group_uid, '0', video_path, before_image_path, after_image_path, duration, size, end_ts, event_uid, group_event_uid)
             db.insert_event(group_uid, group_event_uid, end_ts)
             # 给抓帧表绑定stats_ts到end_ts的group_event_uid
-            db.bind_group_event_uid_to_frames(group_event_uid, start_ts, end_ts)
+            db.bind_group_event_uid_to_frames(start_ts, end_ts, group_event_uid)
         await asyncio.sleep(10)
 
 
