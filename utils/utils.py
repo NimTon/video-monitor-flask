@@ -363,34 +363,34 @@ def save_imgs_as_video(frame_paths, output_path, fps=25):
     """
     if not frame_paths:
         raise ValueError("没有图像路径提供")
-    
+
     # 读取第一帧以获取尺寸
     first_frame = cv2.imread(frame_paths[0])
     if first_frame is None:
         raise ValueError(f"无法读取第一帧图像: {frame_paths[0]}")
-    
+
     height, width = first_frame.shape[:2]
     fourcc = cv2.VideoWriter_fourcc(*'H264')
-    
+
     # 确保输出目录存在
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
-    
+
     # 创建VideoWriter对象
     video_writer = cv2.VideoWriter(output_path, fourcc, fps, (width, height))
-    
+
     # 写入每一帧
     for frame_path in frame_paths:
         frame = cv2.imread(frame_path)
         if frame is None:
             print(f"警告: 无法读取帧 {frame_path}，跳过")
             continue
-            
+
         # 如果尺寸不匹配，调整尺寸
         if frame.shape[1] != width or frame.shape[0] != height:
             frame = cv2.resize(frame, (width, height))
-            
+
         video_writer.write(frame)
-    
+
     video_writer.release()
     return output_path
 
@@ -420,7 +420,7 @@ def save_frames_as_video(stream_id, fence_id, frames, video_root='./videos', bas
         return None, None
 
     height, width = frames[0].shape[:2]
-    fourcc = cv2.VideoWriter_fourcc(*'H264')
+    fourcc = cv2.VideoWriter_fourcc(*'mp4v')
     video_filename = f"{stream_id}/{stream_id}_{fence_id}_{now_time_str}.mp4"
     video_path = f"{video_root}/{video_filename}"
 
